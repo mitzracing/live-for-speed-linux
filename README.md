@@ -2,9 +2,9 @@
 
 Unofficial community Linux launcher for the untouched official [Live for Speed](https://www.lfs.net/) Windows build.
 
-**Status:** v0.2.2 public-test source release. The validated AUR recipe awaits maintainer SSH access. The core works without Steam, Bottles, Lutris, or a background launcher.
+**Status:** v0.3.0 public-test source release. The validated AUR recipe awaits maintainer SSH access. The core works without Steam, Bottles, Lutris, or a background launcher.
 
-This release targets exact official **LFS 0.8C19 new graphics**, which lfs.net still labels **PUBLIC TEST**. It is not represented as a stable LFS release. Use immutable [v0.1.6](https://github.com/mitzracing/live-for-speed-linux/releases/tag/v0.1.6) for the audited old-graphics 0.7G fallback.
+This release bootstraps exact official **LFS 0.8C20 new graphics**, which lfs.net still labels **PUBLIC TEST**. It is not represented as a stable LFS release. Use immutable [v0.1.6](https://github.com/mitzracing/live-for-speed-linux/releases/tag/v0.1.6) for the audited old-graphics 0.7G fallback.
 
 This project is not affiliated with or endorsed by the Live for Speed developers.
 
@@ -15,10 +15,11 @@ The public package is `live-for-speed-linux`. The stable command and player-stat
 ## What it does
 
 - Downloads LFS directly from `lfs.net` after an explicit user command.
-- Verifies the official archive and all 52 nested archives, extracts without executing the installer, checks every official seed file, then tracks immutable stock separately from mutable player data.
+- Verifies the official archive and all 52 nested archives, extracts without executing the installer, checks every official seed file, then tracks protected stock separately from mutable player data.
 - Creates one private Wine prefix and uses only audited Wine 11.15-1 under the XDG data directory.
-- Deploys only DXVK's audited 32-bit D3D11 and DXGI DLLs required by LFS 0.8C19.
+- Deploys only DXVK's audited 32-bit D3D11 and DXGI DLLs required by LFS 0.8C20.
 - Starts Wine directly with no wrapper daemon or container.
+- Records a versioned in-game update after the trusted LFS session exits, then verifies that local baseline on later launches.
 - Preserves game-owned settings, profiles, replays, unlock state, and cache.
 - Detects official download-page changes without editing game files.
 
@@ -28,12 +29,15 @@ The public package is `live-for-speed-linux`. The stable command and player-stat
 - Patch `LFS.exe`, cars, tracks, shaders, textures, or configuration
 - Store account credentials
 - Unlock licensed content
-- Update game or runtime files during launch
+- Download or apply game updates itself; LFS owns its in-game updater
+- Trust protected-file changes made outside a validated LFS session
 - Claim official LFS support for Linux
 
 ## One-click setup
 
-After installing the wrapper package, open **Live for Speed Linux** from the application menu. First launch explains that LFS 0.8C19 is a public test, shows the approximately 1.7 GB official download, verifies the LFS, Wine, and DXVK inputs, configures the private prefix, and starts LFS. Later launches go directly to the game.
+After installing the wrapper package, open **Live for Speed Linux** from the application menu. First launch explains that LFS 0.8C20 is a public test, shows the approximately 1.7 GB official download, verifies the LFS, Wine, and DXVK inputs, configures the private prefix, and starts LFS. Later launches go directly to the game.
+
+If LFS updates itself during a validated session, the foreground wrapper waits for all private-prefix processes to exit. A newer game version marker allows it to record the resulting protected-file inventory as a local baseline. Next-day desktop launch verifies and starts that updated game without an old-version setup prompt, downgrade, full redownload, or matching wrapper release. Protected-file changes made outside that trusted session still fail closed.
 
 No game payload is bundled with the wrapper package. Immutable [v0.1.6](https://github.com/mitzracing/live-for-speed-linux/releases/tag/v0.1.6) remains available as the audited old-graphics LFS 0.7G fallback.
 
@@ -109,9 +113,9 @@ Run:
 lfs-linux update-check
 ```
 
-The command reports the official stable and public-test/new-graphics channels separately. A newer public test or changed installer returns status 2 with an actionable wrapper-update message. It never modifies LFS.
+The command reports the official stable and public-test/new-graphics channels separately. A newer public test or changed installer returns status 2 for maintainer review. It never modifies LFS and does not block a versioned update that LFS completed during a trusted session.
 
-There is no background checker in the launch path. The weekly repository drift workflow alerts maintainers; users receive the reviewed wrapper update through the package channel. Maintainers update all release pins together after a clean install and live run. See [`docs/RELEASING.md`](docs/RELEASING.md).
+There is no background checker in the launch path. The weekly repository drift workflow alerts maintainers so new installs receive a current audited bootstrap. Maintainers update all release pins together after a clean install and live run. See [`docs/RELEASING.md`](docs/RELEASING.md).
 
 ## Flathub
 

@@ -72,7 +72,8 @@ A pin update requires:
 - official source URL, channel, byte size, and SHA-256 digest
 - exact nested-payload inventory and complete stock manifest
 - clean prefix install and stock `LFS.exe` digest
-- migration preservation, interruption recovery, and unknown-update rejection
+- migration preservation, interruption recovery, and unknown out-of-session update rejection
+- trusted-session in-game update recording plus next-launch acceptance without redownload
 - required DXVK DLL digests and initialization evidence
 - native Vulkan, audio stream, gameplay, and clean-exit evidence
 - updated release notes that call a public test a public test

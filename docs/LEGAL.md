@@ -18,7 +18,7 @@ The repository does not distribute Live for Speed executables, tracks, cars, tex
 
 The user confirms desktop first-run setup or starts `lfs-linux install`. The wrapper then downloads the official installer directly from `https://www.lfs.net/`.
 
-The wrapper verifies the exact installer size and SHA-256 digest before local extraction. It does not execute or patch the installer, and it does not patch installed game files.
+The wrapper verifies the exact installer size and SHA-256 digest before local extraction. It does not execute or patch the installer, and it does not patch installed game files. LFS can apply its own in-game updates; the wrapper only records their protected-file inventory after the trusted game session exits.
 
 Live for Speed remains proprietary software. Its terms apply separately: <https://www.lfs.net/agreement>.
 
@@ -28,7 +28,7 @@ The terms state that the developers can change LFS and that users must expect up
 
 The wrapper downloads an official DXVK release from its upstream GitHub project. DXVK uses the Zlib license.
 
-The wrapper deploys only the audited 32-bit `d3d11.dll` and `dxgi.dll` required by LFS 0.8C19 new graphics. It does not modify either DLL.
+The wrapper deploys only the audited 32-bit `d3d11.dll` and `dxgi.dll` required by LFS 0.8C20 new graphics. It does not modify either DLL.
 
 ## Names and trademarks
 

@@ -37,6 +37,7 @@ mkdir -p "$data" "$cache" "$logs" "$old_stock" "$new_stock" "$outer_stock" \
 
 cat >"$fake_wine" <<'EOF'
 #!/usr/bin/env bash
+exit_status=0
 case "${1:-}" in
   --version)
     printf '%s\n' 'wine-11.15'
@@ -47,8 +48,18 @@ case "${1:-}" in
     ;;
   reg)
     ;;
+  *)
+    if [[ -n "${LFS_TEST_SELF_UPDATE_VERSION:-}" && -f "${1:-}" ]]; then
+      game_root="$(dirname -- "$1")"
+      printf 'self-updated-%s' "$LFS_TEST_SELF_UPDATE_VERSION" >"$game_root/LFS.exe"
+      printf 'game-owned-update' >"$game_root/game-update.stock"
+      mkdir -p "$game_root/data/versions"
+      : >"$game_root/data/versions/$LFS_TEST_SELF_UPDATE_VERSION.txt"
+      exit_status="${LFS_TEST_EXIT_STATUS:-0}"
+    fi
+    ;;
 esac
-exit 0
+exit "$exit_status"
 EOF
 cat >"$fake_wine_root/usr/bin/wineserver" <<'EOF'
 #!/usr/bin/env bash
@@ -78,7 +89,7 @@ old_exe_hash="$(sha256sum "$old_stock/LFS.exe" | awk '{print $1}')"
 
 mkdir -p "$new_stock/data/skins_dds" "$new_stock/data/wld" "$new_stock/data/veh" \
   "$new_stock/data/training" "$new_stock/data/knw" "$new_stock/data/misc" \
-  "$TMP_ROOT/nested-training" "$TMP_ROOT/nested-knowledge"
+  "$new_stock/data/versions" "$TMP_ROOT/nested-training" "$TMP_ROOT/nested-knowledge"
 printf 'new-executable' >"$new_stock/LFS.exe"
 printf 'new-shared-stock' >"$new_stock/shared.stock"
 printf 'new-stock-file' >"$new_stock/new.stock"
@@ -90,6 +101,7 @@ printf 'new-training-seed' >"$new_stock/data/training/shared.lsn"
 printf 'new-official-knowledge' >"$new_stock/data/knw/new-official.knw"
 printf 'new-ai-knowledge' >"$new_stock/data/knw/shared.knw"
 printf 'new-default-profile' >"$new_stock/data/misc/default.ply"
+: >"$new_stock/data/versions/8C20.txt"
 cp "$new_stock/data/training/"* "$TMP_ROOT/nested-training/"
 cp "$new_stock/data/knw/"* "$TMP_ROOT/nested-knowledge/"
 (
@@ -175,6 +187,7 @@ LFS_NESTED_MANIFEST_NAME='nested.manifest'
 LFS_NESTED_MANIFEST_SIZE='$nested_manifest_size'
 LFS_NESTED_MANIFEST_SHA256='$nested_manifest_hash'
 LFS_NESTED_MANIFEST_ENTRIES='2'
+LFS_UPGRADE_FROM_VERSION='test-old'
 LFS_UPGRADE_FROM_SHA256S='$old_exe_hash'
 LFS_UPGRADE_MANIFEST_NAME='old-stock.manifest'
 LFS_UPGRADE_MANIFEST_SIZE='$old_manifest_size'
@@ -300,7 +313,7 @@ cmp "$upstream_installer" "$cached_installer"
 [[ ! -e "$cached_installer.part" ]]
 grep -Fq 'complete immutable payload of the approved older LFS build' "$TMP_ROOT/upgrade.out"
 grep -Fq 'player file(s) that collide with new stock paths' "$TMP_ROOT/upgrade.out"
-collision_backup="$state/migration-conflicts/from-0.7G-to-test-new/new.stock.$collision_hash.pre-upgrade"
+collision_backup="$state/migration-conflicts/from-test-old-to-test-new/new.stock.$collision_hash.pre-upgrade"
 [[ "$(sha256sum "$collision_backup" | awk '{print $1}')" == "$collision_hash" ]]
 [[ "$(sha256sum "$game/LFS.exe" | awk '{print $1}')" == "$new_exe_hash" ]]
 [[ ! -e "$game/obsolete.stock" ]]
@@ -319,6 +332,17 @@ grep -Fqx 'new-stock-file' "$game/new.stock"
 [[ "$(sha256sum "$state/prefix/drive_c/windows/syswow64/dxgi.dll" | awk '{print $1}')" == "$dxgi_hash" ]]
 run_lfs doctor >"$TMP_ROOT/doctor.out"
 grep -Fq 'Doctor summary: 0 failure(s)' "$TMP_ROOT/doctor.out"
+
+rm -f "$cached_installer"
+sed -i "s/LFS_VERSION='test-new'/LFS_VERSION='test-old'/" "$state/install.env"
+run_lfs install >"$TMP_ROOT/self-updated-target.out"
+grep -Fq 'Verified complete stock LFS installation; preserving game-owned data' "$TMP_ROOT/self-updated-target.out"
+grep -Fqx "LFS_VERSION='test-new'" "$state/install.env"
+[[ ! -e "$cached_installer" ]]
+(
+  cd "$game"
+  sha256sum --check --quiet "$player_hashes"
+)
 
 rm "$game/new.stock"
 run_lfs install >"$TMP_ROOT/repair.out"
@@ -354,6 +378,61 @@ run_lfs install >"$TMP_ROOT/recovery.out"
 grep -Fq 'Recovered player data after an interrupted game-tree swap' "$TMP_ROOT/recovery.out"
 [[ -f "$game/LFS.exe" && ! -e "$state/.lfs-game-backup" ]]
 
+cp -a "$game" "$TMP_ROOT/before-trusted-game-update"
+cp "$state/install.env" "$TMP_ROOT/before-trusted-game-update.env"
+original_display="${DISPLAY:-}"
+export DISPLAY="${DISPLAY:-:test}" LFS_TEST_SELF_UPDATE_VERSION='9Z1' LFS_TEST_EXIT_STATUS='7'
+set +e
+run_lfs launch >"$TMP_ROOT/trusted-game-update.out" 2>&1
+trusted_update_status=$?
+set -e
+unset LFS_TEST_SELF_UPDATE_VERSION LFS_TEST_EXIT_STATUS
+[[ "$trusted_update_status" -eq 7 ]]
+grep -Fq 'Recorded LFS 0.9Z1 in-game update as the verified local launch baseline' "$TMP_ROOT/trusted-game-update.out"
+[[ -f "$state/game-update.manifest" ]]
+grep -Fqx "LFS_BASELINE_KIND='game-update'" "$state/install.env"
+grep -Fqx "LFS_VERSION='0.9Z1'" "$state/install.env"
+printf 'post-update-replay' >"$game/data/mpr/post-update.mpr"
+run_lfs ready
+run_lfs launch >"$TMP_ROOT/next-day-launch.out"
+grep -Fq 'Starting verified LFS 0.9Z1' "$TMP_ROOT/next-day-launch.out"
+export LFS_TEST_SELF_UPDATE_VERSION='9Z2'
+run_lfs launch >"$TMP_ROOT/second-trusted-game-update.out"
+unset LFS_TEST_SELF_UPDATE_VERSION
+grep -Fq 'Recorded LFS 0.9Z2 in-game update as the verified local launch baseline' "$TMP_ROOT/second-trusted-game-update.out"
+grep -Fqx "LFS_VERSION='0.9Z2'" "$state/install.env"
+run_lfs ready
+run_lfs launch >"$TMP_ROOT/second-next-day-launch.out"
+grep -Fq 'Starting verified LFS 0.9Z2' "$TMP_ROOT/second-next-day-launch.out"
+if [[ -n "$original_display" ]]; then export DISPLAY="$original_display"; else unset DISPLAY; fi
+run_lfs doctor >"$TMP_ROOT/game-update-doctor.out"
+grep -Fq 'Doctor summary: 0 failure(s)' "$TMP_ROOT/game-update-doctor.out"
+rm -f "$cached_installer"
+run_lfs install >"$TMP_ROOT/game-update-install.out"
+grep -Fq 'Verified locally recorded LFS 0.9Z2 in-game update' "$TMP_ROOT/game-update-install.out"
+[[ ! -e "$cached_installer" ]]
+grep -Fqx 'game-owned-update' "$game/game-update.stock"
+printf 'out-of-session-tamper' >"$game/game-update.stock"
+set +e
+run_lfs launch >"$TMP_ROOT/rejected-out-of-session-drift.out" 2>&1
+out_of_session_status=$?
+set -e
+[[ "$out_of_session_status" -ne 0 ]]
+grep -Fq 'recorded in-game update payload drift' "$TMP_ROOT/rejected-out-of-session-drift.out"
+printf 'game-owned-update' >"$game/game-update.stock"
+printf 'out-of-session-addition' >"$game/unrecorded.stock"
+set +e
+run_lfs launch >"$TMP_ROOT/rejected-out-of-session-addition.out" 2>&1
+out_of_session_addition_status=$?
+set -e
+[[ "$out_of_session_addition_status" -ne 0 ]]
+grep -Fq 'recorded in-game update inventory drift' "$TMP_ROOT/rejected-out-of-session-addition.out"
+rm -rf "$game"
+mkdir -p "$game"
+cp -a "$TMP_ROOT/before-trusted-game-update/." "$game/"
+cp "$TMP_ROOT/before-trusted-game-update.env" "$state/install.env"
+rm -f "$state/game-update.manifest"
+
 printf 'unknown-self-update' >"$game/LFS.exe"
 cp -a "$game" "$TMP_ROOT/before-rejected-update"
 set +e
@@ -365,4 +444,4 @@ grep -Fq 'unrecognized LFS update detected' "$TMP_ROOT/rejected-update.out"
 grep -Fq 'no files changed' "$TMP_ROOT/rejected-update.out"
 diff -qr "$TMP_ROOT/before-rejected-update" "$game" >/dev/null
 
-printf '[PASS] resumable input, nested pins, atomic upgrade, player/cache and collision preservation, repair, recovery, drift, and unknown-update guards pass\n'
+printf '[PASS] resumable input, atomic upgrade, trusted in-game update relaunch, preservation, repair, recovery, and drift guards pass\n'

@@ -7,7 +7,7 @@ Date: 2026-08-14
 | Candidate | Source | Verdict | Reason |
 |---|---|---|---|
 | Bottles | <https://usebottles.com/> | Extend for local proof only | It proved LFS compatibility, but adds a managed runtime and GUI outside the lean public launch path. |
-| Native Wine | <https://www.winehq.org/> | Adopt with exact pin | Direct execution and no launcher daemon; wrapper 0.2.x accepts only the audited Arch 11.15-1 payload. |
+| Native Wine | <https://www.winehq.org/> | Adopt with exact pin | Direct execution and no launcher daemon; wrapper accepts only the audited Arch 11.15-1 payload. |
 | DXVK | <https://github.com/doitsujin/dxvk> | Adopt | Official D3D11-to-Vulkan implementation with manual prefix deployment documented upstream. |
 | `dxvk-bin` AUR | <https://aur.archlinux.org/packages/dxvk-bin> | Study, do not depend | It proves current package availability. A direct private DXVK archive avoids a second AUR dependency. |
 | Lutris/Steam/Heroic | Respective projects | Do not require | Useful user tools, but unnecessary for one direct executable and a latency-focused path. |

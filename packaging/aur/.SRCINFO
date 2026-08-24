@@ -1,6 +1,6 @@
 pkgbase = live-for-speed-linux
-	pkgdesc = Unofficial launcher for the LFS 0.8C19 new-graphics public test
-	pkgver = 0.2.2
+	pkgdesc = Unofficial launcher for the LFS 0.8C20 new-graphics public test
+	pkgver = 0.3.0
 	pkgrel = 1
 	url = https://github.com/mitzracing/live-for-speed-linux
 	install = live-for-speed-linux.install
@@ -33,7 +33,7 @@ pkgbase = live-for-speed-linux
 	conflicts = live-for-speed-launcher
 	replaces = lfs-linux
 	replaces = live-for-speed-launcher
-	source = live-for-speed-linux-0.2.2.tar.gz::https://github.com/mitzracing/live-for-speed-linux/releases/download/v0.2.2/live-for-speed-linux-0.2.2.tar.gz
-	sha256sums = 36f5054a7be9d89c4b7439998f4c34170f49a7f3fd7363068f41dc45dd1bb986
+	source = live-for-speed-linux-0.3.0.tar.gz::https://github.com/mitzracing/live-for-speed-linux/releases/download/v0.3.0/live-for-speed-linux-0.3.0.tar.gz
+	sha256sums = c6394d99f444f75df3c3c7dcf4abaae9e0678c2d5c6c206569ab732f94f67ce9
 
 pkgname = live-for-speed-linux

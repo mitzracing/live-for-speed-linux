@@ -30,7 +30,7 @@ Run the complete publication procedure in `docs/RELEASING.md`.
 
 ## Dependencies
 
-The package requires exact `wine=11.15-1`, matching the only runtime payload accepted by wrapper 0.2.x. Source installs can provision that same immutable Arch Linux Archive package privately when the exact system package is unavailable. Every Wine file and link is checked against the shipped runtime manifest. The wrapper privately deploys the audited DXVK D3D11 and DXGI DLLs, so it does not depend on `dxvk-bin`.
+The package requires exact `wine=11.15-1`, matching the only runtime payload accepted by wrapper 0.3.x. Source installs can provision that same immutable Arch Linux Archive package privately when the exact system package is unavailable. Every Wine file and link is checked against the shipped runtime manifest. The wrapper privately deploys the audited DXVK D3D11 and DXGI DLLs, so it does not depend on `dxvk-bin`.
 
 The package directly requires:
 

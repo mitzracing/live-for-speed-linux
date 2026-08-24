@@ -12,11 +12,11 @@ install:
 	install -Dm755 bin/lfs-linux-desktop $(BINDIR)/lfs-linux-desktop
 	install -Dm755 libexec/lfs-linux-core $(LIBEXECDIR)/lfs-linux-core
 	install -Dm644 share/lfs-linux/release.env $(DATADIR)/lfs-linux/release.env
+	install -Dm644 share/lfs-linux/lfs-0.8C20-stock.manifest $(DATADIR)/lfs-linux/lfs-0.8C20-stock.manifest
+	install -Dm644 share/lfs-linux/lfs-0.8C20-seed.manifest $(DATADIR)/lfs-linux/lfs-0.8C20-seed.manifest
+	install -Dm644 share/lfs-linux/lfs-0.8C20-nested.manifest $(DATADIR)/lfs-linux/lfs-0.8C20-nested.manifest
 	install -Dm644 share/lfs-linux/lfs-0.8C19-stock.manifest $(DATADIR)/lfs-linux/lfs-0.8C19-stock.manifest
 	install -Dm644 share/lfs-linux/lfs-0.8C19-seed.manifest $(DATADIR)/lfs-linux/lfs-0.8C19-seed.manifest
-	install -Dm644 share/lfs-linux/lfs-0.8C19-nested.manifest $(DATADIR)/lfs-linux/lfs-0.8C19-nested.manifest
-	install -Dm644 share/lfs-linux/lfs-0.7G-migration.manifest $(DATADIR)/lfs-linux/lfs-0.7G-migration.manifest
-	install -Dm644 share/lfs-linux/lfs-0.7G-seed.manifest $(DATADIR)/lfs-linux/lfs-0.7G-seed.manifest
 	install -Dm644 share/lfs-linux/wine-11.15-1-runtime.manifest $(DATADIR)/lfs-linux/wine-11.15-1-runtime.manifest
 	install -Dm644 share/applications/io.github.mitzracing.live_for_speed_linux.desktop $(DATADIR)/applications/io.github.mitzracing.live_for_speed_linux.desktop
 	install -Dm644 share/metainfo/io.github.mitzracing.live_for_speed_linux.metainfo.xml $(DATADIR)/metainfo/io.github.mitzracing.live_for_speed_linux.metainfo.xml

@@ -12,7 +12,7 @@ Normal wrapper changes must fit one of these small units:
 - one focused test
 - one documentation correction
 
-A normal LFS update changes audited outer and nested payload fields, regenerates the immutable stock-file manifest, records the prior executable digest plus complete immutable predecessor migration and full seed manifests, and runs clean-install, repair, atomic migration, interruption-recovery, and unknown-self-update checks. A Wine update similarly regenerates its complete runtime manifest. Neither path requires editing game assets or reverse engineering the executable.
+A normal audited bootstrap update changes outer and nested payload fields, regenerates the protected stock-file manifest, records the prior executable digest plus complete predecessor migration and full seed manifests, and runs clean-install, repair, atomic migration, interruption-recovery, trusted in-game update continuity, and unknown out-of-session drift checks. Users do not need that wrapper release before launching a versioned update completed by LFS itself. A Wine update similarly regenerates its complete runtime manifest. Neither path requires editing game assets or reverse engineering the executable.
 
 ## Stable interfaces
 

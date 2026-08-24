@@ -26,7 +26,7 @@ Store a public link to that authorization in the proposal. Do not store private 
 - App ID controlled or approved by upstream
 - Current supported Wine base application
 - Supported Freedesktop or GNOME runtime
-- 32-bit compatibility extension because LFS 0.8C19 remains PE32
+- 32-bit compatibility extension because LFS 0.8C20 remains PE32
 - DXVK D3D11 and DXGI deployment
 - Proprietary payload handled according to explicit redistribution permission or `extra-data`
 - Persistent game state under the Flatpak app data directory

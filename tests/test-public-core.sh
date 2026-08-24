@@ -21,7 +21,7 @@ grep -Fq "State:      $TMP_ROOT/state" <<<"$status_output"
 
 LFS_LINUX_DOWNLOADS_PAGE_FILE="$ROOT_DIR/tests/fixtures/lfs-downloads-current.html" \
   "$ROOT_DIR/bin/lfs-linux" update-check >"$TMP_ROOT/update-current.out"
-grep -Fq 'Website test:   0.8C19 (new graphics public test; LFS_S3_8C19_setup.exe)' "$TMP_ROOT/update-current.out"
+grep -Fq 'Website test:   0.8C20 (new graphics public test; LFS_S3_8C20_setup.exe)' "$TMP_ROOT/update-current.out"
 grep -Fq 'Status:         current public-test pin' "$TMP_ROOT/update-current.out"
 
 set +e
@@ -41,10 +41,10 @@ import sys
 path = Path(sys.argv[1])
 text = path.read_text()
 replacements = {
-    "LFS_VERSION='0.8C19'": "LFS_VERSION='0.7G'",
+    "LFS_VERSION='0.8C20'": "LFS_VERSION='0.7G'",
     "LFS_CHANNEL='public-test'": "LFS_CHANNEL='stable'",
     "LFS_PUBLIC_TEST_FAMILY='0.8C'": "LFS_PUBLIC_TEST_FAMILY=''",
-    "LFS_INSTALLER_NAME='LFS_S3_8C19_setup.exe'": "LFS_INSTALLER_NAME='LFS_S3_7G_setup.exe'",
+    "LFS_INSTALLER_NAME='LFS_S3_8C20_setup.exe'": "LFS_INSTALLER_NAME='LFS_S3_7G_setup.exe'",
 }
 for old, new in replacements.items():
     assert old in text
@@ -58,7 +58,7 @@ LFS_LINUX_DOWNLOADS_PAGE_FILE="$ROOT_DIR/tests/fixtures/lfs-downloads-current.ht
 legacy_status=$?
 set -e
 [[ "$legacy_status" -eq 2 ]]
-grep -Fq 'new-graphics public test available (0.8C19)' "$TMP_ROOT/update-legacy.out"
+grep -Fq 'new-graphics public test available (0.8C20)' "$TMP_ROOT/update-legacy.out"
 grep -Fq 'wrapper made no game-file changes' "$TMP_ROOT/update-legacy.out"
 [[ ! -d "$TMP_ROOT/state" ]]
 
@@ -69,6 +69,22 @@ set -e
 [[ "$setup_status" -eq 3 ]]
 grep -Fq 'Setup cancelled' "$TMP_ROOT/setup-cancel.out"
 [[ ! -d "$TMP_ROOT/state" ]]
+
+setup_drift_state="$TMP_ROOT/setup-drift-state"
+mkdir -p "$setup_drift_state/prefix/drive_c/LFS"
+printf 'unexpected-executable' >"$setup_drift_state/prefix/drive_c/LFS/LFS.exe"
+set +e
+printf 'y\n' | LFS_LINUX_STATE_DIR="$setup_drift_state" \
+  "$ROOT_DIR/bin/lfs-linux" setup >"$TMP_ROOT/setup-drift.out" 2>&1
+setup_drift_status=$?
+set -e
+[[ "$setup_drift_status" -ne 0 ]]
+grep -Fq 'unrecognized LFS update detected' "$TMP_ROOT/setup-drift.out"
+if grep -Fq 'Continue with verified setup?' "$TMP_ROOT/setup-drift.out"; then
+  printf 'unknown self-update reached obsolete setup confirmation\n' >&2
+  exit 1
+fi
+[[ ! -e "$setup_drift_state/.managed-by-lfs-linux" ]]
 
 set +e
 "$ROOT_DIR/bin/lfs-linux" launch >"$TMP_ROOT/launch.out" 2>&1

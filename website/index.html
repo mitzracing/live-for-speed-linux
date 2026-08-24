@@ -32,8 +32,8 @@
       </a>
       <div class="release-chip" aria-label="Current release">
         <span>WRAPPER</span>
-        <strong>0.2.2</strong>
-        <small>LFS 0.8C19 TEST</small>
+        <strong>0.3.0</strong>
+        <small>LFS 0.8C20 TEST</small>
       </div>
     </div>
   </header>
@@ -65,7 +65,7 @@
         <div class="hero-copy">
           <p class="eyebrow">Arch Linux · Manjaro · x86_64</p>
           <h1 id="hero-title">Race on Linux.<br>Keep LFS stock.</h1>
-          <p>Live for Speed Linux installs the exact official 0.8C19 new-graphics public test into one private Wine prefix. Later launches take the short path to the game.</p>
+          <p>Live for Speed Linux installs exact official 0.8C20 new graphics into one private Wine prefix. When LFS updates itself, later launches verify and start that local version without downgrading it.</p>
           <div class="hero-actions">
             <a class="button blue" href="#install">Install the wrapper</a>
             <a class="button orange" href="https://github.com/mitzracing/live-for-speed-linux">Read the source</a>
@@ -84,7 +84,7 @@
             <span class="step-number">1</span>
             <div>
               <h3>Install the verified source release</h3>
-              <pre><code>git clone --branch v0.2.2 --depth 1 https://github.com/mitzracing/live-for-speed-linux.git
+              <pre><code>git clone --branch v0.3.0 --depth 1 https://github.com/mitzracing/live-for-speed-linux.git
 cd live-for-speed-linux
 make test &amp;&amp; sudo make install</code></pre>
               <p>The AUR recipe is ready, but publication still awaits maintainer SSH access.</p>
@@ -104,7 +104,7 @@ make test &amp;&amp; sudo make install</code></pre>
               <p>The wrapper verifies the complete stock inventory before Wine starts the untouched game.</p>
             </div>
           </article>
-          <p class="publication"><strong>Public-test channel:</strong> v0.2.2 pins exact LFS 0.8C19 new graphics. Immutable <a href="https://github.com/mitzracing/live-for-speed-linux/releases/tag/v0.1.6">v0.1.6</a> remains the old-graphics 0.7G fallback. AUR publication is pending maintainer SSH access.</p>
+          <p class="publication"><strong>Public-test channel:</strong> v0.3.0 bootstraps exact LFS 0.8C20 new graphics and records later versioned in-game updates after LFS exits. Immutable <a href="https://github.com/mitzracing/live-for-speed-linux/releases/tag/v0.1.6">v0.1.6</a> remains the old-graphics 0.7G fallback. AUR publication is pending maintainer SSH access.</p>
         </div>
       </section>
 
@@ -251,7 +251,7 @@ make test &amp;&amp; sudo make install</code></pre>
             <h3>What it verifies</h3>
             <ul>
               <li>Official LFS installer size and SHA-256</li>
-              <li>Every immutable stock game file</li>
+              <li>Every packaged or locally recorded protected game file</li>
               <li>Every required Wine runtime file and link</li>
               <li>Private DXVK D3D11 and DXGI DLL copies</li>
             </ul>
@@ -274,8 +274,8 @@ make test &amp;&amp; sudo make install</code></pre>
       <section class="side-panel">
         <h2>RELEASE STATUS</h2>
         <div class="side-body status-list">
-          <p><span>Wrapper</span><strong>0.2.2</strong></p>
-          <p><span>Game pin</span><strong>0.8C19</strong></p>
+          <p><span>Wrapper</span><strong>0.3.0</strong></p>
+          <p><span>Game pin</span><strong>0.8C20</strong></p>
           <p><span>Channel</span><strong>PUBLIC TEST</strong></p>
           <p><span>Wine pin</span><strong>11.15-1</strong></p>
           <p><span>DXVK pin</span><strong>3.0.2</strong></p>

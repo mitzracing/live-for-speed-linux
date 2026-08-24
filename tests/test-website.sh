@@ -55,6 +55,9 @@ assert 'action="#support"' in text
 assert 'name="' not in text[text.index('<form id="feedback-form"'):text.index('</form>', text.index('<form id="feedback-form"'))]
 assert all(link.startswith(("#", "https://")) for link in audit.links), audit.links
 assert "not affiliated with or endorsed" in text
+assert "0.3.0" in text
+assert "0.8C20" in text
+assert "updates itself" in text
 assert "No game binaries" in text
 assert "GitHub sign-in is required" in text
 assert "issues/new?template=bug.yml" in text

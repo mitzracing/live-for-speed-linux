@@ -34,7 +34,9 @@ The wrapper extracts the verified NSIS archive with 7-Zip and does not execute t
 
 Delete a randomly selected immutable file that is not one of the separately pinned representative files. Confirm `doctor` and `launch` fail, `install` restores its exact hash, and player-owned paths remain byte-identical. Perform the same drift-and-reprovision check on one non-entry-point Wine DLL.
 
-Then test an in-place upgrade from every digest listed in `LFS_UPGRADE_FROM_SHA256S`. Require its complete immutable predecessor migration manifest, compare player-owned paths before and after the atomic swap, interrupt each swap state to prove recovery, and confirm that the complete new stock tree passes validation. Prove a changed predecessor stock file and an unknown/self-updated executable are rejected before game-tree mutation. Remove a digest and predecessor manifest when that path is no longer supported.
+Then test an in-place upgrade from every digest listed in `LFS_UPGRADE_FROM_SHA256S`. Require its complete protected predecessor migration manifest, compare player-owned paths before and after the atomic swap, interrupt each swap state to prove recovery, and confirm that the complete new stock tree passes validation. Prove a changed predecessor stock file and unknown out-of-session executable drift are rejected before game-tree mutation. Remove a digest and predecessor manifest when that path is no longer supported.
+
+Simulate an in-game update from a fully validated launch. Require a newer `data/versions/*.txt` marker, changed `LFS.exe`, and at least one added protected file. Confirm the foreground launcher records a local manifest after Wine exits, `ready` succeeds, next launch uses that baseline without downloading the packaged installer, `doctor` passes, explicit `install` preserves it, and later out-of-session drift fails closed.
 
 Then run the full wrapper release procedure.
 
@@ -59,6 +61,6 @@ GitHub release publication and AUR submission require explicit owner approval.
 
 ## Rollback
 
-Revert the wrapper package to the last verified tag. For the 0.8C19 public-test release, immutable v0.1.6 is the audited old-graphics 0.7G fallback. Do not downgrade or overwrite game-owned user data automatically; back up the XDG state tree and use a separate state directory for fallback validation.
+Revert the wrapper package to the last verified tag. For the 0.8C20 public-test release, v0.2.2 is the audited 0.8C19 predecessor and immutable v0.1.6 remains the old-graphics 0.7G fallback. Do not downgrade or overwrite a packaged or locally recorded game baseline automatically; back up the XDG state tree and use a separate state directory for fallback validation.
 
 If an upstream public-test update is incompatible, keep the prior pin only while its official URL and terms remain valid. Clearly report that status and never call a public test stable.
