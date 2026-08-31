@@ -41,21 +41,27 @@ class CaptureHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(json.dumps(self.__class__.issues).encode("utf-8"))
 
-    def do_POST(self) -> None:
+    def capture_mutation(self, method: str) -> None:
         length = int(self.headers.get("Content-Length", "0"))
         payload = json.loads(self.rfile.read(length))
         self.__class__.requests.append(
             {
-                "method": "POST",
+                "method": method,
                 "path": self.path,
                 "authorization": self.headers.get("Authorization"),
                 "payload": payload,
             }
         )
-        self.send_response(201)
+        self.send_response(201 if method == "POST" else 200)
         self.send_header("Content-Type", "application/json")
         self.end_headers()
         self.wfile.write(b"{}")
+
+    def do_POST(self) -> None:
+        self.capture_mutation("POST")
+
+    def do_PATCH(self) -> None:
+        self.capture_mutation("PATCH")
 
     def log_message(self, _format: str, *_args: object) -> None:
         return
@@ -204,6 +210,60 @@ class UpstreamDriftTest(unittest.TestCase):
         self.assertEqual(create["payload"]["title"], DRIFT.ISSUE_TITLE)
         self.assertEqual(create["payload"]["labels"], ["status:needs-maintainer", "upstream-drift"])
         self.assertNotIn("test-token", json.dumps(create["payload"]))
+
+    def test_apply_update_reopens_before_posting_change_comment(self) -> None:
+        CaptureHandler.requests = []
+        server = ThreadingHTTPServer(("127.0.0.1", 0), CaptureHandler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            plan = {
+                "action": "update",
+                "issue_number": 41,
+                "body": DRIFT.build_body("Website test:   0.8C25", "available"),
+                "comment": "Automated upstream state changed.",
+            }
+            DRIFT.apply_plan(
+                plan,
+                "mitzracing/live-for-speed-linux",
+                "test-token",
+                f"http://127.0.0.1:{server.server_address[1]}",
+            )
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
+        self.assertEqual([request["method"] for request in CaptureHandler.requests], ["PATCH", "POST"])
+        self.assertEqual(CaptureHandler.requests[0]["payload"]["state"], "open")
+        self.assertEqual(
+            CaptureHandler.requests[1]["path"],
+            "/repos/mitzracing/live-for-speed-linux/issues/41/comments",
+        )
+
+    def test_apply_resolution_comments_then_closes(self) -> None:
+        CaptureHandler.requests = []
+        server = ThreadingHTTPServer(("127.0.0.1", 0), CaptureHandler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            DRIFT.apply_plan(
+                {
+                    "action": "close",
+                    "issue_number": 43,
+                    "comment": "Package pin now matches.",
+                },
+                "mitzracing/live-for-speed-linux",
+                "test-token",
+                f"http://127.0.0.1:{server.server_address[1]}",
+            )
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
+        self.assertEqual([request["method"] for request in CaptureHandler.requests], ["POST", "PATCH"])
+        self.assertEqual(CaptureHandler.requests[1]["payload"], {"state": "closed"})
 
 
 if __name__ == "__main__":
