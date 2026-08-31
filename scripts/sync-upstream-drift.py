@@ -14,6 +14,7 @@ from typing import Any
 
 ISSUE_MARKER = "<!-- lfs-linux-upstream-drift -->"
 FINGERPRINT_PREFIX = "<!-- lfs-linux-upstream-report:"
+FINGERPRINT_PATTERN = re.compile(r"<!-- lfs-linux-upstream-report:([0-9a-f]{64}) -->")
 ISSUE_TITLE = "[Maintenance] Upstream LFS download drift"
 ISSUE_LABELS = ("status:needs-maintainer", "upstream-drift")
 MAX_REPORT_CHARS = 8192
@@ -69,6 +70,11 @@ Choose **monitor**, **audit**, or **release**. Binary trust and publication rema
 """
 
 
+def body_fingerprint(body: str) -> str:
+    match = FINGERPRINT_PATTERN.search(body)
+    return match.group(1) if match else ""
+
+
 def managed_issues(issues: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [
         issue
@@ -88,12 +94,24 @@ def build_plan(
     matches = managed_issues(issues)
     if len(matches) > 1:
         raise ValueError("multiple managed upstream drift issues found")
-    if state == "drift" and not matches:
+    if state == "drift":
+        body = build_body(report, pin_status)
+        if not matches:
+            return {
+                "action": "create",
+                "title": ISSUE_TITLE,
+                "body": body,
+                "labels": sorted(ISSUE_LABELS),
+            }
+        issue = matches[0]
+        same_report = body_fingerprint(str(issue.get("body") or "")) == body_fingerprint(body)
+        if same_report and issue.get("state") == "open":
+            return {"action": "noop"}
         return {
-            "action": "create",
-            "title": ISSUE_TITLE,
-            "body": build_body(report, pin_status),
-            "labels": sorted(ISSUE_LABELS),
+            "action": "update",
+            "issue_number": int(issue["number"]),
+            "body": body,
+            "comment": "Automated upstream state changed; the maintenance summary was refreshed.",
         }
     return {"action": "noop"}
 
