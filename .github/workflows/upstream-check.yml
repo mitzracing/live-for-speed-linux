@@ -7,6 +7,11 @@ on:
 
 permissions:
   contents: read
+  issues: write
+
+concurrency:
+  group: upstream-drift
+  cancel-in-progress: false
 
 jobs:
   lfs-download-page:
@@ -14,5 +19,89 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v7
-      - name: Compare official stable and public-test channels with audited manifest
-        run: ./scripts/check-upstream.sh
+        with:
+          persist-credentials: false
+
+      - name: Compare official channels with audited manifest
+        id: check
+        shell: bash
+        run: |
+          set +e
+          ./scripts/check-upstream.sh >"$RUNNER_TEMP/upstream-check.txt" 2>&1
+          check_status=$?
+          set -e
+          cat "$RUNNER_TEMP/upstream-check.txt"
+
+          case "$check_status" in
+            0)
+              state='current'
+              ;;
+            2)
+              state='drift'
+              echo '::warning title=Upstream LFS drift detected::A maintenance issue will be synchronized; no package pins or game files were changed.'
+              ;;
+            *)
+              echo "upstream checker failed with status $check_status" >&2
+              exit "$check_status"
+              ;;
+          esac
+          printf 'state=%s\n' "$state" >>"$GITHUB_OUTPUT"
+          # Backticks below are a Markdown code span.
+          # shellcheck disable=SC2016
+          printf '### Upstream LFS check\n\nState: `%s`\n' "$state" >>"$GITHUB_STEP_SUMMARY"
+
+      - name: Check pinned bootstrap availability
+        id: pinned
+        if: steps.check.outputs.state == 'drift'
+        shell: bash
+        run: |
+          # release.env is trusted repository data, not downloaded content.
+          source share/lfs-linux/release.env
+          headers="$RUNNER_TEMP/pinned-installer.headers"
+          metadata="$RUNNER_TEMP/pinned-installer.metadata"
+          set +e
+          curl \
+            --silent --show-error --location --head \
+            --retry 2 --retry-all-errors --retry-delay 2 \
+            --connect-timeout 10 --max-time 45 \
+            --dump-header "$headers" --output /dev/null \
+            --write-out '%{http_code}\n' \
+            "$LFS_INSTALLER_URL" >"$metadata"
+          curl_status=$?
+          set -e
+
+          http_status="$(tail -n 1 "$metadata" 2>/dev/null || true)"
+          observed_size="$(
+            awk 'BEGIN { IGNORECASE = 1 }
+                 /^content-length:/ { gsub("\\r", "", $2); value = $2 }
+                 END { print value }' "$headers" 2>/dev/null || true
+          )"
+          if [[ "$curl_status" -eq 0 && "$http_status" == '200' && "$observed_size" == "$LFS_INSTALLER_SIZE" ]]; then
+            pin_status='available'
+          elif [[ "$http_status" == '404' || "$http_status" == '410' ]]; then
+            pin_status='unavailable'
+          elif [[ "$curl_status" -eq 0 && "$http_status" == '200' ]]; then
+            pin_status='changed'
+          else
+            pin_status='unknown'
+          fi
+
+          printf 'Pinned installer: %s (HTTP %s; expected bytes %s; observed bytes %s)\n' \
+            "$pin_status" "${http_status:-unknown}" "$LFS_INSTALLER_SIZE" "${observed_size:-unknown}"
+          printf 'status=%s\n' "$pin_status" >>"$GITHUB_OUTPUT"
+          # Backticks below are a Markdown code span.
+          # shellcheck disable=SC2016
+          printf '\nPinned bootstrap: `%s`\n' "$pin_status" >>"$GITHUB_STEP_SUMMARY"
+
+      - name: Synchronize maintenance issue
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          CHECK_STATE: ${{ steps.check.outputs.state }}
+          PIN_STATUS: ${{ steps.pinned.outputs.status }}
+        shell: bash
+        run: |
+          python3 scripts/sync-upstream-drift.py \
+            --apply \
+            --state "$CHECK_STATE" \
+            --report-file "$RUNNER_TEMP/upstream-check.txt" \
+            --pin-status "${PIN_STATUS:-unknown}"
