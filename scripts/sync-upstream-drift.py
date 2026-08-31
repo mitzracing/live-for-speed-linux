@@ -10,6 +10,7 @@ import json
 import os
 import re
 import sys
+import unicodedata
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -24,7 +25,7 @@ ISSUE_LABELS = ("status:needs-maintainer", "upstream-drift")
 MAX_REPORT_CHARS = 8192
 ANSI_ESCAPE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 PIN_MESSAGES = {
-    "available": "Pinned C20 bootstrap remains available at its audited byte size.",
+    "available": "Pinned bootstrap remains available at its audited byte size.",
     "changed": "Pinned bootstrap URL responds, but its byte size changed. Treat clean installs as at risk.",
     "unavailable": "Pinned bootstrap URL is unavailable. Audit the new upstream build urgently.",
     "unknown": "Pinned bootstrap availability could not be confirmed. Review manually.",
@@ -33,7 +34,11 @@ PIN_MESSAGES = {
 
 def sanitize_report(value: str) -> str:
     value = ANSI_ESCAPE.sub("", value.replace("\r\n", "\n").replace("\r", "\n"))
-    value = "".join(character for character in value if character in "\n\t" or ord(character) >= 32)
+    value = "".join(
+        character
+        for character in value
+        if character in "\n\t" or not unicodedata.category(character).startswith("C")
+    )
     value = value.replace("\t", "    ").strip()
     if not value:
         raise ValueError("upstream report is empty")
