@@ -21,7 +21,7 @@ if git -C "$ROOT_DIR" rev-parse --git-dir >/dev/null 2>&1 &&
   guard_status=$?
   set -e
   [[ "$guard_status" -ne 0 ]]
-  grep -Fq "version $VERSION was already released" "$TMP_ROOT/guard.out"
+  grep -Fq "Version $VERSION was already released" "$TMP_ROOT/guard.out"
 fi
 
 mkdir -p "$TMP_ROOT/one" "$TMP_ROOT/two"

@@ -28,6 +28,18 @@ readonly -a ENTRIES=(
   website
 )
 
+if [[ "${LFS_LINUX_ALLOW_POST_RELEASE_ARCHIVE:-0}" != '1' ]] &&
+   git -C "$ROOT_DIR" rev-parse --git-dir >/dev/null 2>&1; then
+  tag_commit="$(git -C "$ROOT_DIR" rev-parse -q --verify "v$VERSION^{}" 2>/dev/null || true)"
+  if [[ -n "$tag_commit" ]] && {
+       [[ "$tag_commit" != "$(git -C "$ROOT_DIR" rev-parse HEAD)" ]] ||
+       [[ -n "$(git -C "$ROOT_DIR" status --porcelain -- "${ENTRIES[@]}")" ]];
+     }; then
+    printf 'Version %s was already released; bump VERSION before building another public archive with that name.\n' "$VERSION" >&2
+    exit 1
+  fi
+fi
+
 mkdir -p "$OUTPUT_DIR"
 rm -f "$OUTPUT_DIR/$ARCHIVE_NAME"
 (
