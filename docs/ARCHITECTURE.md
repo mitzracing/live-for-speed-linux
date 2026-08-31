@@ -65,7 +65,7 @@ Before every launch, the wrapper fully validates either the packaged stock manif
 
 This local baseline proves continuity from a previously validated launch session; it is not a maintainer audit or vendor signature. LFS and Wine already run with the user's filesystem authority. Package pins remain the stronger reproducible bootstrap for clean installs and repair.
 
-`lfs-linux update-check` reads the official downloads page and models old-graphics stable and new-graphics public-test channels separately. It parses the exact public-test installer build. Matching pins return 0; a newer build, channel change, or installer-name drift returns 2 with an actionable bootstrap-review message. It never edits the game or manifest and never runs in the launch path.
+`lfs-linux update-check` reads the official downloads page and models old-graphics stable and new-graphics public-test channels separately. It parses the exact public-test installer build. Matching pins return 0; a newer build, channel change, or installer-name drift returns 2 with an actionable bootstrap-review message. It never edits the game or manifest and never runs in the launch path. Repository automation maps status 2 to one bounded, deduplicated maintenance issue and checks only the pinned installer's HTTP headers; unexpected checker or GitHub API failures remain failed runs.
 
 A release maintainer updates the bootstrap installer, executable, nested archives, required assets, tree size, and tree count only after clean extraction, complete manifest generation, migration drills, in-game update continuity checks, and a behavioral run.
 

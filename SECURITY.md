@@ -40,4 +40,4 @@ The wrapper does not sandbox Wine. Wine applications can access host files avail
 
 The wrapper never downloads or applies a game update during launch. LFS can use its own in-game updater. The foreground wrapper records a completed, versioned update after Wine exits; it does not patch game files.
 
-`update-check` performs a read-only check and never changes package pins. Maintainers still review each bootstrap update for new installs and repairs. Automated pull requests can report new versions but must not merge or publish them automatically.
+`update-check` performs a read-only check and never changes package pins. Scheduled automation may create or update one maintenance issue using only `contents: read` and `issues: write`; it cannot commit code, edit pins, open a pull request, tag, or publish. Report text is bounded and sanitized before it reaches GitHub. Maintainers still review each bootstrap update for new installs and repairs, and no update may merge or publish automatically.

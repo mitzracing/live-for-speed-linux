@@ -115,7 +115,7 @@ lfs-linux update-check
 
 The command reports the official stable and public-test/new-graphics channels separately. A newer public test or changed installer returns status 2 for maintainer review. It never modifies LFS and does not block a versioned update that LFS completed during a trusted session.
 
-There is no background checker in the launch path. The weekly repository drift workflow alerts maintainers so new installs receive a current audited bootstrap. Maintainers update all release pins together after a clean install and live run. See [`docs/RELEASING.md`](docs/RELEASING.md).
+There is no background checker in the launch path. The weekly repository workflow treats status 2 as an expected maintenance event: it checks whether the pinned bootstrap URL remains available, creates or refreshes one deduplicated GitHub issue, and leaves the run green with a warning. Downloads-page, script, or GitHub API failures remain red; an inconclusive supplemental installer-header probe is reported as unknown. Maintainers update release pins only after a clean extraction, audit, migration drill, and live run. See [`docs/RELEASING.md`](docs/RELEASING.md).
 
 ## Flathub
 
