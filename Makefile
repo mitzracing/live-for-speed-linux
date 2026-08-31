@@ -33,6 +33,7 @@ test:
 	./tests/test-upgrade.sh
 	python3 tests/test-support-static.py
 	python3 tests/test-triage-feedback.py
+	python3 tests/test-upstream-drift.py
 	./tests/test-website.sh
 	./tests/test-release-archive.sh
 
