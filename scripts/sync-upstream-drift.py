@@ -113,6 +113,12 @@ def build_plan(
             "body": body,
             "comment": "Automated upstream state changed; the maintenance summary was refreshed.",
         }
+    if matches and matches[0].get("state") == "open":
+        return {
+            "action": "close",
+            "issue_number": int(matches[0]["number"]),
+            "comment": "The audited package pin now matches the official LFS downloads page; closing this maintenance alert.",
+        }
     return {"action": "noop"}
 
 
