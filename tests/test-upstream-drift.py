@@ -79,6 +79,42 @@ class UpstreamDriftTest(unittest.TestCase):
         self.assertNotIn("0.8C24", plan["body"])
         self.assertIn("changed", plan["comment"].casefold())
 
+    def test_current_pin_closes_open_managed_issue(self) -> None:
+        report = "Audited target: 0.8C24\nWebsite test:   0.8C24"
+        body = DRIFT.build_body(
+            "Audited target: 0.8C20\nWebsite test:   0.8C24",
+            "available",
+        )
+        plan = DRIFT.build_plan(
+            "current",
+            report,
+            "available",
+            [managed_issue(body, number=31)],
+        )
+        self.assertEqual(plan["action"], "close")
+        self.assertEqual(plan["issue_number"], 31)
+        self.assertIn("matches", plan["comment"].casefold())
+
+    def test_duplicate_managed_issues_fail_closed(self) -> None:
+        body = DRIFT.build_body("Website test:   0.8C24", "available")
+        with self.assertRaisesRegex(ValueError, "multiple managed"):
+            DRIFT.build_plan(
+                "drift",
+                "Website test:   0.8C24",
+                "available",
+                [managed_issue(body, number=1), managed_issue(body, number=2)],
+            )
+
+    def test_report_is_bounded_and_cannot_mention_or_inject_html(self) -> None:
+        report = "\x1b[31m@maintainers <script>alert(1)</script>\x00" + "x" * 9000
+        body = DRIFT.build_body(report, "unknown")
+        self.assertNotIn("\x1b", body)
+        self.assertNotIn("<script>", body)
+        self.assertNotIn("@maintainers", body)
+        self.assertIn("@\u200bmaintainers", body)
+        self.assertIn("&lt;script&gt;", body)
+        self.assertIn("[report truncated]", body)
+
 
 if __name__ == "__main__":
     unittest.main()
