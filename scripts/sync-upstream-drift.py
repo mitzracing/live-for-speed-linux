@@ -7,8 +7,12 @@ import argparse
 import hashlib
 import html
 import json
+import os
 import re
 import sys
+import urllib.error
+import urllib.parse
+import urllib.request
 from pathlib import Path
 from typing import Any
 
@@ -129,6 +133,94 @@ def load_json_list(path: str) -> list[dict[str, Any]]:
     return value
 
 
+def request_json(
+    url: str,
+    token: str,
+    method: str = "GET",
+    payload: dict[str, Any] | None = None,
+) -> Any:
+    data = None if payload is None else json.dumps(payload, separators=(",", ":")).encode("utf-8")
+    request = urllib.request.Request(
+        url,
+        data=data,
+        method=method,
+        headers={
+            "Accept": "application/vnd.github+json",
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+            "User-Agent": "live-for-speed-linux-upstream-drift",
+            "X-GitHub-Api-Version": "2022-11-28",
+        },
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=20) as response:
+            content = response.read()
+            return json.loads(content) if content else None
+    except urllib.error.HTTPError as error:
+        raise RuntimeError(f"GitHub API returned HTTP {error.code}") from error
+    except urllib.error.URLError as error:
+        raise RuntimeError(f"GitHub API request failed: {error.reason}") from error
+
+
+def repository_name(value: str) -> str:
+    if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", value):
+        raise ValueError("GITHUB_REPOSITORY is invalid")
+    return value
+
+
+def fetch_issues(repository: str, token: str, api_url: str) -> list[dict[str, Any]]:
+    query = urllib.parse.urlencode(
+        {
+            "state": "all",
+            "labels": "upstream-drift",
+            "per_page": "100",
+            "sort": "created",
+            "direction": "desc",
+        }
+    )
+    base = f"{api_url.rstrip('/')}/repos/{urllib.parse.quote(repository, safe='/')}"
+    value = request_json(f"{base}/issues?{query}", token)
+    if not isinstance(value, list) or not all(isinstance(item, dict) for item in value):
+        raise RuntimeError("GitHub issues response had an unexpected shape")
+    return value
+
+
+def apply_plan(plan: dict[str, Any], repository: str, token: str, api_url: str) -> None:
+    base = f"{api_url.rstrip('/')}/repos/{urllib.parse.quote(repository, safe='/')}"
+    action = plan["action"]
+    if action == "noop":
+        return
+    if action == "create":
+        request_json(
+            f"{base}/issues",
+            token,
+            "POST",
+            {key: plan[key] for key in ("title", "body", "labels")},
+        )
+        return
+    issue_number = int(plan["issue_number"])
+    issue_url = f"{base}/issues/{issue_number}"
+    if action == "update":
+        request_json(
+            issue_url,
+            token,
+            "PATCH",
+            {
+                "title": ISSUE_TITLE,
+                "body": plan["body"],
+                "labels": sorted(ISSUE_LABELS),
+                "state": "open",
+            },
+        )
+        request_json(f"{issue_url}/comments", token, "POST", {"body": plan["comment"]})
+        return
+    if action == "close":
+        request_json(f"{issue_url}/comments", token, "POST", {"body": plan["comment"]})
+        request_json(issue_url, token, "PATCH", {"state": "closed"})
+        return
+    raise ValueError(f"unsupported plan action: {action}")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     mode = parser.add_mutually_exclusive_group(required=True)
@@ -145,12 +237,23 @@ def main() -> int:
         if args.dry_run:
             if not args.issues_file:
                 raise ValueError("--issues-file is required in dry-run mode")
-            plan = build_plan(args.state, report, args.pin_status, load_json_list(args.issues_file))
+            issues = load_json_list(args.issues_file)
+        else:
+            token = os.environ.get("GITHUB_TOKEN", "")
+            if not token:
+                raise ValueError("GITHUB_TOKEN is required in apply mode")
+            repository = repository_name(os.environ.get("GITHUB_REPOSITORY", ""))
+            api_url = os.environ.get("GITHUB_API_URL", "https://api.github.com")
+            issues = fetch_issues(repository, token, api_url)
+        plan = build_plan(args.state, report, args.pin_status, issues)
+        if args.apply:
+            apply_plan(plan, repository, token, api_url)
+            print(f"upstream drift issue action: {plan['action']}")
+        else:
             json.dump(plan, sys.stdout, sort_keys=True)
             sys.stdout.write("\n")
-            return 0
-        raise ValueError("apply mode is not implemented")
-    except (OSError, ValueError, json.JSONDecodeError) as error:
+        return 0
+    except (OSError, ValueError, RuntimeError, json.JSONDecodeError) as error:
         print(f"upstream drift synchronization failed: {error}", file=sys.stderr)
         return 1
 
