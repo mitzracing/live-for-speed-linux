@@ -162,6 +162,9 @@ else
   xmllint --noout "$ROOT_DIR/share/metainfo/io.github.mitzracing.live_for_speed_linux.metainfo.xml"
 fi
 
+ci_workflow="$ROOT_DIR/.github/workflows/ci.yml"
+grep -Fq 'fetch-depth: 0' "$ci_workflow"
+
 upstream_workflow="$ROOT_DIR/.github/workflows/upstream-check.yml"
 grep -Fq 'contents: read' "$upstream_workflow"
 grep -Fq 'issues: write' "$upstream_workflow"
