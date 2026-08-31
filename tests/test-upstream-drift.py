@@ -102,7 +102,7 @@ class UpstreamDriftTest(unittest.TestCase):
         self.assertEqual(plan["labels"], ["status:needs-maintainer", "upstream-drift"])
         self.assertIn("0.8C20", plan["body"])
         self.assertIn("0.8C24", plan["body"])
-        self.assertIn("Pinned C20 bootstrap remains available", plan["body"])
+        self.assertIn("Pinned bootstrap remains available", plan["body"])
 
     def test_repeated_identical_drift_is_noop(self) -> None:
         report = "Audited target: 0.8C20\nWebsite test:   0.8C24"
@@ -153,9 +153,10 @@ class UpstreamDriftTest(unittest.TestCase):
             )
 
     def test_report_is_bounded_and_cannot_mention_or_inject_html(self) -> None:
-        report = "\x1b[31m@maintainers <script>alert(1)</script>\x00" + "x" * 9000
+        report = "\x1b[31m@maintainers <script>alert(1)</script>\x00\u202e" + "x" * 9000
         body = DRIFT.build_body(report, "unknown")
         self.assertNotIn("\x1b", body)
+        self.assertNotIn("\u202e", body)
         self.assertNotIn("<script>", body)
         self.assertNotIn("@maintainers", body)
         self.assertIn("@\u200bmaintainers", body)
