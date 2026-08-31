@@ -11,15 +11,30 @@ TMP_ROOT="$(mktemp -d /tmp/lfs-linux-release.XXXXXX)"
 readonly TMP_ROOT
 trap 'rm -rf "$TMP_ROOT"' EXIT
 
+post_release=0
+if git -C "$ROOT_DIR" rev-parse --git-dir >/dev/null 2>&1 &&
+   tag_commit="$(git -C "$ROOT_DIR" rev-parse -q --verify "v$VERSION^{}" 2>/dev/null)" &&
+   [[ "$tag_commit" != "$(git -C "$ROOT_DIR" rev-parse HEAD)" ]]; then
+  post_release=1
+  set +e
+  "$ROOT_DIR/scripts/build-release-archive.sh" "$TMP_ROOT/guard" >"$TMP_ROOT/guard.out" 2>&1
+  guard_status=$?
+  set -e
+  [[ "$guard_status" -ne 0 ]]
+  grep -Fq "version $VERSION was already released" "$TMP_ROOT/guard.out"
+fi
+
 mkdir -p "$TMP_ROOT/one" "$TMP_ROOT/two"
-"$ROOT_DIR/scripts/build-release-archive.sh" "$TMP_ROOT/one" >"$TMP_ROOT/one.sha"
-"$ROOT_DIR/scripts/build-release-archive.sh" "$TMP_ROOT/two" >"$TMP_ROOT/two.sha"
+LFS_LINUX_ALLOW_POST_RELEASE_ARCHIVE=1 \
+  "$ROOT_DIR/scripts/build-release-archive.sh" "$TMP_ROOT/one" >"$TMP_ROOT/one.sha"
+LFS_LINUX_ALLOW_POST_RELEASE_ARCHIVE=1 \
+  "$ROOT_DIR/scripts/build-release-archive.sh" "$TMP_ROOT/two" >"$TMP_ROOT/two.sha"
 archive_one="$(find "$TMP_ROOT/one" -type f -name '*.tar.gz' -print -quit)"
 archive_two="$(find "$TMP_ROOT/two" -type f -name '*.tar.gz' -print -quit)"
 [[ -n "$archive_one" && -n "$archive_two" ]]
 archive_hash="$(sha256sum "$archive_one" | awk '{print $1}')"
 [[ "$archive_hash" == "$(sha256sum "$archive_two" | awk '{print $1}')" ]]
-if [[ -f "$ROOT_DIR/packaging/aur/PKGBUILD" ]]; then
+if [[ -f "$ROOT_DIR/packaging/aur/PKGBUILD" && "$post_release" -eq 0 ]]; then
   pinned_hash="$(grep -Eo "sha256sums=\\('[0-9a-f]{64}'\\)" "$ROOT_DIR/packaging/aur/PKGBUILD" | grep -Eo '[0-9a-f]{64}')"
   [[ "$archive_hash" == "$pinned_hash" ]]
 fi
