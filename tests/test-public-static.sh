@@ -6,6 +6,7 @@ readonly ROOT_DIR
 
 bash -n "$ROOT_DIR/bin/"* "$ROOT_DIR/libexec/lfs-linux-core" "$ROOT_DIR/scripts/"*.sh "$ROOT_DIR/tests/"*.sh
 python3 -c 'import ast, pathlib, sys; ast.parse(pathlib.Path(sys.argv[1]).read_text())' "$ROOT_DIR/scripts/generate-payload-manifest.py"
+python3 -c 'import ast, pathlib, sys; ast.parse(pathlib.Path(sys.argv[1]).read_text())' "$ROOT_DIR/scripts/sync-upstream-drift.py"
 if command -v shellcheck >/dev/null 2>&1; then
   shellcheck "$ROOT_DIR/bin/"* "$ROOT_DIR/libexec/lfs-linux-core" "$ROOT_DIR/scripts/"*.sh "$ROOT_DIR/tests/"*.sh
 fi
@@ -159,6 +160,21 @@ if command -v appstreamcli >/dev/null 2>&1; then
   appstreamcli validate --no-net "$ROOT_DIR/share/metainfo/io.github.mitzracing.live_for_speed_linux.metainfo.xml"
 else
   xmllint --noout "$ROOT_DIR/share/metainfo/io.github.mitzracing.live_for_speed_linux.metainfo.xml"
+fi
+
+ci_workflow="$ROOT_DIR/.github/workflows/ci.yml"
+grep -Fq 'fetch-depth: 0' "$ci_workflow"
+
+upstream_workflow="$ROOT_DIR/.github/workflows/upstream-check.yml"
+grep -Fq 'contents: read' "$upstream_workflow"
+grep -Fq 'issues: write' "$upstream_workflow"
+grep -Fq 'persist-credentials: false' "$upstream_workflow"
+grep -Fq 'scripts/sync-upstream-drift.py' "$upstream_workflow"
+grep -Fq 'status:needs-maintainer' "$ROOT_DIR/scripts/sync-upstream-drift.py"
+grep -Fq 'upstream-drift' "$ROOT_DIR/scripts/sync-upstream-drift.py"
+if grep -Eq 'contents: write|pull-requests: write|packages: write' "$upstream_workflow"; then
+  printf 'upstream drift workflow has excessive write permission\n' >&2
+  exit 1
 fi
 
 # No privileged game install and no hidden auto-update path.

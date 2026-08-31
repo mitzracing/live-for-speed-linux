@@ -70,6 +70,8 @@ lfs-linux update-check
 
 A review-required result exits with status 2. It identifies whether the official stable or new-graphics public-test bootstrap changed. It is not an installation failure, does not alter the game, and does not block a newer version that LFS recorded during a trusted session.
 
+In the repository's weekly workflow, status 2 creates or refreshes one `upstream-drift` maintenance issue and leaves the run successful with a warning. A red run now means the initial checker, downloads-page network request, workflow script, or GitHub issue synchronization failed and needs investigation. An inconclusive pinned-installer header probe is recorded as `unknown` in the issue instead of being trusted.
+
 Do not bypass checksum checks. Do not patch `LFS.exe`.
 
 ## LFS updated itself but later launch fails

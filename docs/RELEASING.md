@@ -44,7 +44,7 @@ Do not copy an existing user prefix into a release. A clean prefix is mandatory.
 
 ## AUR publication
 
-The AUR recipe uses the deterministic archive created by `make release-archive`, not GitHub's generated source snapshot.
+The AUR recipe uses the deterministic archive created by `make release-archive`, not GitHub's generated source snapshot. Set `VERSION` to a new, unreleased value first: the builder refuses to reuse an archive name whose matching tag already points to another commit. `LFS_LINUX_ALLOW_POST_RELEASE_ARCHIVE=1` is reserved for deterministic test snapshots and must not be used for publication.
 
 1. Run `make release-archive` twice and compare SHA-256 digests.
 2. Confirm the digest equals `packaging/aur/PKGBUILD`.

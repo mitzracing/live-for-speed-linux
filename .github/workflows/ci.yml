@@ -12,6 +12,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
       - name: Install validation tools and runtime-test dependencies
         run: sudo apt-get update && sudo apt-get install -y appstream curl desktop-file-utils libarchive-tools libxml2-utils python3 python3-yaml 7zip shellcheck
       - name: Run static and unit checks

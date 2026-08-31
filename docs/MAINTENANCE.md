@@ -29,13 +29,30 @@ A normal audited bootstrap update changes outer and nested payload fields, regen
 
 CI performs syntax, metadata, package-boundary, and failure-path checks.
 
-A scheduled upstream check can report download-page changes. It must not:
+The weekly upstream check has three outcomes:
 
+| Checker result | Repository action | Workflow result |
+|---|---|---|
+| current pin (0) | close any managed drift issue | success |
+| valid drift (2) | HEAD-check the pinned installer and create or refresh one deduplicated issue | success with warning |
+| downloads-page network, script, or GitHub API failure | no trust or pin change | failure |
+
+The issue uses the dedicated `upstream-drift` label plus `status:needs-maintainer`. Repeated identical reports are no-ops; changed reports update the same issue once. When repository pins match again, automation comments and closes the issue.
+
+Default maintainer action:
+
+- pinned installer available at the audited byte size: monitor and batch rapid public-test updates
+- pinned installer missing or changed: audit the new bootstrap immediately
+- compatibility regression or stable-channel change: audit immediately
+
+Automation must not:
+
+- download the full proprietary installer during the scheduled check
 - calculate and accept new digests without review
 - modify a user installation
-- merge a pin update
-- publish an AUR or Flatpak release
-- contact upstream automatically
+- commit, open a pin-update pull request, tag, or publish
+- upload proprietary payloads
+- message upstream developers or file upstream reports automatically
 
 ## Bus-factor reduction
 
