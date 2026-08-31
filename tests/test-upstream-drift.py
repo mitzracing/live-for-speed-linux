@@ -3,9 +3,12 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import subprocess
 import tempfile
+import threading
 import unittest
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -18,6 +21,44 @@ SPEC.loader.exec_module(DRIFT)
 
 def managed_issue(body: str, *, state: str = "open", number: int = 17) -> dict:
     return {"number": number, "state": state, "body": body, "title": DRIFT.ISSUE_TITLE}
+
+
+class CaptureHandler(BaseHTTPRequestHandler):
+    requests: list[dict] = []
+    issues: list[dict] = []
+
+    def do_GET(self) -> None:
+        self.__class__.requests.append(
+            {
+                "method": "GET",
+                "path": self.path,
+                "authorization": self.headers.get("Authorization"),
+                "payload": None,
+            }
+        )
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        self.wfile.write(json.dumps(self.__class__.issues).encode("utf-8"))
+
+    def do_POST(self) -> None:
+        length = int(self.headers.get("Content-Length", "0"))
+        payload = json.loads(self.rfile.read(length))
+        self.__class__.requests.append(
+            {
+                "method": "POST",
+                "path": self.path,
+                "authorization": self.headers.get("Authorization"),
+                "payload": payload,
+            }
+        )
+        self.send_response(201)
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        self.wfile.write(b"{}")
+
+    def log_message(self, _format: str, *_args: object) -> None:
+        return
 
 
 class UpstreamDriftTest(unittest.TestCase):
@@ -114,6 +155,55 @@ class UpstreamDriftTest(unittest.TestCase):
         self.assertIn("@\u200bmaintainers", body)
         self.assertIn("&lt;script&gt;", body)
         self.assertIn("[report truncated]", body)
+
+    def test_apply_creates_issue_through_bounded_github_api(self) -> None:
+        CaptureHandler.requests = []
+        CaptureHandler.issues = []
+        server = ThreadingHTTPServer(("127.0.0.1", 0), CaptureHandler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            with tempfile.NamedTemporaryFile("w", encoding="utf-8") as report:
+                report.write("Audited target: 0.8C20\nWebsite test:   0.8C24\n")
+                report.flush()
+                environment = os.environ.copy()
+                environment.update(
+                    {
+                        "GITHUB_TOKEN": "test-token",
+                        "GITHUB_REPOSITORY": "mitzracing/live-for-speed-linux",
+                        "GITHUB_API_URL": f"http://127.0.0.1:{server.server_address[1]}",
+                    }
+                )
+                subprocess.run(
+                    [
+                        str(SCRIPT),
+                        "--apply",
+                        "--state",
+                        "drift",
+                        "--report-file",
+                        report.name,
+                        "--pin-status",
+                        "available",
+                    ],
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                    timeout=20,
+                    env=environment,
+                )
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
+        self.assertEqual([request["method"] for request in CaptureHandler.requests], ["GET", "POST"])
+        self.assertIn("labels=upstream-drift", CaptureHandler.requests[0]["path"])
+        self.assertEqual(CaptureHandler.requests[0]["authorization"], "Bearer test-token")
+        create = CaptureHandler.requests[1]
+        self.assertEqual(create["path"], "/repos/mitzracing/live-for-speed-linux/issues")
+        self.assertEqual(create["payload"]["title"], DRIFT.ISSUE_TITLE)
+        self.assertEqual(create["payload"]["labels"], ["status:needs-maintainer", "upstream-drift"])
+        self.assertNotIn("test-token", json.dumps(create["payload"]))
 
 
 if __name__ == "__main__":
