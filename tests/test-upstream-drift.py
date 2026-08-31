@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import importlib.util
 import json
 import subprocess
 import tempfile
@@ -9,6 +10,14 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts" / "sync-upstream-drift.py"
+SPEC = importlib.util.spec_from_file_location("sync_upstream_drift", SCRIPT)
+assert SPEC and SPEC.loader
+DRIFT = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(DRIFT)
+
+
+def managed_issue(body: str, *, state: str = "open", number: int = 17) -> dict:
+    return {"number": number, "state": state, "body": body, "title": DRIFT.ISSUE_TITLE}
 
 
 class UpstreamDriftTest(unittest.TestCase):
@@ -47,6 +56,28 @@ class UpstreamDriftTest(unittest.TestCase):
         self.assertIn("0.8C20", plan["body"])
         self.assertIn("0.8C24", plan["body"])
         self.assertIn("Pinned C20 bootstrap remains available", plan["body"])
+
+    def test_repeated_identical_drift_is_noop(self) -> None:
+        report = "Audited target: 0.8C20\nWebsite test:   0.8C24"
+        body = DRIFT.build_body(report, "available")
+        plan = DRIFT.build_plan("drift", report, "available", [managed_issue(body)])
+        self.assertEqual(plan, {"action": "noop"})
+
+    def test_changed_drift_updates_existing_issue_once(self) -> None:
+        old_report = "Audited target: 0.8C20\nWebsite test:   0.8C24"
+        new_report = "Audited target: 0.8C20\nWebsite test:   0.8C25"
+        old_body = DRIFT.build_body(old_report, "available")
+        plan = DRIFT.build_plan(
+            "drift",
+            new_report,
+            "available",
+            [managed_issue(old_body, number=29)],
+        )
+        self.assertEqual(plan["action"], "update")
+        self.assertEqual(plan["issue_number"], 29)
+        self.assertIn("0.8C25", plan["body"])
+        self.assertNotIn("0.8C24", plan["body"])
+        self.assertIn("changed", plan["comment"].casefold())
 
 
 if __name__ == "__main__":
