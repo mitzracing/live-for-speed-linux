@@ -58,12 +58,14 @@ tar -xzf "$archive_one" -C "$TMP_ROOT"
 archive_dir="$TMP_ROOT/$ARCHIVE_ROOT"
 LFS_LINUX_SOURCE_ARCHIVE=1 "$archive_dir/tests/test-public-static.sh" >/dev/null
 "$archive_dir/tests/test-public-core.sh" >/dev/null
+"$archive_dir/tests/test-runtime-trust.sh" >/dev/null
 "$archive_dir/tests/test-upgrade.sh" >/dev/null
 python3 "$archive_dir/tests/test-support-static.py" >/dev/null
 python3 "$archive_dir/tests/test-triage-feedback.py" >/dev/null
 "$archive_dir/tests/test-website.sh" >/dev/null
 make -C "$archive_dir" DESTDIR="$TMP_ROOT/pkgroot" PREFIX=/usr install >/dev/null
 "$archive_dir/tests/test-package-boundary.sh" "$TMP_ROOT/pkgroot" >/dev/null
+[[ "$(sha256sum "$TMP_ROOT/pkgroot/usr/share/lfs-linux/arch-wine-peter-jung.pgp" | awk '{print $1}')" == 'c3186f2f7bdbe1cd02002dc84bce781580e4edc49fdc3ad848096af6768f3a89' ]]
 if command -v dpkg-deb >/dev/null 2>&1; then
   "$archive_dir/tests/test-debian-package.sh" >/dev/null
 fi

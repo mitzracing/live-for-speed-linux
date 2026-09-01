@@ -57,6 +57,10 @@ Install a current Vulkan driver for the GPU. On Arch, select the matching `vulka
 
 The wrapper verifies the private DXVK archive plus its D3D11 and DXGI prefix copies. Run `lfs-linux install` to repair a failed DXVK check.
 
+## Wine package signature failure
+
+Version 0.3.2 verifies the pinned Arch Wine package size, SHA-256 digest, detached signature, exact public certificate, and signer fingerprint before extraction. Delete the cached Wine archive and signature with `lfs-linux purge-cache`, then retry `lfs-linux install`. If verification still fails, do not bypass it; report the exact wrapper error. The Arch signature authenticates the archived package and its packager, not reproducible correspondence to Wine source.
+
 ## Missing audio
 
 Open the system audio mixer while LFS runs. Confirm that an `LFS.exe` stream exists and is not muted.

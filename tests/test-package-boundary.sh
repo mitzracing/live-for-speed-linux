@@ -9,6 +9,7 @@ for path in \
   usr/bin/lfs-linux-desktop \
   usr/lib/lfs-linux/lfs-linux-core \
   usr/share/lfs-linux/release.env \
+  usr/share/lfs-linux/arch-wine-peter-jung.pgp \
   usr/share/lfs-linux/lfs-0.8C20-stock.manifest \
   usr/share/lfs-linux/lfs-0.8C20-seed.manifest \
   usr/share/lfs-linux/lfs-0.8C20-nested.manifest \

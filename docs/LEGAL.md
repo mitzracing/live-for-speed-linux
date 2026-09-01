@@ -10,6 +10,7 @@ This repository and its Linux packages distribute only:
 - desktop and AppStream metadata
 - an original community icon
 - checksums and public download URLs
+- the public Arch packager certificate used to verify the pinned Wine package
 - documentation and tests
 
 The repository does not distribute Live for Speed executables, tracks, cars, textures, account data, or unlock data.
@@ -23,6 +24,12 @@ The wrapper verifies the exact installer size and SHA-256 digest before local ex
 Live for Speed remains proprietary software. Its terms apply separately: <https://www.lfs.net/agreement>.
 
 The terms state that the developers can change LFS and that users must expect updates. They also restrict account credentials and unlock codes. Never report these values in an issue.
+
+## Wine and Arch signing certificate
+
+The wrapper downloads the exact Wine package from the Arch Linux Archive and verifies its detached signature with the shipped Peter Jung packager certificate before extraction. The certificate contains public key and certification packets only; no private key is distributed. It was exported from the Arch Linux keyring, whose package is distributed under GPL-3.0-or-later. Wine remains licensed by its upstream project under LGPL-2.1-or-later.
+
+The package signature authenticates the Arch packager and package bytes. It does not by itself prove reproducible binary-to-source correspondence. The wrapper separately pins the package digest and validates every extracted runtime file and link.
 
 ## DXVK
 

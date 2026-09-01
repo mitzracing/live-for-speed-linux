@@ -13,6 +13,7 @@ install:
 	install -Dm755 bin/lfs-linux-desktop $(BINDIR)/lfs-linux-desktop
 	install -Dm755 libexec/lfs-linux-core $(LIBEXECDIR)/lfs-linux-core
 	install -Dm644 share/lfs-linux/release.env $(DATADIR)/lfs-linux/release.env
+	install -Dm644 share/lfs-linux/arch-wine-peter-jung.pgp $(DATADIR)/lfs-linux/arch-wine-peter-jung.pgp
 	install -Dm644 share/lfs-linux/lfs-0.8C20-stock.manifest $(DATADIR)/lfs-linux/lfs-0.8C20-stock.manifest
 	install -Dm644 share/lfs-linux/lfs-0.8C20-seed.manifest $(DATADIR)/lfs-linux/lfs-0.8C20-seed.manifest
 	install -Dm644 share/lfs-linux/lfs-0.8C20-nested.manifest $(DATADIR)/lfs-linux/lfs-0.8C20-nested.manifest
@@ -33,6 +34,7 @@ install:
 test:
 	./tests/test-public-static.sh
 	./tests/test-public-core.sh
+	./tests/test-runtime-trust.sh
 	./tests/test-upgrade.sh
 	python3 tests/test-support-static.py
 	python3 tests/test-triage-feedback.py

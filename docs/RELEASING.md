@@ -30,9 +30,9 @@ Update `share/lfs-linux/release.env` as one change:
 - minimum extracted file count and byte size as secondary sanity checks
 - prior audited executable digest, immutable predecessor migration manifest, and complete predecessor seed manifest; use the seed to distinguish untouched defaults from player changes
 - DXVK version, URL, size, archive SHA-256, and required 32-bit D3D11/DXGI DLL sizes and SHA-256 digests
-- exact Wine package version, immutable archive URL, size, SHA-256 digest, and complete runtime-manifest pins
+- exact Wine package version, immutable archive and detached-signature URLs, sizes and SHA-256 digests, audited packager-key fingerprint and digest, and complete runtime-manifest pins
 
-The wrapper extracts the verified NSIS archive with 7-Zip and does not execute the installer stub. For 0.8, verify and extract every nested archive into its audited destination. Remove `$PLUGINSDIR`, `inst_tmp`, and `UninstallLFS.exe`, then regenerate the LFS manifest with `scripts/generate-payload-manifest.py lfs`. Extract the exact Wine package and regenerate its manifest with the `wine` profile. Review player-owned exclusions before accepting either manifest.
+The wrapper preflights archive member paths and links, extracts the verified NSIS archive with 7-Zip, and does not execute the installer stub. For 0.8, verify and preflight every nested archive before extracting it into its audited destination. Preserve sorted installer order and explicit replacement semantics: later pinned nested archives intentionally replace earlier seed entries inside disposable staging. A skip-existing policy changes official bytes and must fail the complete seed manifest. Remove `$PLUGINSDIR`, `inst_tmp`, and `UninstallLFS.exe`, then regenerate the LFS manifest with `scripts/generate-payload-manifest.py lfs`. Extract the exact Wine package and regenerate its manifest with the `wine` profile. Review player-owned exclusions before accepting either manifest.
 
 Delete a randomly selected immutable file that is not one of the separately pinned representative files. Confirm `doctor` and `launch` fail, `install` restores its exact hash, and player-owned paths remain byte-identical. Perform the same drift-and-reprovision check on one non-entry-point Wine DLL.
 
@@ -46,12 +46,12 @@ Do not copy an existing user prefix into a release. A clean prefix is mandatory.
 
 ## Debian and Ubuntu `.deb` publication
 
-The `.deb` is a GitHub release asset, not entry into the Debian archive, an Ubuntu PPA, or a graphical software catalog. Those channels require separate ownership, signing, review, and explicit approval.
+The `.deb` is a GitHub release asset, not entry into the Debian archive or an Ubuntu PPA. Shipping AppStream metadata does not create a graphical software-catalog listing: GNOME Software and KDE Discover can index it only after a reviewed package enters a configured archive. Those channels require separate ownership, signing, review, and explicit approval.
 
 1. Run `packaging/debian/build-deb.sh` twice and compare SHA-256 digests.
 2. Run `tests/test-debian-package.sh` and inspect `dpkg-deb --info` plus `dpkg-deb --contents`.
 3. Confirm the package contains only the same wrapper files accepted by `tests/test-package-boundary.sh`.
-4. In fresh Ubuntu 24.04 and Debian 13 environments, install with `apt install ./live-for-speed-linux_<version>-1_amd64.deb`.
+4. In fresh Ubuntu 24.04 and Debian 13 environments, install with `apt install ./live-for-speed-linux_<version>-0github1_amd64.deb`.
 5. Confirm APT resolves only amd64 host libraries for the audited pure-WoW64 runtime.
 6. On each distribution, use an empty state directory, run the official audited install, `doctor`, a real DXVK/Vulkan GUI launch, and a clean stop.
 7. Create user-state sentinels, remove the package, and prove those sentinels and all XDG game data remain.
@@ -73,6 +73,7 @@ The AUR recipe uses the deterministic archive created by `make release-archive`,
 8. Compare generated `.SRCINFO` with the committed file.
 9. Inspect package contents for proprietary files and home paths.
 10. Recheck that the AUR package name is available, then submit.
+11. Set the AUR package-base keywords to `game`, `games`, `racing`, `simulator`, `wine`, and `lfs`; verify them on the package page and through the AUR RPC.
 
 GitHub release publication and AUR submission require explicit owner approval.
 

@@ -1,6 +1,6 @@
 # Debian and Ubuntu package
 
-The deterministic `.deb` contains only the MIT-licensed launcher, manifests, desktop metadata, and documentation. It does not contain Live for Speed, Wine, DXVK, Windows executables, or player data. Runtime payloads are downloaded from their pinned upstream URLs only after an explicit user command.
+The deterministic `.deb` contains only the MIT-licensed launcher, GPL-3.0-or-later public signing certificate, manifests, desktop metadata, and documentation. It does not contain Live for Speed, Wine, DXVK, Windows executables, or player data. Runtime payloads are downloaded from their pinned upstream URLs only after an explicit user command.
 
 ## Supported distributions
 
@@ -13,11 +13,11 @@ The pinned Wine 11.15 runtime requires glibc 2.38 or newer. Ubuntu 22.04 and Deb
 
 ## Install
 
-Install the local release asset with APT so its amd64 Wine and Vulkan host dependencies are resolved. The audited private Wine 11.15 runtime uses pure WoW64, so this package does not require an i386 Unix library stack.
+Install the local release asset with APT so its audited amd64 host-library and Vulkan dependencies are resolved. The package does not depend on system Wine; it provisions the exact private Wine 11.15 runtime only after verifying its pinned digest and detached Arch packager signature. Pure WoW64 requires no i386 Unix library stack.
 
 ```bash
 sudo apt update
-sudo apt install ./live-for-speed-linux_0.3.1-1_amd64.deb
+sudo apt install ./live-for-speed-linux_0.3.2-0github1_amd64.deb
 ```
 
 Then open **Live for Speed Linux** from the application menu or run:
@@ -50,4 +50,4 @@ Normal package removal deletes only files managed under `/usr`. User profiles, s
 
 ## Publication boundary
 
-A GitHub release `.deb` is a direct-download package, not a Debian archive, PPA, or graphical software-catalog listing. Publishing through one of those channels requires separate repository ownership, review, signing, and explicit approval. The package must never embed or redistribute proprietary upstream payloads.
+A GitHub release `.deb` is a direct-download package, not a Debian archive, PPA, or graphical software-catalog listing. AppStream and desktop metadata provide `Game`, `Simulation`, and `SportsGame` categories plus `games`, `racing`, and `simulator` search terms, but GNOME Software and KDE Discover can index them only after this package enters a configured archive. Publishing through one of those channels requires separate repository ownership, review, signing, and explicit approval. The package must never embed or redistribute proprietary upstream payloads.

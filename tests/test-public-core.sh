@@ -110,6 +110,9 @@ chmod +x "$fake_wine" "$fake_root/usr/bin/wineserver"
 "$ROOT_DIR/scripts/generate-payload-manifest.py" wine "$fake_root" "$test_data/fake-wine.manifest" >/dev/null
 fake_wine_manifest_size="$(stat -c %s "$test_data/fake-wine.manifest")"
 fake_wine_manifest_hash="$(sha256sum "$test_data/fake-wine.manifest" | awk '{print $1}')"
+printf 'fake-signing-key' >"$test_data/fake-signing-key.gpg"
+fake_signing_key_size="$(stat -c %s "$test_data/fake-signing-key.gpg")"
+fake_signing_key_hash="$(sha256sum "$test_data/fake-signing-key.gpg" | awk '{print $1}')"
 cp "$ROOT_DIR/share/lfs-linux/release.env" "$test_data/release.env"
 cp "$ROOT_DIR/share/lfs-linux/$LFS_STOCK_MANIFEST_NAME" "$test_data/$LFS_STOCK_MANIFEST_NAME"
 cat >>"$test_data/release.env" <<EOF
@@ -117,12 +120,16 @@ WINE_RUNTIME_MANIFEST_NAME='fake-wine.manifest'
 WINE_RUNTIME_MANIFEST_SIZE='$fake_wine_manifest_size'
 WINE_RUNTIME_MANIFEST_SHA256='$fake_wine_manifest_hash'
 WINE_RUNTIME_MANIFEST_ENTRIES='2'
+WINE_SIGNING_KEY_NAME='fake-signing-key.gpg'
+WINE_SIGNING_KEY_SIZE='$fake_signing_key_size'
+WINE_SIGNING_KEY_SHA256='$fake_signing_key_hash'
 EOF
 
 fake12_root="$TMP_ROOT/fake12-runtime"
 mkdir -p "$fake12_root/usr/bin" "$fake12_root/usr/lib/wine"
 cat >"$fake12_root/usr/bin/wine" <<'EOF'
 #!/usr/bin/env bash
+: >"${LFS_TEST_WINE_EXEC_MARKER:?}"
 [[ "${1:-}" == '--version' ]] && { printf '%s\n' 'wine-12.0'; exit 0; }
 exit 1
 EOF
@@ -132,12 +139,14 @@ exit 0
 EOF
 chmod +x "$fake12_root/usr/bin/wine" "$fake12_root/usr/bin/wineserver"
 set +e
-LFS_LINUX_DATA_DIR="$test_data" LFS_LINUX_STATE_DIR="$TMP_ROOT/untested-state" \
+LFS_TEST_WINE_EXEC_MARKER="$TMP_ROOT/unverified-wine-executed" \
+  LFS_LINUX_DATA_DIR="$test_data" LFS_LINUX_STATE_DIR="$TMP_ROOT/untested-state" \
   LFS_LINUX_WINE="$fake12_root/usr/bin/wine" "$ROOT_DIR/bin/lfs-linux" doctor >"$TMP_ROOT/untested-wine.out" 2>&1
 untested_wine_status=$?
 set -e
 [[ "$untested_wine_status" -ne 0 ]]
 grep -Fq 'exact audited Wine 11.15-1 is unavailable' "$TMP_ROOT/untested-wine.out"
+[[ ! -e "$TMP_ROOT/unverified-wine-executed" ]]
 [[ ! -e "$TMP_ROOT/untested-state/.managed-by-lfs-linux" ]]
 
 mkdir -p "$TMP_ROOT/drift-state/prefix/drive_c/LFS"
@@ -316,4 +325,25 @@ PATH="$TMP_ROOT/fake-bin:$PATH" LFS_LINUX_COMMAND="$TMP_ROOT/fake-bin/lfs-mock" 
 [[ "$(grep -c '^setup$' "$MOCK_LOG")" -eq 1 ]]
 [[ "$(grep -c '^launch$' "$MOCK_LOG")" -eq 2 ]]
 
-printf '[PASS] exact Wine, arbitrary stock-file drift, desktop setup, marker, and safe-removal paths pass\n'
+generic_bin="$TMP_ROOT/generic-terminal-bin"
+mkdir -p "$generic_bin"
+ln -s /usr/bin/bash "$generic_bin/bash"
+ln -s /usr/bin/dirname "$generic_bin/dirname"
+ln -s /usr/bin/touch "$generic_bin/touch"
+ln -s "$TMP_ROOT/fake-bin/lfs-mock" "$generic_bin/lfs-mock"
+cat >"$generic_bin/x-terminal-emulator" <<'EOF'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >"$MOCK_TERMINAL_LOG"
+[[ "${1:-}" == '-e' ]] || exit 2
+shift
+exec "$@"
+EOF
+chmod +x "$generic_bin/x-terminal-emulator"
+rm -f "$MOCK_READY"
+export MOCK_TERMINAL_LOG="$TMP_ROOT/generic-terminal.log"
+PATH="$generic_bin" LFS_LINUX_COMMAND="$generic_bin/lfs-mock" \
+  "$ROOT_DIR/bin/lfs-linux-desktop" setup
+grep -Fq -- '-e ' "$MOCK_TERMINAL_LOG"
+grep -Fxq 'setup' "$MOCK_LOG"
+
+printf '[PASS] pre-execution Wine verification, stock drift, terminal dispatch, marker, and safe-removal paths pass\n'
