@@ -14,6 +14,7 @@ pkgbase = live-for-speed-linux
 	depends = findutils
 	depends = gawk
 	depends = grep
+	depends = gnupg
 	depends = libarchive
 	depends = libpulse
 	depends = sed

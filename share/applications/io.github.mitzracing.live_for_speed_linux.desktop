@@ -9,8 +9,8 @@ Icon=io.github.mitzracing.live_for_speed_linux
 Terminal=false
 StartupNotify=true
 StartupWMClass=lfs.exe
-Categories=Game;Simulation;
-Keywords=racing;simulator;wine;LFS;
+Categories=Game;Simulation;SportsGame;
+Keywords=game;racing;simulator;motorsport;driving;wine;LFS;
 PrefersNonDefaultGPU=true
 Actions=Install;Doctor;
 

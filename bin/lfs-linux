@@ -2,6 +2,7 @@
 set -Eeuo pipefail
 
 readonly PROGRAM_NAME='lfs-linux'
+(( EUID != 0 )) || { printf '%s: do not run per-user LFS commands as root\n' "$PROGRAM_NAME" >&2; exit 1; }
 readonly DEFAULT_LIBEXEC='/usr/lib/lfs-linux'
 readonly DEFAULT_DATA='/usr/share/lfs-linux'
 SELF_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"

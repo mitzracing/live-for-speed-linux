@@ -3,6 +3,7 @@ set -Eeuo pipefail
 umask 077
 
 readonly PROGRAM_NAME='lfs-linux'
+(( EUID != 0 )) || { printf '%s: error: do not run per-user LFS commands as root\n' "$PROGRAM_NAME" >&2; exit 1; }
 readonly DATA_DIR="${LFS_LINUX_DATA_DIR:-/usr/share/lfs-linux}"
 readonly RELEASE_FILE="$DATA_DIR/release.env"
 [[ -r "$RELEASE_FILE" ]] || { printf '%s: release manifest not found: %s\n' "$PROGRAM_NAME" "$RELEASE_FILE" >&2; exit 1; }
@@ -30,6 +31,8 @@ readonly LOG_DIR="${LFS_LINUX_LOG_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/lfs
 readonly LOCK_DIR="${XDG_RUNTIME_DIR:-/tmp}/lfs-linux-${UID}"
 readonly INSTALLER="$CACHE_DIR/$LFS_INSTALLER_NAME"
 readonly WINE_PACKAGE="$CACHE_DIR/$WINE_PACKAGE_NAME"
+readonly WINE_PACKAGE_SIGNATURE="$CACHE_DIR/$WINE_PACKAGE_SIGNATURE_NAME"
+readonly WINE_SIGNING_KEY="$DATA_DIR/$WINE_SIGNING_KEY_NAME"
 readonly DXVK_ARCHIVE="$CACHE_DIR/$DXVK_ARCHIVE_NAME"
 readonly INSTALL_MARKER="$STATE_ROOT/install.env"
 readonly LEGACY_LOCAL_GAME_MANIFEST="$STATE_ROOT/game-update.manifest"
@@ -382,6 +385,163 @@ verify_payload_manifest() {
   fi
 }
 
+archive_member_listing_is_safe() {
+  local listing="$1" normalized duplicate
+  normalized="$(mktemp "${TMPDIR:-/tmp}/lfs-linux-archive-paths.XXXXXX")"
+  if ! LC_ALL=C awk '
+    function reject(reason, path) {
+      printf "%s: %s\n", reason, path > "/dev/stderr"
+      bad = 1
+    }
+    {
+      path = $0
+      sub(/\r$/, "", path)
+      if (path == "." || path == "./") next
+      if (path == "" || path ~ /[[:cntrl:]]/) {
+        reject("empty or control-character archive member", path)
+        next
+      }
+      gsub(/\\/, "/", path)
+      if (path ~ /^\// || path ~ /^[[:alpha:]]:/) {
+        reject("absolute archive member", path)
+        next
+      }
+      count = split(path, part, "/")
+      output = ""
+      unsafe = 0
+      for (i = 1; i <= count; i++) {
+        if (part[i] == "" || part[i] == ".") continue
+        if (part[i] == "..") {
+          reject("parent traversal archive member", path)
+          unsafe = 1
+          break
+        }
+        output = output (output == "" ? "" : "/") part[i]
+      }
+      if (!unsafe && output != "") print output
+    }
+    END { if (bad) exit 1 }
+  ' "$listing" >"$normalized"; then
+    rm -f "$normalized"
+    return 1
+  fi
+  if [[ ! -s "$normalized" ]]; then
+    printf 'archive contains no file paths\n' >&2
+    rm -f "$normalized"
+    return 1
+  fi
+  duplicate="$(awk 'seen[$0]++ { print; exit }' "$normalized")"
+  rm -f "$normalized"
+  if [[ -n "$duplicate" ]]; then
+    printf 'duplicate archive member: %s\n' "$duplicate" >&2
+    return 1
+  fi
+}
+
+bsdtar_entry_types_are_safe() {
+  local verbose_listing="$1"
+  LC_ALL=C awk '
+    function contained_link(path, target, base, combined, count, i, depth, part) {
+      if (target == "" || target ~ /[[:cntrl:]]/) return 0
+      gsub(/\\/, "/", target)
+      if (target ~ /^\// || target ~ /^[[:alpha:]]:/) return 0
+      base = path
+      if (base ~ /\//) sub(/\/[^/]*$/, "", base); else base = ""
+      combined = (base == "" ? target : base "/" target)
+      count = split(combined, part, "/")
+      depth = 0
+      for (i = 1; i <= count; i++) {
+        if (part[i] == "" || part[i] == ".") continue
+        if (part[i] == "..") {
+          if (depth == 0) return 0
+          depth--
+        } else {
+          depth++
+        }
+      }
+      return 1
+    }
+    {
+      type = substr($0, 1, 1)
+      if (type != "-" && type != "d" && type != "l") {
+        printf "unsupported archive entry type: %s\n", $0 > "/dev/stderr"
+        bad = 1
+        next
+      }
+      if (type != "l") next
+      rest = $0
+      malformed = 0
+      for (field = 1; field <= 8; field++) {
+        if (rest !~ /^[^[:space:]]+[[:space:]]+/) {
+          printf "malformed symbolic-link listing: %s\n", $0 > "/dev/stderr"
+          bad = 1
+          malformed = 1
+          break
+        }
+        sub(/^[^[:space:]]+[[:space:]]+/, "", rest)
+      }
+      if (malformed) next
+      pieces = split(rest, link, / -> /)
+      if (pieces != 2 || !contained_link(link[1], link[2])) {
+        printf "unsafe symbolic link in archive: %s\n", rest > "/dev/stderr"
+        bad = 1
+      }
+    }
+    END { if (bad) exit 1 }
+  ' "$verbose_listing"
+}
+
+preflight_bsdtar_archive() {
+  local archive="$1" label="$2" listing verbose_listing
+  listing="$(mktemp "${TMPDIR:-/tmp}/lfs-linux-bsdtar-list.XXXXXX")"
+  verbose_listing="$(mktemp "${TMPDIR:-/tmp}/lfs-linux-bsdtar-verbose.XXXXXX")"
+  if ! LC_ALL=C bsdtar -tf "$archive" >"$listing" 2>/dev/null ||
+     ! archive_member_listing_is_safe "$listing" ||
+     ! LC_ALL=C bsdtar -tvf "$archive" >"$verbose_listing" 2>/dev/null ||
+     ! bsdtar_entry_types_are_safe "$verbose_listing"; then
+    rm -f "$listing" "$verbose_listing"
+    die "$label has unsafe or unreadable archive members"
+  fi
+  rm -f "$listing" "$verbose_listing"
+}
+
+preflight_7z_archive() {
+  local archive="$1" label="$2" details listing
+  details="$(mktemp "${TMPDIR:-/tmp}/lfs-linux-7z-details.XXXXXX")"
+  listing="$(mktemp "${TMPDIR:-/tmp}/lfs-linux-7z-list.XXXXXX")"
+  if ! LC_ALL=C 7z l -slt -- "$archive" >"$details" 2>/dev/null; then
+    rm -f "$details" "$listing"
+    die "$label archive listing failed"
+  fi
+  if grep -Eq '^(Symbolic Link|Hard Link) = ' "$details" ||
+     ! awk '
+       /^----------$/ { entries = 1; next }
+       !entries { next }
+       /^$/ { next }
+       /^Path = / { print substr($0, 8); paths++; next }
+       /^[^=]+ = / { next }
+       /^(Warnings|Errors): [0-9]+$/ { next }
+       { malformed = 1 }
+       END { if (!paths || malformed) exit 1 }
+     ' "$details" >"$listing" ||
+     ! archive_member_listing_is_safe "$listing"; then
+    rm -f "$details" "$listing"
+    die "$label has unsafe, duplicate, linked, or unreadable archive members"
+  fi
+  rm -f "$details" "$listing"
+}
+
+extract_bsdtar_archive() {
+  local archive="$1" destination="$2" label="$3" existing
+  preflight_bsdtar_archive "$archive" "$label"
+  [[ -d "$destination" ]] || die "$label extraction destination is missing"
+  if ! existing="$(find "$destination" -mindepth 1 -print -quit)"; then
+    die "$label extraction destination inspection failed"
+  fi
+  [[ -z "$existing" ]] || die "$label extraction destination is not empty"
+  bsdtar -xkf "$archive" -C "$destination" || die "$label extraction failed"
+}
+
 download_verified() {
   local label="$1" url="$2" path="$3" size="$4" checksum="$5"
   mkdir -p "$CACHE_DIR"
@@ -416,8 +576,17 @@ download_verified() {
   mv "$path.part" "$path"
 }
 
+clear_wine_detection() {
+  WINE_BIN=''
+  WINE_SERVER=''
+  WINE_VERSION=''
+  WINE_ROOT=''
+  WINE_LIB_DIR=''
+}
+
 detect_wine() {
-  local candidate version usr_dir
+  local candidate candidate_dir version usr_dir
+  clear_wine_detection
   if [[ -n "${LFS_LINUX_WINE:-}" ]]; then
     candidate="$LFS_LINUX_WINE"
   elif [[ -x "$PRIVATE_WINE_BIN" ]]; then
@@ -425,16 +594,29 @@ detect_wine() {
   else
     candidate="$(command -v wine 2>/dev/null || true)"
   fi
-  [[ -n "$candidate" && -x "$candidate" ]] || return 1
-  version="$($candidate --version 2>/dev/null | head -n 1)"
-  [[ "$version" == "$WINE_VERSION_OUTPUT" ]] || return 1
-  usr_dir="$(cd -- "$(dirname "$candidate")/.." 2>/dev/null && pwd -P)"
-  [[ -n "$usr_dir" && -d "$usr_dir/lib/wine" && -x "$usr_dir/bin/wineserver" ]] || return 1
+  [[ -n "$candidate" ]] || return 1
+  if [[ "$candidate" != */* ]]; then
+    candidate="$(command -v -- "$candidate" 2>/dev/null || true)"
+  fi
+  [[ -n "$candidate" && -x "$candidate" && "${candidate##*/}" == 'wine' ]] || return 1
+  candidate_dir="$(cd -- "$(dirname "$candidate")" 2>/dev/null && pwd -P)" || return 1
+  usr_dir="$(cd -- "$candidate_dir/.." 2>/dev/null && pwd -P)" || return 1
+  candidate="$usr_dir/bin/wine"
+  [[ "$candidate_dir" == "$usr_dir/bin" && -x "$candidate" && -d "$usr_dir/lib/wine" && -x "$usr_dir/bin/wineserver" ]] || return 1
   WINE_BIN="$candidate"
-  WINE_VERSION="$version"
   WINE_SERVER="$usr_dir/bin/wineserver"
   WINE_ROOT="$(dirname "$usr_dir")"
   WINE_LIB_DIR="$usr_dir/lib/wine"
+  if ! wine_runtime_is_complete; then
+    clear_wine_detection
+    return 1
+  fi
+  version="$("$WINE_BIN" --version 2>/dev/null | head -n 1)"
+  if [[ "$version" != "$WINE_VERSION_OUTPUT" ]]; then
+    clear_wine_detection
+    return 1
+  fi
+  WINE_VERSION="$version"
 }
 
 wine_runtime_is_complete() {
@@ -455,28 +637,45 @@ require_wine() {
     "$WINE_RUNTIME_MANIFEST_SIZE" "$WINE_RUNTIME_MANIFEST_SHA256" "$WINE_RUNTIME_MANIFEST_ENTRIES"
 }
 
+verify_wine_package_signature() {
+  local status
+  verify_file 'Arch Wine signing key' "$WINE_SIGNING_KEY" "$WINE_SIGNING_KEY_SIZE" "$WINE_SIGNING_KEY_SHA256"
+  verify_file 'Arch Wine detached signature' "$WINE_PACKAGE_SIGNATURE" \
+    "$WINE_PACKAGE_SIGNATURE_SIZE" "$WINE_PACKAGE_SIGNATURE_SHA256"
+  if ! status="$(gpgv --status-fd 1 --keyring "$WINE_SIGNING_KEY" \
+      "$WINE_PACKAGE_SIGNATURE" "$WINE_PACKAGE" 2>/dev/null)"; then
+    die "Arch Wine $WINE_RUNTIME_VERSION package signature is invalid"
+  fi
+  awk -v fingerprint="$WINE_SIGNING_KEY_FINGERPRINT" '
+    $1 == "[GNUPG:]" && $2 == "VALIDSIG" && ($3 == fingerprint || $NF == fingerprint) { valid = 1 }
+    END { exit(valid ? 0 : 1) }
+  ' <<<"$status" || die "Arch Wine $WINE_RUNTIME_VERSION package signature has an unexpected signer"
+}
+
 ensure_wine_runtime() {
   local unpack="$STATE_ROOT/.wine-unpack.$$"
-  if detect_wine && wine_runtime_is_complete; then
+  if detect_wine; then
     return
   fi
   mkdir -p "$STATE_ROOT" "$RUNTIME_DIR" "$CACHE_DIR" "$LOG_DIR"
   download_verified "audited Arch Wine $WINE_RUNTIME_VERSION package" "$WINE_PACKAGE_URL" "$WINE_PACKAGE" \
     "$WINE_PACKAGE_SIZE" "$WINE_PACKAGE_SHA256"
+  download_verified "Arch Wine $WINE_RUNTIME_VERSION package signature" "$WINE_PACKAGE_SIGNATURE_URL" \
+    "$WINE_PACKAGE_SIGNATURE" "$WINE_PACKAGE_SIGNATURE_SIZE" "$WINE_PACKAGE_SIGNATURE_SHA256"
+  verify_wine_package_signature
   rm -rf --one-file-system "$unpack"
   mkdir -p "$unpack"
   ACTIVE_UNPACK="$unpack"
   trap cleanup_active_unpack EXIT
   note "Provisioning private Wine $WINE_RUNTIME_VERSION runtime"
-  bsdtar -xf "$WINE_PACKAGE" -C "$unpack"
+  extract_bsdtar_archive "$WINE_PACKAGE" "$unpack" "Arch Wine $WINE_RUNTIME_VERSION package"
   verify_payload_manifest "extracted Wine $WINE_RUNTIME_VERSION runtime" "$unpack" "$WINE_RUNTIME_MANIFEST" \
     "$WINE_RUNTIME_MANIFEST_SIZE" "$WINE_RUNTIME_MANIFEST_SHA256" "$WINE_RUNTIME_MANIFEST_ENTRIES"
   rm -rf --one-file-system "$PRIVATE_WINE_ROOT"
   mv "$unpack" "$PRIVATE_WINE_ROOT"
   ACTIVE_UNPACK=''
   trap - EXIT
-  detect_wine || die "provisioned Wine $WINE_RUNTIME_VERSION did not start"
-  wine_runtime_is_complete || die "provisioned Wine $WINE_RUNTIME_VERSION failed payload validation"
+  detect_wine || die "provisioned Wine $WINE_RUNTIME_VERSION failed payload validation or version verification"
 }
 
 wine_env() {
@@ -636,7 +835,7 @@ install_dxvk() {
     "$DXVK_ARCHIVE_SIZE" "$DXVK_ARCHIVE_SHA256"
   rm -rf "$unpack"
   mkdir -p "$unpack"
-  tar -xzf "$DXVK_ARCHIVE" -C "$unpack"
+  extract_bsdtar_archive "$DXVK_ARCHIVE" "$unpack" 'DXVK archive'
   verify_file 'DXVK d3d11 x32 DLL' "$unpack/dxvk-$DXVK_VERSION/x32/d3d11.dll" \
     "$DXVK_D3D11_X32_SIZE" "$DXVK_D3D11_X32_SHA256"
   verify_file 'DXVK dxgi x32 DLL' "$unpack/dxvk-$DXVK_VERSION/x32/dxgi.dll" \
@@ -664,7 +863,8 @@ install_dxvk() {
 extract_lfs_payload() {
   local installer="$1" unpack="$2" extract_log="$3" archive
   local -a all_archives dds_archives wld_archives
-  if ! timeout --foreground --kill-after=10s 900 7z x -y "-o$unpack" "$installer" >"$extract_log"; then
+  preflight_7z_archive "$installer" 'official LFS installer'
+  if ! timeout --foreground --kill-after=10s 900 7z x -y -aos "-o$unpack" "$installer" >"$extract_log"; then
     die "official LFS archive extraction failed; see $extract_log"
   fi
   rm -rf --one-file-system "$unpack/\$PLUGINSDIR"
@@ -682,16 +882,19 @@ extract_lfs_payload() {
   [[ -z "$(find "$unpack/inst_tmp" -mindepth 1 -maxdepth 1 ! -type f -print -quit)" ]] || die 'unexpected entry in official LFS nested payload directory'
   verify_payload_manifest 'official LFS nested archive payload' "$unpack" "$LFS_NESTED_MANIFEST" \
     "$LFS_NESTED_MANIFEST_SIZE" "$LFS_NESTED_MANIFEST_SHA256" "$LFS_NESTED_MANIFEST_ENTRIES"
+  for archive in "${all_archives[@]}"; do
+    preflight_7z_archive "$archive" "official LFS nested archive $(basename "$archive")"
+  done
 
   mkdir -p "$unpack/data/dds" "$unpack/data/wld" "$unpack/data/knw" "$unpack/data/training"
   for archive in "${dds_archives[@]}"; do
-    timeout --foreground --kill-after=10s 300 7z x -y -aoa "-o$unpack/data/dds" "$archive" >>"$extract_log" || die "nested DDS extraction failed: $(basename "$archive")"
+    timeout --foreground --kill-after=10s 300 7z x -y -aos "-o$unpack/data/dds" "$archive" >>"$extract_log" || die "nested DDS extraction failed: $(basename "$archive")"
   done
   for archive in "${wld_archives[@]}"; do
-    timeout --foreground --kill-after=10s 300 7z x -y -aoa "-o$unpack/data/wld" "$archive" >>"$extract_log" || die "nested world extraction failed: $(basename "$archive")"
+    timeout --foreground --kill-after=10s 300 7z x -y -aos "-o$unpack/data/wld" "$archive" >>"$extract_log" || die "nested world extraction failed: $(basename "$archive")"
   done
-  timeout --foreground --kill-after=10s 300 7z x -y -aoa "-o$unpack/data/knw" "$unpack/inst_tmp/knw_1.7z" >>"$extract_log" || die 'nested knowledge extraction failed'
-  timeout --foreground --kill-after=10s 300 7z x -y -aoa "-o$unpack/data/training" "$unpack/inst_tmp/training_1.7z" >>"$extract_log" || die 'nested training extraction failed'
+  timeout --foreground --kill-after=10s 300 7z x -y -aos "-o$unpack/data/knw" "$unpack/inst_tmp/knw_1.7z" >>"$extract_log" || die 'nested knowledge extraction failed'
+  timeout --foreground --kill-after=10s 300 7z x -y -aos "-o$unpack/data/training" "$unpack/inst_tmp/training_1.7z" >>"$extract_log" || die 'nested training extraction failed'
   rm -rf --one-file-system "$unpack/inst_tmp"
 }
 
@@ -1391,12 +1594,12 @@ install_all() {
   require_command du
   require_command find
   require_command flock
+  require_command gpgv
   require_command mktemp
   require_command readlink
   require_command sha256sum
   require_command sort
   require_command stat
-  require_command tar
   require_command timeout
   open_launch_lock
   flock -n 9 || die 'LFS is already launching, installing, or recovering'
@@ -1594,7 +1797,7 @@ run_doctor() {
   if command -v 7z >/dev/null 2>&1; then pass '7z available'; else fail_check '7z missing'; fi
   if command -v bsdtar >/dev/null 2>&1; then pass 'bsdtar available'; else fail_check 'bsdtar missing'; fi
   if command -v curl >/dev/null 2>&1; then pass 'curl available'; else fail_check 'curl missing'; fi
-  if command -v tar >/dev/null 2>&1; then pass 'tar available'; else fail_check 'tar missing'; fi
+  if command -v gpgv >/dev/null 2>&1; then pass 'gpgv available'; else fail_check 'gpgv missing'; fi
   if command -v flock >/dev/null 2>&1; then pass 'flock available'; else fail_check 'flock missing'; fi
   if ! command -v awk >/dev/null 2>&1 || ! command -v du >/dev/null 2>&1 || \
      ! command -v find >/dev/null 2>&1 || ! command -v mktemp >/dev/null 2>&1 || \
@@ -1602,6 +1805,9 @@ run_doctor() {
      ! command -v sha256sum >/dev/null 2>&1 || ! command -v timeout >/dev/null 2>&1; then
     fail_check 'file verification tools missing'
     file_tools_available=0
+  fi
+  if (( file_tools_available )); then
+    check_file 'Arch Wine signing key' "$WINE_SIGNING_KEY" "$WINE_SIGNING_KEY_SIZE" "$WINE_SIGNING_KEY_SHA256"
   fi
   if (( wine_available && file_tools_available )); then
     check_payload "Wine $WINE_RUNTIME_VERSION payload" "$WINE_ROOT" "$WINE_RUNTIME_MANIFEST" \
@@ -1769,14 +1975,17 @@ verify_sources() {
   require_command curl
   require_command du
   require_command find
+  require_command gpgv
   require_command sha256sum
   require_command stat
-  require_command tar
   require_command timeout
   download_verified "official LFS $LFS_VERSION installer" "$LFS_INSTALLER_URL" "$INSTALLER" \
     "$LFS_INSTALLER_SIZE" "$LFS_INSTALLER_SHA256"
   download_verified "audited Arch Wine $WINE_RUNTIME_VERSION package" "$WINE_PACKAGE_URL" "$WINE_PACKAGE" \
     "$WINE_PACKAGE_SIZE" "$WINE_PACKAGE_SHA256"
+  download_verified "Arch Wine $WINE_RUNTIME_VERSION package signature" "$WINE_PACKAGE_SIGNATURE_URL" \
+    "$WINE_PACKAGE_SIGNATURE" "$WINE_PACKAGE_SIGNATURE_SIZE" "$WINE_PACKAGE_SIGNATURE_SHA256"
+  verify_wine_package_signature
   download_verified 'DXVK archive' "$DXVK_ARCHIVE_URL" "$DXVK_ARCHIVE" \
     "$DXVK_ARCHIVE_SIZE" "$DXVK_ARCHIVE_SHA256"
   unpack="$(mktemp -d "$CACHE_DIR/.verify-payloads.XXXXXX")"
@@ -1787,11 +1996,11 @@ verify_sources() {
   verify_extracted_game_tree "$unpack/lfs" 'verified-source LFS'
   rm -rf --one-file-system "$unpack/lfs"
   mkdir -p "$unpack/wine"
-  bsdtar -xf "$WINE_PACKAGE" -C "$unpack/wine"
+  extract_bsdtar_archive "$WINE_PACKAGE" "$unpack/wine" "Arch Wine $WINE_RUNTIME_VERSION package"
   verify_payload_manifest "verified-source Wine $WINE_RUNTIME_VERSION runtime" "$unpack/wine" "$WINE_RUNTIME_MANIFEST" \
     "$WINE_RUNTIME_MANIFEST_SIZE" "$WINE_RUNTIME_MANIFEST_SHA256" "$WINE_RUNTIME_MANIFEST_ENTRIES"
   rm -rf --one-file-system "$unpack/wine"
-  tar -xzf "$DXVK_ARCHIVE" -C "$unpack"
+  extract_bsdtar_archive "$DXVK_ARCHIVE" "$unpack" 'DXVK archive'
   verify_file 'DXVK d3d11 x32 DLL' "$unpack/dxvk-$DXVK_VERSION/x32/d3d11.dll" \
     "$DXVK_D3D11_X32_SIZE" "$DXVK_D3D11_X32_SHA256"
   verify_file 'DXVK dxgi x32 DLL' "$unpack/dxvk-$DXVK_VERSION/x32/dxgi.dll" \
@@ -1799,12 +2008,13 @@ verify_sources() {
   rm -rf --one-file-system "$unpack"
   ACTIVE_UNPACK=''
   trap - EXIT
-  note 'All pinned upstream archives, complete official seed files, and immutable runtime payloads are reproducible and verified'
+  note 'All pinned upstream archive bytes, signatures, complete official seed files, and extracted runtime manifests are verified'
 }
 
 purge_cache() {
   require_unprivileged
-  rm -f "$INSTALLER" "$INSTALLER.part" "$WINE_PACKAGE" "$WINE_PACKAGE.part" "$DXVK_ARCHIVE" "$DXVK_ARCHIVE.part"
+  rm -f "$INSTALLER" "$INSTALLER.part" "$WINE_PACKAGE" "$WINE_PACKAGE.part" \
+    "$WINE_PACKAGE_SIGNATURE" "$WINE_PACKAGE_SIGNATURE.part" "$DXVK_ARCHIVE" "$DXVK_ARCHIVE.part"
   rm -rf "$CACHE_DIR/dxvk-shaders" "$CACHE_DIR"/.dxvk-unpack.* "$CACHE_DIR"/.verify-payloads.*
   note "Removed wrapper-managed cache: $CACHE_DIR"
 }

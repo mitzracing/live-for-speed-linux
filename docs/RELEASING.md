@@ -30,9 +30,9 @@ Update `share/lfs-linux/release.env` as one change:
 - minimum extracted file count and byte size as secondary sanity checks
 - prior audited executable digest, immutable predecessor migration manifest, and complete predecessor seed manifest; use the seed to distinguish untouched defaults from player changes
 - DXVK version, URL, size, archive SHA-256, and required 32-bit D3D11/DXGI DLL sizes and SHA-256 digests
-- exact Wine package version, immutable archive URL, size, SHA-256 digest, and complete runtime-manifest pins
+- exact Wine package version, immutable archive and detached-signature URLs, sizes and SHA-256 digests, audited packager-key fingerprint and digest, and complete runtime-manifest pins
 
-The wrapper extracts the verified NSIS archive with 7-Zip and does not execute the installer stub. For 0.8, verify and extract every nested archive into its audited destination. Remove `$PLUGINSDIR`, `inst_tmp`, and `UninstallLFS.exe`, then regenerate the LFS manifest with `scripts/generate-payload-manifest.py lfs`. Extract the exact Wine package and regenerate its manifest with the `wine` profile. Review player-owned exclusions before accepting either manifest.
+The wrapper preflights archive member paths and links, extracts the verified NSIS archive with 7-Zip, and does not execute the installer stub. For 0.8, verify and preflight every nested archive before extracting it into its audited destination. Remove `$PLUGINSDIR`, `inst_tmp`, and `UninstallLFS.exe`, then regenerate the LFS manifest with `scripts/generate-payload-manifest.py lfs`. Extract the exact Wine package and regenerate its manifest with the `wine` profile. Review player-owned exclusions before accepting either manifest.
 
 Delete a randomly selected immutable file that is not one of the separately pinned representative files. Confirm `doctor` and `launch` fail, `install` restores its exact hash, and player-owned paths remain byte-identical. Perform the same drift-and-reprovision check on one non-entry-point Wine DLL.
 

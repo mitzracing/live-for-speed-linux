@@ -264,13 +264,14 @@ if find "$ROOT_DIR" \( -path "$ROOT_DIR/legacy" -o -path "$ROOT_DIR/artifacts" \
 fi
 
 [[ -x "$ROOT_DIR/packaging/debian/build-deb.sh" ]]
-grep -Fq 'Section: contrib/utils' "$ROOT_DIR/packaging/debian/build-deb.sh"
+grep -Fq 'Section: contrib/games' "$ROOT_DIR/packaging/debian/build-deb.sh"
 grep -Fq 'libc6 (>= 2.38)' "$ROOT_DIR/packaging/debian/build-deb.sh"
+grep -Fq 'gpgv' "$ROOT_DIR/packaging/debian/build-deb.sh"
+grep -Fq 'libsane1' "$ROOT_DIR/packaging/debian/build-deb.sh"
 grep -Fq 'libvulkan1' "$ROOT_DIR/packaging/debian/build-deb.sh"
 grep -Fq 'vulkan-icd' "$ROOT_DIR/packaging/debian/build-deb.sh"
-grep -Fq 'wine64' "$ROOT_DIR/packaging/debian/build-deb.sh"
-if grep -Eq 'wine32|:i386' "$ROOT_DIR/packaging/debian/build-deb.sh"; then
-  printf 'Debian package incorrectly requires i386 Unix libraries for pure WoW64\n' >&2
+if grep -Eq 'wine32|wine64|:i386' "$ROOT_DIR/packaging/debian/build-deb.sh"; then
+  printf 'Debian package incorrectly requires system Wine or i386 Unix libraries for pure WoW64\n' >&2
   exit 1
 fi
 grep -Fq 'does not contain Live for Speed, Wine, DXVK' "$ROOT_DIR/packaging/debian/README.md"
@@ -312,6 +313,8 @@ if [[ "${LFS_LINUX_SOURCE_ARCHIVE:-0}" != '1' ]]; then
 
   # AUR recipe must use the exact audited Wine and a pinned project release asset.
   grep -Fq "'wine=11.15-1'" "$ROOT_DIR/packaging/aur/PKGBUILD"
+  grep -Fq "'gnupg'" "$ROOT_DIR/packaging/aur/PKGBUILD"
+  grep -Fq 'depends = gnupg' "$ROOT_DIR/packaging/aur/.SRCINFO"
   if grep -Eq 'ALLOW_UNTESTED_WINE|WINE_TESTED_MAJOR|wine>=10' "$ROOT_DIR/packaging/aur/PKGBUILD"; then
     printf 'broad Wine dependency remains in the AUR recipe\n' >&2
     exit 1

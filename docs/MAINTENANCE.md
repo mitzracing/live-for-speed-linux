@@ -68,7 +68,7 @@ Stop and redesign only if one of these changes occurs:
 
 - the official NSIS archive can no longer be extracted reproducibly with the supported 7-Zip version
 - anti-cheat or upstream policy prohibits DXVK
-- the pinned Arch Wine package disappears from the immutable archive or drops required PE32 behavior
+- the pinned Arch Wine package or detached signature disappears, the signer changes, or the runtime drops required PE32 behavior
 - upstream grants official Flatpak participation
 - LFS changes its data layout in a way that threatens player data
 - the public-test updater changes stock files without a distinct executable digest

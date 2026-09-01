@@ -17,6 +17,7 @@ depends=(
   'findutils'
   'gawk'
   'grep'
+  'gnupg'
   'libarchive'
   'libpulse'
   'sed'

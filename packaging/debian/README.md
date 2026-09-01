@@ -13,7 +13,7 @@ The pinned Wine 11.15 runtime requires glibc 2.38 or newer. Ubuntu 22.04 and Deb
 
 ## Install
 
-Install the local release asset with APT so its amd64 Wine and Vulkan host dependencies are resolved. The audited private Wine 11.15 runtime uses pure WoW64, so this package does not require an i386 Unix library stack.
+Install the local release asset with APT so its audited amd64 host-library and Vulkan dependencies are resolved. The package does not depend on system Wine; it provisions the exact private Wine 11.15 runtime only after verifying its pinned digest and detached Arch packager signature. Pure WoW64 requires no i386 Unix library stack.
 
 ```bash
 sudo apt update

@@ -8,7 +8,7 @@ readonly ROOT_DIR
 VERSION="$(<"$ROOT_DIR/VERSION")"
 readonly VERSION
 readonly PACKAGE='live-for-speed-linux'
-readonly REVISION='1'
+readonly REVISION='0github1'
 readonly ARCHITECTURE='amd64'
 readonly SOURCE_DATE_EPOCH="${SOURCE_DATE_EPOCH:-1786665600}"
 readonly OUTPUT_DIR="${1:-$ROOT_DIR/dist}"
@@ -60,7 +60,7 @@ installed_size="$(du -sk "$PACKAGE_ROOT/usr" | awk '{print $1}')"
 cat >"$PACKAGE_ROOT/DEBIAN/control" <<CONTROL
 Package: $PACKAGE
 Version: $VERSION-$REVISION
-Section: contrib/utils
+Section: contrib/games
 Priority: optional
 Architecture: $ARCHITECTURE
 Maintainer: mitzracing <mitzracing@users.noreply.github.com>
@@ -69,11 +69,12 @@ Homepage: https://github.com/mitzracing/live-for-speed-linux
 Provides: lfs-linux, live-for-speed-launcher
 Conflicts: lfs-linux, live-for-speed-launcher
 Replaces: lfs-linux, live-for-speed-launcher
-Depends: 7zip, ca-certificates, curl, desktop-file-utils, gawk, libarchive-tools, libc6 (>= 2.38), libvulkan1, vulkan-icd, vulkan-tools, wine64, xdotool, xterm | x-terminal-emulator, xz-utils
-Recommends: libnotify-bin, wmctrl
-Description: Unofficial launcher for the LFS new-graphics public test
- Verifies and installs untouched official Live for Speed downloads into a
- private Wine prefix. The game, Wine, and DXVK payloads are not included.
+Depends: 7zip, ca-certificates, curl, fontconfig, gawk, gettext-base, gpgv, libarchive-tools, libasound2t64, libc6 (>= 2.38), libfreetype6, libgcc-s1, libglib2.0-0t64, libgphoto2-6t64, libgphoto2-port12t64, libgstreamer-plugins-base1.0-0, libgstreamer1.0-0, libpcsclite1, libpulse0, libsane1, libsystemd0, libudev1, libunwind8, libusb-1.0-0, libvulkan1, libwayland-client0, libwayland-egl1, libx11-6, libxcursor1, libxext6, libxi6, libxkbcommon0, libxkbregistry0, libxrandr2, mesa-vulkan-drivers | vulkan-icd, ocl-icd-libopencl1, xterm | x-terminal-emulator
+Recommends: libnotify-bin, vulkan-tools, wmctrl, xdotool
+Description: unofficial launcher for the Live for Speed racing simulator
+ Verifies and installs untouched official Live for Speed racing simulator
+ downloads into a private Wine prefix. The game, Wine, and DXVK payloads are
+ not included.
  Live for Speed 0.8C20 is a public test and is not represented as stable.
 CONTROL
 

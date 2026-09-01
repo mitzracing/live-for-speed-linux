@@ -2,14 +2,27 @@
 <component type="desktop-application">
   <id>io.github.mitzracing.live_for_speed_linux</id>
   <name>Live for Speed Linux</name>
-  <summary>Unofficial community Linux launcher for Live for Speed</summary>
+  <summary>Unofficial Linux launcher for the Live for Speed racing simulator</summary>
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>MIT</project_license>
   <developer id="io.github.mitzracing">
     <name>Live for Speed Linux contributors</name>
   </developer>
+  <categories>
+    <category>Game</category>
+    <category>Simulation</category>
+    <category>SportsGame</category>
+  </categories>
+  <keywords>
+    <keyword>game</keyword>
+    <keyword>racing</keyword>
+    <keyword>simulator</keyword>
+    <keyword>motorsport</keyword>
+    <keyword>driving</keyword>
+    <keyword>LFS</keyword>
+  </keywords>
   <description>
-    <p>Live for Speed Linux is an unofficial community launcher for the untouched official Live for Speed Windows build.</p>
+    <p>Live for Speed Linux is an unofficial community launcher for the untouched official Live for Speed racing simulator.</p>
     <p>Version 0.3.1 bootstraps exact LFS 0.8C20 new graphics, which upstream labels PUBLIC TEST rather than stable.</p>
     <p>On first launch, one informed setup prompt downloads official files, verifies every protected game and Wine runtime file, configures exact Wine 11.15-1 and DXVK D3D11/DXGI, and starts the game. Versioned updates completed by LFS are recorded after exit and accepted on later launches.</p>
     <p>Live for Speed is proprietary software from Scawen Roberts, Eric Bailey, and Victor van Vlaardingen. This community wrapper is not affiliated with or endorsed by the Live for Speed developers.</p>
