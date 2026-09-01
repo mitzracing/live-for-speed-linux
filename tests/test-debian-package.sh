@@ -26,6 +26,7 @@ deb_two="$TMP_ROOT/two/live-for-speed-linux_${VERSION}-1_amd64.deb"
 [[ "$(dpkg-deb --field "$deb_one" Version)" == "$VERSION-1" ]]
 [[ "$(dpkg-deb --field "$deb_one" Architecture)" == 'amd64' ]]
 [[ "$(dpkg-deb --field "$deb_one" Section)" == 'contrib/utils' ]]
+grep -Fqi 'racing simulator' <<<"$(dpkg-deb --field "$deb_one" Description)"
 depends="$(dpkg-deb --field "$deb_one" Depends)"
 for dependency in \
   '7zip' 'libarchive-tools' 'libc6' 'libvulkan1' 'vulkan-icd' 'wine64' 'xdotool'; do

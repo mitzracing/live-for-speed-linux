@@ -11,6 +11,25 @@ if command -v shellcheck >/dev/null 2>&1; then
   shellcheck "$ROOT_DIR/bin/"* "$ROOT_DIR/libexec/lfs-linux-core" "$ROOT_DIR/scripts/"*.sh "$ROOT_DIR/tests/"*.sh
 fi
 
+python3 - "$ROOT_DIR/share/metainfo/io.github.mitzracing.live_for_speed_linux.metainfo.xml" "$ROOT_DIR/share/applications/io.github.mitzracing.live_for_speed_linux.desktop" <<'PY'
+import configparser
+import sys
+import xml.etree.ElementTree as ET
+
+component = ET.parse(sys.argv[1]).getroot()
+categories = {node.text for node in component.findall("./categories/category")}
+keywords = {node.text.casefold() for node in component.findall("./keywords/keyword")}
+assert {"Game", "Simulation", "SportsGame"} <= categories
+assert {"game", "racing", "simulator"} <= keywords
+
+desktop = configparser.ConfigParser(interpolation=None, strict=True)
+desktop.optionxform = str
+desktop.read(sys.argv[2])
+entry = desktop["Desktop Entry"]
+assert {"Game", "Simulation", "SportsGame"} <= set(filter(None, entry["Categories"].split(";")))
+assert {"game", "racing", "simulator"} <= {word.casefold() for word in filter(None, entry["Keywords"].split(";"))}
+PY
+
 # shellcheck source=/dev/null
 source "$ROOT_DIR/share/lfs-linux/release.env"
 [[ "$LFS_LINUX_VERSION" == "$(<"$ROOT_DIR/VERSION")" ]]
