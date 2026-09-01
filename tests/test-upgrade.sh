@@ -127,6 +127,9 @@ chmod +x "$fake_wine" "$fake_wine_root/usr/bin/wineserver" "$fake_bin/restart-de
 "$ROOT_DIR/scripts/generate-payload-manifest.py" wine "$fake_wine_root" "$data/fake-wine.manifest" >/dev/null
 wine_manifest_size="$(stat -c %s "$data/fake-wine.manifest")"
 wine_manifest_hash="$(sha256sum "$data/fake-wine.manifest" | awk '{print $1}')"
+printf 'fake-signing-key' >"$data/fake-signing-key.gpg"
+fake_signing_key_size="$(stat -c %s "$data/fake-signing-key.gpg")"
+fake_signing_key_hash="$(sha256sum "$data/fake-signing-key.gpg" | awk '{print $1}')"
 
 mkdir -p "$old_stock/data/training" "$old_stock/data/knw"
 printf 'old-executable' >"$old_stock/LFS.exe"
@@ -267,6 +270,9 @@ WINE_RUNTIME_MANIFEST_NAME='fake-wine.manifest'
 WINE_RUNTIME_MANIFEST_SIZE='$wine_manifest_size'
 WINE_RUNTIME_MANIFEST_SHA256='$wine_manifest_hash'
 WINE_RUNTIME_MANIFEST_ENTRIES='2'
+WINE_SIGNING_KEY_NAME='fake-signing-key.gpg'
+WINE_SIGNING_KEY_SIZE='$fake_signing_key_size'
+WINE_SIGNING_KEY_SHA256='$fake_signing_key_hash'
 EOF
 
 cp -a "$old_stock" "$game"
@@ -340,6 +346,40 @@ run_lfs() {
   PATH="$fake_bin:$PATH" \
     "$ROOT_DIR/bin/lfs-linux" "$@"
 }
+
+printf 'must-not-escape-staging' >"$TMP_ROOT/unsafe-member"
+(
+  cd "$TMP_ROOT"
+  7z a -t7z unsafe-lfs.exe unsafe-member >/dev/null
+  7z rn unsafe-lfs.exe unsafe-member ../archive-escape >/dev/null
+)
+unsafe_installer="$TMP_ROOT/unsafe-lfs.exe"
+unsafe_size="$(stat -c %s "$unsafe_installer")"
+unsafe_hash="$(sha256sum "$unsafe_installer" | awk '{print $1}')"
+cp "$unsafe_installer" "$upstream_installer"
+rm -f "$cached_installer" "$cached_installer.part"
+sed -i \
+  -e "s|LFS_INSTALLER_SIZE='$installer_size'|LFS_INSTALLER_SIZE='$unsafe_size'|" \
+  -e "s|LFS_INSTALLER_SHA256='$installer_hash'|LFS_INSTALLER_SHA256='$unsafe_hash'|" \
+  "$data/release.env"
+cp -a "$game" "$TMP_ROOT/before-unsafe-archive"
+set +e
+run_lfs install >"$TMP_ROOT/rejected-unsafe-archive.out" 2>&1
+unsafe_archive_status=$?
+set -e
+[[ "$unsafe_archive_status" -ne 0 ]]
+grep -Fq 'official LFS installer has unsafe' "$TMP_ROOT/rejected-unsafe-archive.out"
+[[ ! -e "$state/archive-escape" && ! -e "$TMP_ROOT/archive-escape" ]]
+diff -qr "$TMP_ROOT/before-unsafe-archive" "$game" >/dev/null
+if compgen -G "$state/.lfs-unpack.*" >/dev/null; then
+  printf 'unsafe archive left a staging tree\n' >&2
+  exit 1
+fi
+cp "$TMP_ROOT/correct-fake-lfs.exe" "$upstream_installer"
+sed -i \
+  -e "s|LFS_INSTALLER_SIZE='$unsafe_size'|LFS_INSTALLER_SIZE='$installer_size'|" \
+  -e "s|LFS_INSTALLER_SHA256='$unsafe_hash'|LFS_INSTALLER_SHA256='$installer_hash'|" \
+  "$data/release.env"
 
 cp -a "$outer_stock" "$TMP_ROOT/tampered-outer"
 printf 'tamper' >>"$TMP_ROOT/tampered-outer/inst_tmp/training_1.7z"

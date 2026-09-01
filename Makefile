@@ -33,6 +33,7 @@ install:
 test:
 	./tests/test-public-static.sh
 	./tests/test-public-core.sh
+	./tests/test-runtime-trust.sh
 	./tests/test-upgrade.sh
 	python3 tests/test-support-static.py
 	python3 tests/test-triage-feedback.py
