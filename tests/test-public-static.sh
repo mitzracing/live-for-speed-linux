@@ -245,7 +245,9 @@ if grep -R -nE '(curl|wget).*(launch_game|case.*launch)' "$ROOT_DIR/libexec/lfs-
   printf 'network command found in launch hot path\n' >&2
   exit 1
 fi
-grep -Fq '7z x -y -aos' "$ROOT_DIR/libexec/lfs-linux-core"
+grep -Fq 'extract_7z_archive()' "$ROOT_DIR/libexec/lfs-linux-core"
+grep -Fq "keep-existing) overwrite_option='-aos'" "$ROOT_DIR/libexec/lfs-linux-core"
+grep -Fq "replace-existing) overwrite_option='-aoa'" "$ROOT_DIR/libexec/lfs-linux-core"
 grep -Fq 'preflight_7z_archive' "$ROOT_DIR/libexec/lfs-linux-core"
 grep -Fq 'preflight_bsdtar_archive' "$ROOT_DIR/libexec/lfs-linux-core"
 grep -Fq 'gpgv --status-fd 1' "$ROOT_DIR/libexec/lfs-linux-core"

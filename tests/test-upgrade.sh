@@ -148,9 +148,10 @@ old_seed_hash="$(sha256sum "$data/old-seed.manifest" | awk '{print $1}')"
 old_seed_entries="$(awk -F '\t' '$1 == "f" || $1 == "l" { n++ } END { print n + 0 }' "$data/old-seed.manifest")"
 old_exe_hash="$(sha256sum "$old_stock/LFS.exe" | awk '{print $1}')"
 
-mkdir -p "$new_stock/data/skins_dds" "$new_stock/data/wld" "$new_stock/data/veh" \
-  "$new_stock/data/training" "$new_stock/data/knw" "$new_stock/data/misc" \
-  "$new_stock/data/versions" "$TMP_ROOT/nested-training" "$TMP_ROOT/nested-knowledge"
+mkdir -p "$new_stock/data/dds" "$new_stock/data/skins_dds" "$new_stock/data/wld" \
+  "$new_stock/data/veh" "$new_stock/data/training" "$new_stock/data/knw" \
+  "$new_stock/data/misc" "$new_stock/data/versions" "$TMP_ROOT/nested-dds-01" \
+  "$TMP_ROOT/nested-dds-02" "$TMP_ROOT/nested-training" "$TMP_ROOT/nested-knowledge"
 printf 'new-executable' >"$new_stock/LFS.exe"
 printf 'new-shared-stock' >"$new_stock/shared.stock"
 printf 'new-stock-file' >"$new_stock/new.stock"
@@ -162,9 +163,20 @@ printf 'new-training-seed' >"$new_stock/data/training/shared.lsn"
 printf 'new-official-knowledge' >"$new_stock/data/knw/new-official.knw"
 printf 'new-ai-knowledge' >"$new_stock/data/knw/shared.knw"
 printf 'new-default-profile' >"$new_stock/data/misc/default.ply"
+printf 'second-archive-wins' >"$new_stock/data/dds/ORDERED.dds"
 : >"$new_stock/data/versions/8C20.txt"
+printf 'first-archive-bytes' >"$TMP_ROOT/nested-dds-01/ORDERED.dds"
+printf 'second-archive-wins' >"$TMP_ROOT/nested-dds-02/ORDERED.dds"
 cp "$new_stock/data/training/"* "$TMP_ROOT/nested-training/"
 cp "$new_stock/data/knw/"* "$TMP_ROOT/nested-knowledge/"
+(
+  cd "$TMP_ROOT/nested-dds-01"
+  7z a -t7z "$nested_root/inst_tmp/dds_01.7z" . >/dev/null
+)
+(
+  cd "$TMP_ROOT/nested-dds-02"
+  7z a -t7z "$nested_root/inst_tmp/dds_02.7z" . >/dev/null
+)
 (
   cd "$TMP_ROOT/nested-training"
   7z a -t7z "$nested_root/inst_tmp/training_1.7z" . >/dev/null
@@ -190,7 +202,8 @@ track_hash="$(sha256sum "$new_stock/data/wld/BLACKWOOD.wld" | awk '{print $1}')"
 vehicle_hash="$(sha256sum "$new_stock/data/veh/XFG.vob" | awk '{print $1}')"
 
 cp -a "$new_stock/." "$outer_stock/"
-rm -f "$outer_stock/data/training/"* "$outer_stock/data/knw/"*
+rm -f "$outer_stock/data/dds/ORDERED.dds" "$outer_stock/data/training/"* \
+  "$outer_stock/data/knw/"*
 cp -a "$nested_root/inst_tmp" "$outer_stock/inst_tmp"
 upstream_installer="$TMP_ROOT/upstream/fake-lfs.exe"
 cached_installer="$cache/fake-lfs.exe"
@@ -241,13 +254,13 @@ LFS_REQUIRED_TRACK_SHA256='$track_hash'
 LFS_REQUIRED_VEHICLE_PATH='data/veh/XFG.vob'
 LFS_REQUIRED_VEHICLE_SIZE='7'
 LFS_REQUIRED_VEHICLE_SHA256='$vehicle_hash'
-LFS_NESTED_ARCHIVE_COUNT='2'
-LFS_NESTED_DDS_ARCHIVE_COUNT='0'
+LFS_NESTED_ARCHIVE_COUNT='4'
+LFS_NESTED_DDS_ARCHIVE_COUNT='2'
 LFS_NESTED_WLD_ARCHIVE_COUNT='0'
 LFS_NESTED_MANIFEST_NAME='nested.manifest'
 LFS_NESTED_MANIFEST_SIZE='$nested_manifest_size'
 LFS_NESTED_MANIFEST_SHA256='$nested_manifest_hash'
-LFS_NESTED_MANIFEST_ENTRIES='2'
+LFS_NESTED_MANIFEST_ENTRIES='4'
 LFS_UPGRADE_FROM_VERSION='test-old'
 LFS_UPGRADE_FROM_SHA256S='$old_exe_hash'
 LFS_UPGRADE_MANIFEST_NAME='old-stock.manifest'
@@ -441,6 +454,7 @@ collision_backup="$state/migration-conflicts/from-test-old-to-test-new/new.stock
 [[ ! -e "$game/data/training/old-official.lsn" ]]
 grep -Fqx 'new-official-training' "$game/data/training/new-official.lsn"
 grep -Fqx 'new-official-knowledge' "$game/data/knw/new-official.knw"
+grep -Fqx 'second-archive-wins' "$game/data/dds/ORDERED.dds"
 grep -Fqx 'new-shared-stock' "$game/shared.stock"
 grep -Fqx 'new-stock-file' "$game/new.stock"
 (

@@ -513,7 +513,9 @@ preflight_7z_archive() {
     rm -f "$details" "$listing"
     die "$label archive listing failed"
   fi
-  if grep -Eq '^(Symbolic Link|Hard Link) = ' "$details" ||
+  # Newer 7-Zip releases expose POSIX links and special files only through
+  # the ten-character mode token in Attributes; permit regular files and directories only.
+  if grep -Eq '^(Symbolic Link|Hard Link) = |^Attributes = .* [^-d][^[:space:]]{9}$' "$details" ||
      ! awk '
        /^----------$/ { entries = 1; next }
        !entries { next }
@@ -529,6 +531,23 @@ preflight_7z_archive() {
     die "$label has unsafe, duplicate, linked, or unreadable archive members"
   fi
   rm -f "$details" "$listing"
+}
+
+extract_7z_archive() {
+  local archive="$1" destination="$2" label="$3" overwrite_policy="$4"
+  local max_seconds="$5" extract_log="$6" overwrite_option
+  case "$overwrite_policy" in
+    keep-existing) overwrite_option='-aos' ;;
+    replace-existing) overwrite_option='-aoa' ;;
+    *) die "$label has an invalid extraction overwrite policy" ;;
+  esac
+  [[ "$max_seconds" =~ ^[1-9][0-9]*$ ]] || die "$label has an invalid extraction timeout"
+  [[ -d "$destination" && ! -L "$destination" ]] || die "$label extraction destination is unsafe or missing"
+  preflight_7z_archive "$archive" "$label"
+  if ! timeout --foreground --kill-after=10s "$max_seconds" \
+      7z x -y "$overwrite_option" "-o$destination" -- "$archive" >>"$extract_log"; then
+    die "$label extraction failed; see $extract_log"
+  fi
 }
 
 extract_bsdtar_archive() {
@@ -863,10 +882,8 @@ install_dxvk() {
 extract_lfs_payload() {
   local installer="$1" unpack="$2" extract_log="$3" archive
   local -a all_archives dds_archives wld_archives
-  preflight_7z_archive "$installer" 'official LFS installer'
-  if ! timeout --foreground --kill-after=10s 900 7z x -y -aos "-o$unpack" "$installer" >"$extract_log"; then
-    die "official LFS archive extraction failed; see $extract_log"
-  fi
+  : >"$extract_log"
+  extract_7z_archive "$installer" "$unpack" 'official LFS installer' keep-existing 900 "$extract_log"
   rm -rf --one-file-system "$unpack/\$PLUGINSDIR"
   rm -f "$unpack/UninstallLFS.exe"
   (( LFS_NESTED_ARCHIVE_COUNT > 0 )) || return 0
@@ -882,19 +899,22 @@ extract_lfs_payload() {
   [[ -z "$(find "$unpack/inst_tmp" -mindepth 1 -maxdepth 1 ! -type f -print -quit)" ]] || die 'unexpected entry in official LFS nested payload directory'
   verify_payload_manifest 'official LFS nested archive payload' "$unpack" "$LFS_NESTED_MANIFEST" \
     "$LFS_NESTED_MANIFEST_SIZE" "$LFS_NESTED_MANIFEST_SHA256" "$LFS_NESTED_MANIFEST_ENTRIES"
-  for archive in "${all_archives[@]}"; do
-    preflight_7z_archive "$archive" "official LFS nested archive $(basename "$archive")"
-  done
 
   mkdir -p "$unpack/data/dds" "$unpack/data/wld" "$unpack/data/knw" "$unpack/data/training"
+  # Exact nested hashes and sorted archive order are audited. Later archives intentionally
+  # replace earlier seed entries inside this disposable staging tree.
   for archive in "${dds_archives[@]}"; do
-    timeout --foreground --kill-after=10s 300 7z x -y -aos "-o$unpack/data/dds" "$archive" >>"$extract_log" || die "nested DDS extraction failed: $(basename "$archive")"
+    extract_7z_archive "$archive" "$unpack/data/dds" \
+      "official LFS nested DDS archive $(basename "$archive")" replace-existing 300 "$extract_log"
   done
   for archive in "${wld_archives[@]}"; do
-    timeout --foreground --kill-after=10s 300 7z x -y -aos "-o$unpack/data/wld" "$archive" >>"$extract_log" || die "nested world extraction failed: $(basename "$archive")"
+    extract_7z_archive "$archive" "$unpack/data/wld" \
+      "official LFS nested world archive $(basename "$archive")" replace-existing 300 "$extract_log"
   done
-  timeout --foreground --kill-after=10s 300 7z x -y -aos "-o$unpack/data/knw" "$unpack/inst_tmp/knw_1.7z" >>"$extract_log" || die 'nested knowledge extraction failed'
-  timeout --foreground --kill-after=10s 300 7z x -y -aos "-o$unpack/data/training" "$unpack/inst_tmp/training_1.7z" >>"$extract_log" || die 'nested training extraction failed'
+  extract_7z_archive "$unpack/inst_tmp/knw_1.7z" "$unpack/data/knw" \
+    'official LFS nested knowledge archive' replace-existing 300 "$extract_log"
+  extract_7z_archive "$unpack/inst_tmp/training_1.7z" "$unpack/data/training" \
+    'official LFS nested training archive' replace-existing 300 "$extract_log"
   rm -rf --one-file-system "$unpack/inst_tmp"
 }
 

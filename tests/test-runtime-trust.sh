@@ -182,6 +182,44 @@ run_archive_rejected hardlink "$TMP_ROOT/hardlink.tar"
 run_archive_rejected duplicate "$TMP_ROOT/duplicate.tar"
 run_archive_rejected fifo "$TMP_ROOT/fifo.tar"
 
+mkdir -p "$TMP_ROOT/unsafe-7z-traversal-source" "$TMP_ROOT/unsafe-7z-link-source"
+printf 'must-not-escape\n' >"$TMP_ROOT/unsafe-7z-traversal-source/member"
+(
+  cd "$TMP_ROOT/unsafe-7z-traversal-source"
+  7z a -bd -y "$TMP_ROOT/unsafe-7z-traversal.7z" member >/dev/null
+  7z rn -bd -y "$TMP_ROOT/unsafe-7z-traversal.7z" member ../7z-escape >/dev/null
+)
+printf 'outside-sentinel\n' >"$TMP_ROOT/7z-link-target"
+ln -s in-destination-target "$TMP_ROOT/unsafe-7z-link-source/escape-link"
+(
+  cd "$TMP_ROOT/unsafe-7z-link-source"
+  7z a -bd -y -snl "$TMP_ROOT/unsafe-7z-link.7z" escape-link >/dev/null
+)
+
+run_7z_rejected() {
+  local label="$1" archive="$2" destination="$TMP_ROOT/rejected-7z-$1"
+  mkdir -p "$destination"
+  set +e
+  (
+    set -Eeuo pipefail
+    die() { printf 'error: %s\n' "$*" >&2; exit 1; }
+    # shellcheck source=/dev/null
+    source "$archive_functions"
+    extract_7z_archive "$archive" "$destination" "unsafe $label 7z fixture" \
+      replace-existing 30 "$TMP_ROOT/rejected-7z-$label.log"
+  ) >"$TMP_ROOT/rejected-7z-$label.out" 2>&1
+  local status=$?
+  set -e
+  [[ "$status" -ne 0 ]]
+  grep -Fq 'has unsafe, duplicate, linked, or unreadable archive members' \
+    "$TMP_ROOT/rejected-7z-$label.out"
+  [[ -z "$(find "$destination" -mindepth 1 -print -quit)" ]]
+}
+run_7z_rejected traversal "$TMP_ROOT/unsafe-7z-traversal.7z"
+run_7z_rejected symlink "$TMP_ROOT/unsafe-7z-link.7z"
+[[ ! -e "$TMP_ROOT/7z-escape" ]]
+grep -Fqx 'outside-sentinel' "$TMP_ROOT/7z-link-target"
+
 mkdir -p "$TMP_ROOT/ordered-first/shared" "$TMP_ROOT/ordered-second/shared" "$TMP_ROOT/ordered-destination"
 printf 'first\n' >"$TMP_ROOT/ordered-first/shared/value.txt"
 printf 'second\n' >"$TMP_ROOT/ordered-second/shared/value.txt"
@@ -255,4 +293,4 @@ chmod 0700 "$unreadable_destination"
 grep -Fq 'extraction destination inspection failed' "$TMP_ROOT/unreadable.out"
 [[ -z "$(find "$unreadable_destination" -mindepth 1 -print -quit)" ]]
 
-printf '[PASS] Wine signature decisions and bsdtar path/link/type/no-overwrite boundaries pass\n'
+printf '[PASS] Wine signature decisions, 7z path/link/type/order boundaries, and bsdtar path/link/type/no-overwrite boundaries pass\n'
