@@ -1,0 +1,86 @@
+Source: live-for-speed-linux
+Section: contrib/games
+Maintainer: Mitz Racing <300233368+mitzracing@users.noreply.github.com>
+Build-Depends:
+ 7zip,
+ appstream,
+ curl,
+ debhelper-compat (= 13),
+ desktop-file-utils,
+ file,
+ gpgv,
+ libarchive-tools,
+ libxml2-utils,
+ procps,
+ python3,
+ python3-yaml,
+ shellcheck,
+Standards-Version: 4.7.4
+Rules-Requires-Root: no
+Homepage: https://github.com/mitzracing/live-for-speed-linux
+Vcs-Browser: https://github.com/mitzracing/live-for-speed-linux
+Vcs-Git: https://github.com/mitzracing/live-for-speed-linux.git
+
+Package: live-for-speed-linux
+Architecture: amd64
+Depends:
+ 7zip,
+ ca-certificates,
+ curl,
+ fontconfig,
+ gawk,
+ gettext-base,
+ gpgv,
+ libarchive-tools,
+ libasound2t64,
+ libc6 (>= 2.38),
+ libfreetype6,
+ libgcc-s1,
+ libglib2.0-0t64,
+ libgphoto2-6t64,
+ libgphoto2-port12t64,
+ libgstreamer-plugins-base1.0-0,
+ libgstreamer1.0-0,
+ libpcsclite1,
+ libpulse0,
+ libsane1,
+ libsystemd0,
+ libudev1,
+ libunwind8,
+ libusb-1.0-0,
+ libvulkan1,
+ libwayland-client0,
+ libwayland-egl1,
+ libx11-6,
+ libxcursor1,
+ libxext6,
+ libxi6,
+ libxkbcommon0,
+ libxkbregistry0,
+ libxrandr2,
+ mesa-vulkan-drivers | vulkan-icd,
+ ocl-icd-libopencl1,
+ xterm | x-terminal-emulator,
+ ${misc:Depends},
+Recommends:
+ libnotify-bin,
+ vulkan-tools,
+ wmctrl,
+ xdotool,
+Provides:
+ lfs-linux,
+ live-for-speed-launcher,
+Conflicts:
+ lfs-linux,
+ live-for-speed-launcher,
+Replaces:
+ lfs-linux,
+ live-for-speed-launcher,
+Description: unofficial launcher for the LFS new-graphics public test
+ Live for Speed Linux verifies and installs untouched official Live for Speed
+ downloads into a private Wine prefix. The game, Wine, and DXVK payloads are
+ not included in this package and are fetched only after an explicit user
+ command.
+ .
+ Live for Speed 0.8C20 is a public test and is not represented as stable.
+ Live for Speed is proprietary software; its terms apply separately.

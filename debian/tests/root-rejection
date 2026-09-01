@@ -1,0 +1,49 @@
+#!/bin/sh
+set -eu
+
+if [ "$(id -u)" -ne 0 ]; then
+  echo 'root-rejection requires root test isolation' >&2
+  exit 1
+fi
+
+workdir="$(mktemp -d)"
+trap 'rm -rf "$workdir"' EXIT HUP INT TERM
+mkdir -p "$workdir/libexec" "$workdir/data"
+cat >"$workdir/libexec/lfs-linux-core" <<EOF
+#!/bin/sh
+touch '$workdir/core-executed'
+EOF
+cat >"$workdir/data/release.env" <<EOF
+touch '$workdir/release-sourced'
+EOF
+cat >"$workdir/desktop-command" <<EOF
+#!/bin/sh
+touch '$workdir/desktop-command-executed'
+EOF
+chmod +x "$workdir/libexec/lfs-linux-core" "$workdir/desktop-command"
+
+run_rejected() {
+  output="$1"
+  shift
+  set +e
+  "$@" >"$output" 2>&1
+  status=$?
+  set -e
+  test "$status" -ne 0
+  grep -Fq 'do not run per-user LFS commands as root' "$output"
+}
+
+run_rejected "$workdir/wrapper.out" env \
+  LFS_LINUX_LIBEXEC_DIR="$workdir/libexec" \
+  LFS_LINUX_DATA_DIR="$workdir/data" \
+  /usr/bin/lfs-linux status
+run_rejected "$workdir/core.out" env \
+  LFS_LINUX_DATA_DIR="$workdir/data" \
+  /usr/lib/lfs-linux/lfs-linux-core status
+run_rejected "$workdir/desktop.out" env \
+  LFS_LINUX_COMMAND="$workdir/desktop-command" \
+  /usr/bin/lfs-linux-desktop launch
+
+test ! -e "$workdir/core-executed"
+test ! -e "$workdir/release-sourced"
+test ! -e "$workdir/desktop-command-executed"

@@ -1,0 +1,129 @@
+#!/bin/sh
+set -eu
+
+package=live-for-speed-linux
+metainfo=/usr/share/metainfo/io.github.mitzracing.live_for_speed_linux.metainfo.xml
+desktop=/usr/share/applications/io.github.mitzracing.live_for_speed_linux.desktop
+
+if [ "$(id -u)" -eq 0 ]; then
+  echo 'installed-smoke must run as the autopkgtest normal user' >&2
+  exit 1
+fi
+
+dpkg-query -W -f='${Status}\n' "$package" | grep -Fx 'install ok installed'
+test -x /usr/bin/lfs-linux
+test -x /usr/lib/lfs-linux/lfs-linux-core
+test -r "$metainfo"
+test -r "$desktop"
+
+appstreamcli validate --no-net "$metainfo"
+desktop-file-validate "$desktop"
+lfs-linux help | grep -F 'recover-update'
+
+workdir="$(mktemp -d)"
+trap 'rm -rf "$workdir"' EXIT HUP INT TERM
+cat >"$workdir/expected-files" <<'EOF'
+/usr/bin/lfs-linux
+/usr/bin/lfs-linux-desktop
+/usr/lib/lfs-linux/lfs-linux-core
+/usr/share/applications/io.github.mitzracing.live_for_speed_linux.desktop
+/usr/share/doc/live-for-speed-linux/ARCHITECTURE.md.gz
+/usr/share/doc/live-for-speed-linux/LEGAL.md
+/usr/share/doc/live-for-speed-linux/MAINTENANCE.md
+/usr/share/doc/live-for-speed-linux/README.Debian
+/usr/share/doc/live-for-speed-linux/TROUBLESHOOTING.md.gz
+/usr/share/doc/live-for-speed-linux/changelog.Debian.gz
+/usr/share/doc/live-for-speed-linux/copyright
+/usr/share/doc/live-for-speed-linux/wine-runtime-audit.md.gz
+/usr/share/icons/hicolor/scalable/apps/io.github.mitzracing.live_for_speed_linux.svg
+/usr/share/lfs-linux/arch-wine-peter-jung.pgp
+/usr/share/lfs-linux/lfs-0.8C19-seed.manifest
+/usr/share/lfs-linux/lfs-0.8C19-stock.manifest
+/usr/share/lfs-linux/lfs-0.8C20-nested.manifest
+/usr/share/lfs-linux/lfs-0.8C20-seed.manifest
+/usr/share/lfs-linux/lfs-0.8C20-stock.manifest
+/usr/share/lfs-linux/release.env
+/usr/share/lfs-linux/wine-11.15-1-runtime.manifest
+/usr/share/lintian/overrides/live-for-speed-linux
+/usr/share/man/man1/lfs-linux-desktop.1.gz
+/usr/share/man/man1/lfs-linux.1.gz
+/usr/share/metainfo/io.github.mitzracing.live_for_speed_linux.metainfo.xml
+EOF
+cp "$workdir/expected-files" "$workdir/expected-paths"
+printf '/.\n' >>"$workdir/expected-paths"
+while IFS= read -r path; do
+  parent="$path"
+  while :; do
+    parent="$(dirname "$parent")"
+    [ "$parent" != / ] || break
+    printf '%s\n' "$parent"
+  done
+done <"$workdir/expected-files" >>"$workdir/expected-paths"
+LC_ALL=C sort -u -o "$workdir/expected-paths" "$workdir/expected-paths"
+dpkg-query -L "$package" | LC_ALL=C sort -u >"$workdir/actual-paths"
+diff -u "$workdir/expected-paths" "$workdir/actual-paths"
+
+if dpkg-query -L "$package" | while IFS= read -r path; do
+  if [ -f "$path" ] && [ ! -L "$path" ]; then
+    file -- "$path"
+  fi
+done | grep -E 'ELF |PE32|MS-DOS executable|Zip archive data|7-zip archive data|RAR archive data|Microsoft Cabinet archive'; then
+  echo 'executable or archive payload found in installed wrapper package' >&2
+  exit 1
+fi
+for suffix in preinst postinst prerm postrm triggers; do
+  test ! -e "/var/lib/dpkg/info/$package.$suffix"
+done
+printf '%s  %s\n' \
+  c3186f2f7bdbe1cd02002dc84bce781580e4edc49fdc3ad848096af6768f3a89 \
+  /usr/share/lfs-linux/arch-wine-peter-jung.pgp | sha256sum -c -
+
+mkdir -p "$workdir/home" "$workdir/config" "$workdir/cache" \
+  "$workdir/state" "$workdir/runtime" "$workdir/log"
+chmod 0700 "$workdir/runtime"
+
+run_lfs() {
+  env \
+    HOME="$workdir/home" \
+    XDG_CONFIG_HOME="$workdir/config" \
+    XDG_CACHE_HOME="$workdir/cache" \
+    XDG_STATE_HOME="$workdir/state" \
+    XDG_RUNTIME_DIR="$workdir/runtime" \
+    LFS_LINUX_STATE_DIR="$workdir/state/lfs-linux" \
+    LFS_LINUX_CACHE_DIR="$workdir/cache/lfs-linux" \
+    LFS_LINUX_LOG_DIR="$workdir/log" \
+    lfs-linux "$@"
+}
+
+run_lfs status
+if run_lfs ready; then
+  echo 'fresh package unexpectedly reported a complete game installation' >&2
+  exit 1
+fi
+
+terminal_bin="$workdir/terminal-bin"
+mkdir -p "$terminal_bin"
+ln -s /usr/bin/bash "$terminal_bin/bash"
+ln -s /usr/bin/dirname "$terminal_bin/dirname"
+cat >"$terminal_bin/lfs-mock" <<'EOF'
+#!/bin/bash
+printf '%s\n' "$1" >>"$AUTOPKGTEST_TMP/desktop-command.log"
+EOF
+cat >"$terminal_bin/x-terminal-emulator" <<'EOF'
+#!/bin/bash
+printf '%s\n' "$*" >"$AUTOPKGTEST_TMP/terminal-command.log"
+test "$1" = -e
+shift
+exec "$@"
+EOF
+chmod +x "$terminal_bin/lfs-mock" "$terminal_bin/x-terminal-emulator"
+PATH="$terminal_bin" LFS_LINUX_COMMAND="$terminal_bin/lfs-mock" \
+  /usr/bin/lfs-linux-desktop setup
+grep -Fq -- '-e /usr/bin/lfs-linux-desktop --terminal-setup' \
+  "$AUTOPKGTEST_TMP/terminal-command.log"
+grep -Fxq setup "$AUTOPKGTEST_TMP/desktop-command.log"
+
+if find "$workdir" -type f \( -iname '*.exe' -o -iname '*.dll' -o -iname '*.msi' \) -print -quit | grep -q .; then
+  echo 'offline smoke test unexpectedly created a Windows payload' >&2
+  exit 1
+fi

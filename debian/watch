@@ -1,0 +1,5 @@
+Version: 5
+Source: https://api.github.com/repos/mitzracing/live-for-speed-linux/releases?per_page=100
+Matching-Pattern: https://github.com/mitzracing/live-for-speed-linux/releases/download/v@ANY_VERSION@/live-for-speed-linux-[0-9][0-9.]*\.tar\.gz
+Search-Mode: plain
+Pgp-Mode: none

@@ -1,0 +1,3 @@
+# This contrib package is intentionally only the free launcher and verifier;
+# the proprietary game payload remains outside the Debian archive.
+live-for-speed-linux: package-section-games-but-contains-no-game

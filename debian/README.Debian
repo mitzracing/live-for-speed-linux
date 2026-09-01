@@ -1,0 +1,49 @@
+live-for-speed-linux for Debian
+================================
+
+This package contains only the free community launcher, integrity manifests,
+desktop metadata, documentation, and original artwork. It does not contain
+Live for Speed, Wine, DXVK, Windows executables, account data, or player data.
+It is in contrib because normal use requires proprietary Live for Speed files
+that are not distributed by Debian.
+
+Live for Speed 0.8C20 new graphics is a PUBLIC TEST, not a stable game release.
+The launcher is unofficial and is not affiliated with or endorsed by the Live
+for Speed developers.
+
+Downloads and terms
+-------------------
+
+Package installation, upgrade, removal, desktop-menu refresh, and AppStream
+processing perform no upstream downloads. After an explicit unprivileged
+`lfs-linux install` command or informed desktop confirmation, the launcher
+downloads and verifies:
+
+* the official Live for Speed installer from https://www.lfs.net/;
+* Wine 11.15-1 and its detached signature from the immutable Arch Linux
+  Archive; and
+* DXVK 3.0.2 from its official GitHub release.
+
+Exact URLs, byte sizes, SHA-256 digests, the exact Arch packager certificate
+and fingerprint, and protected payload manifests ship in /usr/share/lfs-linux.
+The Wine package signature is checked with `gpgv`. Archive member paths and
+links are preflighted before extraction. A changed, unsafe, or incomplete
+payload fails closed before extraction or execution. Live for Speed remains governed by
+https://www.lfs.net/agreement. Wine is LGPL-2.1-or-later; DXVK uses the Zlib
+license. No downloaded payload is redistributed by this Debian package.
+
+The exact Arch Wine package corresponds to packaging tag 11.15-1 and commit
+f70b597ed89e4e0beae53ace69b109eaff274648:
+https://gitlab.archlinux.org/archlinux/packaging/packages/wine/-/tree/11.15-1
+The Arch recipe builds signed upstream Wine tag wine-11.15 from:
+https://gitlab.winehq.org/wine/wine/-/tree/wine-11.15
+
+User state and removal
+----------------------
+
+Runtime files are stored under the invoking user's XDG data, cache, and state
+directories. The launcher must not be run as root. Normal APT removal deletes
+only Debian-managed files under /usr and preserves profiles, settings,
+replays, mods, game files, caches, and local update baselines. Users who also
+want to remove those files must run `lfs-linux remove` and
+`lfs-linux purge-cache` explicitly before uninstalling the package.

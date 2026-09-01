@@ -1,0 +1,138 @@
+Debian source and runtime provenance
+====================================
+
+Upstream orig tarball
+---------------------
+
+Version 0.3.1 uses the deterministic upstream release asset, not a generated
+GitHub snapshot:
+
+  https://github.com/mitzracing/live-for-speed-linux/releases/download/v0.3.1/live-for-speed-linux-0.3.1.tar.gz
+  SHA-256: 6f0f9f8713cba348fb6a187ddb4f93068e45b0fb7c949f59463c311cae50b0ed
+
+Rename it to live-for-speed-linux_0.3.1.orig.tar.gz next to the unpacked source
+before building the Debian source package. The archive contains only the MIT
+wrapper sources and CC0 AppStream metadata. No proprietary or prebuilt runtime
+payload is present. `debian/rules` builds and tests without network access.
+
+The first archive candidate uses Debian revision -2 because the already
+published GitHub direct-download package used 0.3.1-1 with different package
+bytes. Distinct bytes must not share package name, version, and architecture.
+Future non-Debian builds should use a lower-sorting suffix such as
+0.3.2-1~github1 while Debian uses 0.3.2-1.
+
+Debian delta
+------------
+
+The `0.3.1-2` draft carries
+`debian/patches/0001-harden-runtime-trust-boundaries.patch`. A post-release
+review found that Wine version probing occurred before full manifest
+verification, root invocation could honor user-controlled wrapper paths,
+archive extraction lacked wrapper-level member preflight, and the desktop
+helper did not implement Debian's generic terminal alternative. The patch
+fixes those defects, authenticates the Arch package signature, and adds
+regression tests. It is marked `Forwarded: not-yet`; publishing an upstream
+security release and repackaging that release without the delta is a
+pre-upload gate unless the sponsor explicitly accepts the carried patch.
+
+External runtime correspondence
+-------------------------------
+
+External payloads are downloaded only after an explicit user command, into a
+per-user XDG directory. They are not Debian source or binary package content.
+All three are pinned by URL, byte size, and SHA-256 in
+share/lfs-linux/release.env and are verified before extraction or execution.
+
+Wine:
+
+* Downloaded binary: wine-11.15-1-x86_64.pkg.tar.zst
+* Binary SHA-256: 5ee6a5522f81aba8441474c833552dd8f86bc9b9927c4efc9cb9251121124af4
+* Detached signature SHA-256:
+  c137f4dc493c7f8f00b47e42a014d19cdbbcac8b7daed41948b8f8148e3edc80
+* Package signer: Peter Jung <ptr1337@archlinux.org>, fingerprint
+  D2E95FEC015CF1F911AAAB0C3D4C5008BB5C8D29
+* Signer identity: https://archlinux.org/people/package-maintainers/
+* Shipped key SHA-256:
+  c3186f2f7bdbe1cd02002dc84bce781580e4edc49fdc3ad848096af6768f3a89
+* Key source: Arch keyring signed tag 20260727, commit
+  cb5bbe4f36edae7a6bc7b3e373714dcde2cba7ae
+* Arch packaging tag: 11.15-1 (signed annotated tag)
+* Arch packaging commit: f70b597ed89e4e0beae53ace69b109eaff274648
+* Recipe and auxiliary sources:
+  https://gitlab.archlinux.org/archlinux/packaging/packages/wine/-/tree/11.15-1
+* Upstream signed source tag: wine-11.15
+  https://gitlab.winehq.org/wine/wine/-/tree/wine-11.15
+* Upstream release tarball:
+  https://dl.winehq.org/wine/source/11.x/wine-11.15.tar.xz
+* Upstream tarball size: 46665288 bytes
+* Upstream tarball SHA-256:
+  5046f36dae210b198ea69792774d4401feed975d465eca6c251c9394400ec272
+* License: LGPL-2.1-or-later
+
+The Arch recipe applies no Wine source patch. It adds two integration files
+and records their hashes in .SRCINFO. The exact build recipe, dependencies,
+flags, valid Wine signing keys, and source-tree SHA-512 are retained at the
+immutable Arch tag above. The wrapper verifies the detached package signature
+against only the shipped signer certificate and exact fingerprint before
+extracting Wine; this proves Arch packager authentication, not reproducible
+binary-to-source correspondence. `debian/wine-runtime-audit.md` records a
+complete ELF `DT_NEEDED` audit, including four optional module SONAMEs not
+satisfied by current Debian unstable. Sponsor agreement on that compatibility
+boundary is
+a pre-upload gate.
+
+DXVK:
+
+* Downloaded binary archive: dxvk-3.0.2.tar.gz
+* Binary archive SHA-256:
+  9c538924110a7cdef871ca36dee218c0774124374ffdeb38af4b76be55bdf7c2
+* Signed annotated source tag: v3.0.2
+* Source commit: 6b20f622a77b87b2921fe5d2c1774d2f2ba3e9b7
+* Source: https://github.com/doitsujin/dxvk/tree/v3.0.2
+* License: Zlib
+
+Live for Speed:
+
+* Downloaded proprietary installer: LFS_S3_8C20_setup.exe
+* Installer SHA-256:
+  c06d3d9055f40e8e70994280a52b23f8c3c59b24ad726380547f0ed8899b9b76
+* Vendor download page: https://www.lfs.net/downloads
+* Vendor terms: https://www.lfs.net/agreement
+
+The wrapper does not mirror, proxy, modify, or redistribute these artifacts.
+The release-engineering worktree retained local operational C20 audit output
+under `artifacts/`, which is intentionally untracked and omitted from release
+source archives. It is not public source-package evidence; provide it directly
+to a sponsor on request. The manifests and executable verification logic used
+at runtime are included in the source package.
+
+Git and upload binding gate
+---------------------------
+
+The orig tarball above is byte-identical to the published `v0.3.1` asset and
+maps to upstream Git commit `3aae4570bb7e101872bff15d216b0532f4360dbd`.
+The current Debian directory is a review draft, not an upload identity. Before
+signing or uploading, move the packaging to the sponsor-approved public VCS,
+replace the draft Vcs fields, commit the complete Debian delta, and rebuild the
+`.dsc` from a clean checkout of that exact commit. Record the commit, `.dsc`,
+orig, Debian tarball, and buildinfo digests together. A clean build alone is
+not evidence of correspondence to a public Git revision.
+
+Build and test
+--------------
+
+Use a clean unstable chroot and build as an unprivileged user, for example:
+
+  sbuild --dist=unstable --arch=amd64 --source --no-clean-source
+
+The build tests include static public-key/signature fixtures for real `gpgv`
+acceptance, wrong-signer and bad-signature rejection, and a missing-`VALIDSIG`
+parser case. Locally generated tar fixtures cover absolute and parent paths,
+duplicate normalized members, escaping symlinks, hardlinks, special types,
+safe links, and non-empty extraction destinations. No private test key is
+included.
+
+Run the installed-package tests with autopkgtest. They use only local package
+content and do not contact Live for Speed, Arch Linux, GitHub, or WineHQ.
+Before an initial upload, replace UNRELEASED in debian/changelog, add the ITP
+bug as `Closes: #nnnnnn`, and use the approved maintainer and Salsa fields.

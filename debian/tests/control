@@ -1,0 +1,10 @@
+Tests: installed-smoke
+Depends:
+ @,
+ appstream,
+ desktop-file-utils,
+ file
+
+Tests: root-rejection
+Depends: @
+Restrictions: needs-root
