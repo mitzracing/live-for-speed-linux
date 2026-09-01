@@ -1,6 +1,6 @@
 # Debian and Ubuntu package
 
-The deterministic `.deb` contains only the MIT-licensed launcher, manifests, desktop metadata, and documentation. It does not contain Live for Speed, Wine, DXVK, Windows executables, or player data. Runtime payloads are downloaded from their pinned upstream URLs only after an explicit user command.
+The deterministic `.deb` contains only the MIT-licensed launcher, GPL-3.0-or-later public signing certificate, manifests, desktop metadata, and documentation. It does not contain Live for Speed, Wine, DXVK, Windows executables, or player data. Runtime payloads are downloaded from their pinned upstream URLs only after an explicit user command.
 
 ## Supported distributions
 
@@ -17,7 +17,7 @@ Install the local release asset with APT so its audited amd64 host-library and V
 
 ```bash
 sudo apt update
-sudo apt install ./live-for-speed-linux_0.3.1-1_amd64.deb
+sudo apt install ./live-for-speed-linux_0.3.2-0github1_amd64.deb
 ```
 
 Then open **Live for Speed Linux** from the application menu or run:
@@ -50,4 +50,4 @@ Normal package removal deletes only files managed under `/usr`. User profiles, s
 
 ## Publication boundary
 
-A GitHub release `.deb` is a direct-download package, not a Debian archive, PPA, or graphical software-catalog listing. Publishing through one of those channels requires separate repository ownership, review, signing, and explicit approval. The package must never embed or redistribute proprietary upstream payloads.
+A GitHub release `.deb` is a direct-download package, not a Debian archive, PPA, or graphical software-catalog listing. AppStream and desktop metadata provide `Game`, `Simulation`, and `SportsGame` categories plus `games`, `racing`, and `simulator` search terms, but GNOME Software and KDE Discover can index them only after this package enters a configured archive. Publishing through one of those channels requires separate repository ownership, review, signing, and explicit approval. The package must never embed or redistribute proprietary upstream payloads.

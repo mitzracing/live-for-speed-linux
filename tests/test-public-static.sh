@@ -20,14 +20,14 @@ component = ET.parse(sys.argv[1]).getroot()
 categories = {node.text for node in component.findall("./categories/category")}
 keywords = {node.text.casefold() for node in component.findall("./keywords/keyword")}
 assert {"Game", "Simulation", "SportsGame"} <= categories
-assert {"game", "racing", "simulator"} <= keywords
+assert {"game", "games", "racing", "simulator"} <= keywords
 
 desktop = configparser.ConfigParser(interpolation=None, strict=True)
 desktop.optionxform = str
 desktop.read(sys.argv[2])
 entry = desktop["Desktop Entry"]
 assert {"Game", "Simulation", "SportsGame"} <= set(filter(None, entry["Categories"].split(";")))
-assert {"game", "racing", "simulator"} <= {word.casefold() for word in filter(None, entry["Keywords"].split(";"))}
+assert {"game", "games", "racing", "simulator"} <= {word.casefold() for word in filter(None, entry["Keywords"].split(";"))}
 PY
 
 # shellcheck source=/dev/null
@@ -312,6 +312,10 @@ if [[ "${LFS_LINUX_SOURCE_ARCHIVE:-0}" != '1' ]]; then
   grep -Fq 'No Flatpak manifest exists here by design.' "$ROOT_DIR/packaging/flathub/README.md"
 
   # AUR recipe must use the exact audited Wine and a pinned project release asset.
+  grep -Fq "pkgver=$(<"$ROOT_DIR/VERSION")" "$ROOT_DIR/packaging/aur/PKGBUILD"
+  grep -Fq "pkgver = $(<"$ROOT_DIR/VERSION")" "$ROOT_DIR/packaging/aur/.SRCINFO"
+  grep -Fq "pkgdesc='Unofficial launcher for Live for Speed, a racing simulator game'" "$ROOT_DIR/packaging/aur/PKGBUILD"
+  grep -Fq 'pkgdesc = Unofficial launcher for Live for Speed, a racing simulator game' "$ROOT_DIR/packaging/aur/.SRCINFO"
   grep -Fq "'wine=11.15-1'" "$ROOT_DIR/packaging/aur/PKGBUILD"
   grep -Fq "'gnupg'" "$ROOT_DIR/packaging/aur/PKGBUILD"
   grep -Fq 'depends = gnupg' "$ROOT_DIR/packaging/aur/.SRCINFO"

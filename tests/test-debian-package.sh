@@ -60,6 +60,9 @@ dpkg-deb --extract "$deb_one" "$TMP_ROOT/extracted"
 cmp "$ROOT_DIR/bin/lfs-linux" "$TMP_ROOT/extracted/usr/bin/lfs-linux"
 cmp "$ROOT_DIR/libexec/lfs-linux-core" "$TMP_ROOT/extracted/usr/lib/lfs-linux/lfs-linux-core"
 cmp "$ROOT_DIR/share/lfs-linux/arch-wine-peter-jung.pgp" "$TMP_ROOT/extracted/usr/share/lfs-linux/arch-wine-peter-jung.pgp"
+cmp "$ROOT_DIR/packaging/debian/copyright" "$TMP_ROOT/extracted/usr/share/doc/live-for-speed-linux/copyright"
+grep -Fq 'Files: share/lfs-linux/arch-wine-peter-jung.pgp' "$TMP_ROOT/extracted/usr/share/doc/live-for-speed-linux/copyright"
+grep -Fq 'License: GPL-3+' "$TMP_ROOT/extracted/usr/share/doc/live-for-speed-linux/copyright"
 [[ "$(stat -c %a "$TMP_ROOT/extracted/usr/bin/lfs-linux")" == '755' ]]
 [[ "$(stat -c %a "$TMP_ROOT/extracted/usr/share/lfs-linux/release.env")" == '644' ]]
 [[ "$(readlink "$TMP_ROOT/extracted/usr/share/man/man1/lfs-linux-desktop.1.gz")" == 'lfs-linux.1.gz' ]]

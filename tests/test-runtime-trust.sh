@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Variables and helper functions below are consumed by sourced production functions.
-# shellcheck disable=SC2034,SC2329
+# shellcheck disable=SC2034,SC2317,SC2329
 set -Eeuo pipefail
 
 ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"

@@ -2,7 +2,7 @@
 
 Unofficial community Linux launcher for the untouched official [Live for Speed](https://www.lfs.net/) Windows build.
 
-**Status:** v0.3.1 public-test wrapper release. The validated AUR recipe awaits maintainer SSH access. The core works without Steam, Bottles, Lutris, or a background launcher.
+**Status:** v0.3.2 public-test wrapper release. The validated AUR recipe awaits maintainer SSH access. The core works without Steam, Bottles, Lutris, or a background launcher.
 
 This release bootstraps exact official **LFS 0.8C20 new graphics**, which lfs.net still labels **PUBLIC TEST**. It is not represented as a stable LFS release. Use immutable [v0.1.6](https://github.com/mitzracing/live-for-speed-linux/releases/tag/v0.1.6) for the audited old-graphics 0.7G fallback.
 
@@ -91,12 +91,12 @@ A deterministic wrapper-only `.deb` is supported on Debian 13 and Ubuntu 24.04. 
 
 ```bash
 sudo apt update
-sudo apt install ./live-for-speed-linux_0.3.1-1_amd64.deb
+sudo apt install ./live-for-speed-linux_0.3.2-0github1_amd64.deb
 ```
 
 The package does not contain the game, Wine, DXVK, or player data. It installs no proprietary payload and downloads nothing during package installation. See [`packaging/debian/`](packaging/debian/README.md) for the support boundary, deterministic build, removal behavior, and repository-publication distinction.
 
-The `.deb` is a direct GitHub download, not a Debian archive, PPA, or graphical catalog listing. The pinned private Wine runtime requires glibc 2.38 or newer, so Ubuntu 22.04 and Debian 12 are not supported.
+The `.deb` is a direct GitHub download, not a Debian archive or PPA. It cannot appear in GNOME Software or KDE Discover by itself. AppStream and desktop metadata include the `Game`, `Simulation`, and `SportsGame` categories and `games`, `racing`, and `simulator` search terms; graphical catalog discovery begins only after the package is accepted into a configured Debian archive. The pinned private Wine runtime requires glibc 2.38 or newer, so Ubuntu 22.04 and Debian 12 are not supported.
 
 The package name uses the full game name to avoid confusion with Linux From Scratch. Existing scripts can continue to use the `lfs-linux` command.
 

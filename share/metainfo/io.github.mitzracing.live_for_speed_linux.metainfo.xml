@@ -4,7 +4,7 @@
   <name>Live for Speed Linux</name>
   <summary>Unofficial Linux launcher for the Live for Speed racing simulator</summary>
   <metadata_license>CC0-1.0</metadata_license>
-  <project_license>MIT</project_license>
+  <project_license>MIT AND GPL-3.0-or-later</project_license>
   <developer id="io.github.mitzracing">
     <name>Live for Speed Linux contributors</name>
   </developer>
@@ -15,6 +15,7 @@
   </categories>
   <keywords>
     <keyword>game</keyword>
+    <keyword>games</keyword>
     <keyword>racing</keyword>
     <keyword>simulator</keyword>
     <keyword>motorsport</keyword>
@@ -23,7 +24,7 @@
   </keywords>
   <description>
     <p>Live for Speed Linux is an unofficial community launcher for the untouched official Live for Speed racing simulator.</p>
-    <p>Version 0.3.1 bootstraps exact LFS 0.8C20 new graphics, which upstream labels PUBLIC TEST rather than stable.</p>
+    <p>Version 0.3.2 bootstraps exact LFS 0.8C20 new graphics, which upstream labels PUBLIC TEST rather than stable.</p>
     <p>On first launch, one informed setup prompt downloads official files, verifies every protected game and Wine runtime file, configures exact Wine 11.15-1 and DXVK D3D11/DXGI, and starts the game. Versioned updates completed by LFS are recorded after exit and accepted on later launches.</p>
     <p>Live for Speed is proprietary software from Scawen Roberts, Eric Bailey, and Victor van Vlaardingen. This community wrapper is not affiliated with or endorsed by the Live for Speed developers.</p>
   </description>
@@ -42,6 +43,11 @@
     <content_attribute id="social-chat">intense</content_attribute>
   </content_rating>
   <releases>
+    <release version="0.3.2" date="2026-09-01">
+      <description>
+        <p>Reject root entry points, authenticate the pinned Wine package signer, verify the complete runtime before execution, preflight archive members and links, and add Debian software-catalog search metadata.</p>
+      </description>
+    </release>
     <release version="0.3.1" date="2026-08-31">
       <description>
         <p>Keep updater-restarted LFS sessions alive, add durable launch events, recover interrupted trusted updates only with validated evidence and explicit confirmation, and add a deterministic Debian 13 and Ubuntu 24.04 package.</p>

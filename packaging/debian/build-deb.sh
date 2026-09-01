@@ -37,7 +37,7 @@ readonly PACKAGE_ROOT="$TMP_ROOT/root"
 mkdir -p "$OUTPUT_DIR" "$PACKAGE_ROOT/DEBIAN"
 make -C "$ROOT_DIR" DESTDIR="$PACKAGE_ROOT" PREFIX=/usr install >/dev/null
 
-install -Dm644 "$ROOT_DIR/LICENSE" "$PACKAGE_ROOT/usr/share/doc/$PACKAGE/copyright"
+install -Dm644 "$ROOT_DIR/packaging/debian/copyright" "$PACKAGE_ROOT/usr/share/doc/$PACKAGE/copyright"
 rm -rf "$PACKAGE_ROOT/usr/share/licenses"
 gzip -n -9 "$PACKAGE_ROOT/usr/share/man/man1/lfs-linux.1"
 rm "$PACKAGE_ROOT/usr/share/man/man1/lfs-linux-desktop.1"

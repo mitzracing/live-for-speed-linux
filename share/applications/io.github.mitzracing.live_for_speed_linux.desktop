@@ -10,7 +10,7 @@ Terminal=false
 StartupNotify=true
 StartupWMClass=lfs.exe
 Categories=Game;Simulation;SportsGame;
-Keywords=game;racing;simulator;motorsport;driving;wine;LFS;
+Keywords=game;games;racing;simulator;motorsport;driving;wine;LFS;
 PrefersNonDefaultGPU=true
 Actions=Install;Doctor;
 
