@@ -15,6 +15,7 @@ sed -n '/^verify_wine_package_signature() {/,/^ensure_wine_runtime() {/p' "$CORE
 sed -n '/^archive_member_listing_is_safe() {/,/^download_verified() {/p' "$CORE" | sed '$d' >"$archive_functions"
 grep -Fq 'gpgv --status-fd 1' "$signature_functions"
 grep -Fq 'preflight_bsdtar_archive()' "$archive_functions"
+grep -Fq 'extract_7z_archive()' "$archive_functions"
 grep -Fq 'extract_bsdtar_archive()' "$archive_functions"
 
 (
@@ -180,6 +181,29 @@ run_archive_rejected escaping-symlink "$TMP_ROOT/escaping-symlink.tar"
 run_archive_rejected hardlink "$TMP_ROOT/hardlink.tar"
 run_archive_rejected duplicate "$TMP_ROOT/duplicate.tar"
 run_archive_rejected fifo "$TMP_ROOT/fifo.tar"
+
+mkdir -p "$TMP_ROOT/ordered-first/shared" "$TMP_ROOT/ordered-second/shared" "$TMP_ROOT/ordered-destination"
+printf 'first\n' >"$TMP_ROOT/ordered-first/shared/value.txt"
+printf 'second\n' >"$TMP_ROOT/ordered-second/shared/value.txt"
+(
+  cd "$TMP_ROOT/ordered-first"
+  7z a -bd -y "$TMP_ROOT/ordered-first.7z" shared/value.txt >/dev/null
+)
+(
+  cd "$TMP_ROOT/ordered-second"
+  7z a -bd -y "$TMP_ROOT/ordered-second.7z" shared/value.txt >/dev/null
+)
+(
+  set -Eeuo pipefail
+  die() { printf 'error: %s\n' "$*" >&2; exit 1; }
+  # shellcheck source=/dev/null
+  source "$archive_functions"
+  extract_7z_archive "$TMP_ROOT/ordered-first.7z" "$TMP_ROOT/ordered-destination" \
+    'first ordered fixture' replace-existing 30 "$TMP_ROOT/ordered-extract.log"
+  extract_7z_archive "$TMP_ROOT/ordered-second.7z" "$TMP_ROOT/ordered-destination" \
+    'second ordered fixture' replace-existing 30 "$TMP_ROOT/ordered-extract.log"
+)
+[[ "$(cat "$TMP_ROOT/ordered-destination/shared/value.txt")" == 'second' ]]
 
 safe_destination="$TMP_ROOT/safe-destination"
 mkdir -p "$safe_destination"
