@@ -31,9 +31,10 @@ nested_root="$TMP_ROOT/nested-root"
 game="$state/prefix/drive_c/LFS"
 fake_wine_root="$TMP_ROOT/fake-wine"
 fake_wine="$fake_wine_root/usr/bin/wine"
+fake_bin="$TMP_ROOT/fake-bin"
 mkdir -p "$data" "$cache" "$logs" "$old_stock" "$new_stock" "$outer_stock" \
   "$nested_root/inst_tmp" "$TMP_ROOT/upstream" "$fake_wine_root/usr/bin" "$fake_wine_root/usr/lib/wine" \
-  "$state/prefix/drive_c/windows/syswow64"
+  "$state/prefix/drive_c/windows/syswow64" "$fake_bin"
 
 cat >"$fake_wine" <<'EOF'
 #!/usr/bin/env bash
@@ -49,13 +50,27 @@ case "${1:-}" in
   reg)
     ;;
   *)
+    if [[ "${LFS_TEST_WINESERVER_HANG:-0}" == '1' && -f "${1:-}" ]]; then
+      (
+        exec -a wine-helper sleep 30
+      ) &
+      printf '%s\n' "$!" >"$WINEPREFIX/lingering-helper.pid"
+    fi
     if [[ -n "${LFS_TEST_SELF_UPDATE_VERSION:-}" && -f "${1:-}" ]]; then
       game_root="$(dirname -- "$1")"
       printf 'self-updated-%s' "$LFS_TEST_SELF_UPDATE_VERSION" >"$game_root/LFS.exe"
       printf 'game-owned-update' >"$game_root/game-update.stock"
       mkdir -p "$game_root/data/versions"
       : >"$game_root/data/versions/$LFS_TEST_SELF_UPDATE_VERSION.txt"
+      if [[ -n "${LFS_TEST_RESTART_SECONDS:-}" ]]; then
+        restart-delay "${LFS_TEST_RESTART_DELAY_SECONDS:-0}" "$LFS_TEST_RESTART_SECONDS" &
+        printf '%s\n' "$!" >"$WINEPREFIX/restarted-game.pid"
+      fi
       exit_status="${LFS_TEST_EXIT_STATUS:-0}"
+    fi
+    if [[ -n "${LFS_TEST_LAUNCH_HOLD_FILE:-}" && -f "${1:-}" ]]; then
+      : >"$LFS_TEST_LAUNCH_HOLD_FILE"
+      sleep "${LFS_TEST_LAUNCH_HOLD_SECONDS:-2}"
     fi
     ;;
 esac
@@ -63,9 +78,52 @@ exit "$exit_status"
 EOF
 cat >"$fake_wine_root/usr/bin/wineserver" <<'EOF'
 #!/usr/bin/env bash
-exit 0
+pid_file="$WINEPREFIX/restarted-game.pid"
+helper_pid_file="$WINEPREFIX/lingering-helper.pid"
+case "${1:-}" in
+  --wait)
+    [[ -z "${LFS_TEST_WINESERVER_ERROR_STATUS:-}" ]] || exit "$LFS_TEST_WINESERVER_ERROR_STATUS"
+    while [[ "${LFS_TEST_WINESERVER_HANG:-0}" == '1' ]]; do sleep 1; done
+    if [[ -f "$pid_file" ]]; then
+      read -r pid <"$pid_file"
+      while kill -0 "$pid" 2>/dev/null; do sleep 0.05; done
+      rm -f "$pid_file"
+    fi
+    ;;
+  -k)
+    [[ -z "${LFS_TEST_CAPTURE_KILL:-}" ]] || : >"$LFS_TEST_CAPTURE_KILL"
+    if [[ -f "$pid_file" ]]; then
+      read -r pid <"$pid_file"
+      kill "$pid" 2>/dev/null || true
+      rm -f "$pid_file"
+    fi
+    if [[ -f "$helper_pid_file" ]]; then
+      read -r helper_pid <"$helper_pid_file"
+      kill "$helper_pid" 2>/dev/null || true
+      rm -f "$helper_pid_file"
+    fi
+    ;;
+esac
 EOF
-chmod +x "$fake_wine" "$fake_wine_root/usr/bin/wineserver"
+cat >"$fake_bin/restart-delay" <<'EOF'
+#!/usr/bin/env bash
+sleep "$1"
+exec -a LFS.exe sleep "$2"
+EOF
+cat >"$fake_bin/timeout" <<'EOF'
+#!/usr/bin/env bash
+args=("$@")
+if [[ "${*: -1}" == '--wait' ]]; then
+  for ((i = 0; i < ${#args[@]}; i++)); do
+    case "${args[$i]}" in
+      60) args[$i]='1' ;;
+      5) args[$i]='2' ;;
+    esac
+  done
+fi
+exec /usr/bin/timeout "${args[@]}"
+EOF
+chmod +x "$fake_wine" "$fake_wine_root/usr/bin/wineserver" "$fake_bin/restart-delay" "$fake_bin/timeout"
 "$ROOT_DIR/scripts/generate-payload-manifest.py" wine "$fake_wine_root" "$data/fake-wine.manifest" >/dev/null
 wine_manifest_size="$(stat -c %s "$data/fake-wine.manifest")"
 wine_manifest_hash="$(sha256sum "$data/fake-wine.manifest" | awk '{print $1}')"
@@ -213,11 +271,23 @@ EOF
 
 cp -a "$old_stock" "$game"
 mkdir -p "$game/data/misc" "$game/data/setups" "$game/data/mpr" "$game/data/shots" \
-  "$game/data/training" "$game/data/skins_dds" "$cache/dxvk-shaders"
+  "$game/data/training" "$game/data/skins" "$game/data/skins_dds" "$game/data/skins_x" \
+  "$game/data/skins_y" "$game/data/grids" "$game/cache/events" "$game/mods/vehicles" \
+  "$cache/dxvk-shaders"
 printf 'player-config' >"$game/cfg.txt"
 printf 'player-target-collision' >"$game/new.stock"
 collision_hash="$(sha256sum "$game/new.stock" | awk '{print $1}')"
 printf 'player-interface' >"$game/interface_cfg.txt"
+printf 'player-card-config' >"$game/card_cfg.txt"
+printf 'runtime-debug-log' >"$game/deb.log"
+printf 'older-runtime-debug-log' >"$game/deb_old.log"
+printf 'player-account-state' >"$game/guest.txt"
+printf 'event-cache' >"$game/cache/events/player.png"
+printf 'downloaded-mod' >"$game/mods/vehicles/player.mod"
+printf 'player-grid' >"$game/data/grids/player.rac"
+printf 'player-skin' >"$game/data/skins/player.jpg"
+printf 'downloaded-skin-x' >"$game/data/skins_x/player.dds"
+printf 'downloaded-skin-y' >"$game/data/skins_y/player.dds"
 printf 'player-profile' >"$game/data/misc/default.ply"
 printf 'player-setup' >"$game/data/setups/player.set"
 printf 'player-replay' >"$game/data/mpr/player.mpr"
@@ -234,6 +304,16 @@ printf '%s\n' 'lfs-linux managed state; unknown files are preserved on removal' 
 player_paths=(
   cfg.txt
   interface_cfg.txt
+  card_cfg.txt
+  deb.log
+  deb_old.log
+  guest.txt
+  cache/events/player.png
+  mods/vehicles/player.mod
+  data/grids/player.rac
+  data/skins/player.jpg
+  data/skins_x/player.dds
+  data/skins_y/player.dds
   data/misc/default.ply
   data/setups/player.set
   data/mpr/player.mpr
@@ -257,6 +337,7 @@ run_lfs() {
   LFS_LINUX_CACHE_DIR="$cache" \
   LFS_LINUX_LOG_DIR="$logs" \
   LFS_LINUX_WINE="$fake_wine" \
+  PATH="$fake_bin:$PATH" \
     "$ROOT_DIR/bin/lfs-linux" "$@"
 }
 
@@ -333,6 +414,28 @@ grep -Fqx 'new-stock-file' "$game/new.stock"
 run_lfs doctor >"$TMP_ROOT/doctor.out"
 grep -Fq 'Doctor summary: 0 failure(s)' "$TMP_ROOT/doctor.out"
 
+unsafe_runtime="$TMP_ROOT/unsafe-runtime"
+mkdir -p "$unsafe_runtime/lfs-linux-$UID"
+chmod 0777 "$unsafe_runtime/lfs-linux-$UID"
+set +e
+XDG_RUNTIME_DIR="$unsafe_runtime" run_lfs launch >"$TMP_ROOT/unsafe-lock-directory.out" 2>&1
+unsafe_lock_directory_status=$?
+set -e
+[[ "$unsafe_lock_directory_status" -ne 0 ]]
+grep -Fq 'launch lock directory is accessible by other users' "$TMP_ROOT/unsafe-lock-directory.out"
+rm -rf "$unsafe_runtime/lfs-linux-$UID"
+mkdir -m 0700 "$unsafe_runtime/lfs-linux-$UID"
+lock_symlink_target="$TMP_ROOT/lock-symlink-target"
+printf 'must-not-be-truncated' >"$lock_symlink_target"
+ln -s "$lock_symlink_target" "$unsafe_runtime/lfs-linux-$UID/launch.lock"
+set +e
+XDG_RUNTIME_DIR="$unsafe_runtime" run_lfs launch >"$TMP_ROOT/unsafe-lock-symlink.out" 2>&1
+unsafe_lock_symlink_status=$?
+set -e
+[[ "$unsafe_lock_symlink_status" -ne 0 ]]
+grep -Fq 'unsafe launch lock file' "$TMP_ROOT/unsafe-lock-symlink.out"
+grep -Fqx 'must-not-be-truncated' "$lock_symlink_target"
+
 rm -f "$cached_installer"
 sed -i "s/LFS_VERSION='test-new'/LFS_VERSION='test-old'/" "$state/install.env"
 run_lfs install >"$TMP_ROOT/self-updated-target.out"
@@ -381,6 +484,12 @@ grep -Fq 'Recovered player data after an interrupted game-tree swap' "$TMP_ROOT/
 cp -a "$game" "$TMP_ROOT/before-trusted-game-update"
 cp "$state/install.env" "$TMP_ROOT/before-trusted-game-update.env"
 original_display="${DISPLAY:-}"
+marker_field() {
+  awk -F "'" -v key="$1=" '$1 == key { print $2 }' "$state/install.env"
+}
+session_field() {
+  awk -F "'" -v key="$1=" '$1 == key { print $2 }' "$state/launch-session.env"
+}
 export DISPLAY="${DISPLAY:-:test}" LFS_TEST_SELF_UPDATE_VERSION='9Z1' LFS_TEST_EXIT_STATUS='7'
 set +e
 run_lfs launch >"$TMP_ROOT/trusted-game-update.out" 2>&1
@@ -389,9 +498,31 @@ set -e
 unset LFS_TEST_SELF_UPDATE_VERSION LFS_TEST_EXIT_STATUS
 [[ "$trusted_update_status" -eq 7 ]]
 grep -Fq 'Recorded LFS 0.9Z1 in-game update as the verified local launch baseline' "$TMP_ROOT/trusted-game-update.out"
-[[ -f "$state/game-update.manifest" ]]
+first_manifest_name="$(marker_field LFS_STOCK_MANIFEST_NAME)"
+[[ "$first_manifest_name" =~ ^game-update-[0-9a-f]{64}\.manifest$ ]]
+[[ -f "$state/$first_manifest_name" ]]
 grep -Fqx "LFS_BASELINE_KIND='game-update'" "$state/install.env"
 grep -Fqx "LFS_VERSION='0.9Z1'" "$state/install.env"
+cp "$state/$first_manifest_name" "$state/game-update.manifest"
+rm -f "$state/$first_manifest_name"
+sed -i '/^LFS_STOCK_MANIFEST_NAME=/d' "$state/install.env"
+run_lfs ready
+printf 'changed-player-card-config' >"$game/card_cfg.txt"
+printf 'changed-runtime-debug-log' >"$game/deb.log"
+printf 'changed-older-runtime-debug-log' >"$game/deb_old.log"
+printf 'changed-player-account-state' >"$game/guest.txt"
+printf 'changed-event-cache' >"$game/cache/events/player.png"
+printf 'changed-downloaded-mod' >"$game/mods/vehicles/player.mod"
+printf 'changed-player-grid' >"$game/data/grids/player.rac"
+printf 'changed-player-skin' >"$game/data/skins/player.jpg"
+printf 'changed-downloaded-skin-x' >"$game/data/skins_x/player.dds"
+printf 'changed-downloaded-skin-y' >"$game/data/skins_y/player.dds"
+printf 'new-event-cache' >"$game/cache/events/new.png"
+player_paths+=(cache/events/new.png)
+(
+  cd "$game"
+  sha256sum "${player_paths[@]}"
+) >"$player_hashes"
 printf 'post-update-replay' >"$game/data/mpr/post-update.mpr"
 run_lfs ready
 run_lfs launch >"$TMP_ROOT/next-day-launch.out"
@@ -401,15 +532,238 @@ run_lfs launch >"$TMP_ROOT/second-trusted-game-update.out"
 unset LFS_TEST_SELF_UPDATE_VERSION
 grep -Fq 'Recorded LFS 0.9Z2 in-game update as the verified local launch baseline' "$TMP_ROOT/second-trusted-game-update.out"
 grep -Fqx "LFS_VERSION='0.9Z2'" "$state/install.env"
+second_manifest_name="$(marker_field LFS_STOCK_MANIFEST_NAME)"
+[[ "$second_manifest_name" =~ ^game-update-[0-9a-f]{64}\.manifest$ ]]
+[[ -f "$state/$second_manifest_name" && ! -e "$state/game-update.manifest" ]]
 run_lfs ready
 run_lfs launch >"$TMP_ROOT/second-next-day-launch.out"
 grep -Fq 'Starting verified LFS 0.9Z2' "$TMP_ROOT/second-next-day-launch.out"
+
+wait_error_kill="$TMP_ROOT/wine-wait-error-killed"
+export LFS_TEST_WINESERVER_ERROR_STATUS='42' LFS_TEST_CAPTURE_KILL="$wait_error_kill"
+set +e
+run_lfs launch >"$TMP_ROOT/wine-wait-error.out" 2>&1
+wait_error_status=$?
+set -e
+unset LFS_TEST_WINESERVER_ERROR_STATUS LFS_TEST_CAPTURE_KILL
+[[ "$wait_error_status" -eq 42 && ! -e "$wait_error_kill" ]]
+wait_error_log="$logs/$(readlink "$logs/latest.log")"
+grep -Fq 'lfs-linux event=wine-wait-error phase=primary status=42' "$wait_error_log"
+grep -Fq 'lfs-linux event=finish status=42 reason=wine-wait-failed' "$wait_error_log"
+[[ -f "$state/launch-session.env" ]]
+
+orphan_kill="$TMP_ROOT/orphan-wineserver-killed"
+export LFS_TEST_WINESERVER_HANG='1' LFS_TEST_CAPTURE_KILL="$orphan_kill"
+set +e
+run_lfs launch >"$TMP_ROOT/orphan-wineserver.out" 2>&1
+orphan_status=$?
+set -e
+unset LFS_TEST_WINESERVER_HANG
+[[ "$orphan_status" -ne 0 && ! -e "$orphan_kill" ]]
+[[ -f "$state/prefix/lingering-helper.pid" ]]
+read -r orphan_helper_pid <"$state/prefix/lingering-helper.pid"
+if find "/proc/$orphan_helper_pid/fd" -lname "${XDG_RUNTIME_DIR:-/tmp}/lfs-linux-$UID/launch.lock" -print -quit 2>/dev/null | grep -q .; then
+  printf 'Wine descendant inherited the foreground launch lock\n' >&2
+  exit 1
+fi
+grep -Fq 'they were left running and protected changes were not recorded' "$TMP_ROOT/orphan-wineserver.out"
+grep -Fqx "LFS_VERSION='0.9Z2'" "$state/install.env"
+[[ -f "$state/launch-session.env" ]]
+orphan_launch_log="$logs/$(readlink "$logs/latest.log")"
+grep -Fq 'game_active=no action=retain-evidence' "$orphan_launch_log"
+grep -Fq 'lfs-linux event=finish status=1 reason=wine-wait-failed' "$orphan_launch_log"
+run_lfs status | grep -Fq 'Wine services remain (run lfs-linux stop)'
+set +e
+run_lfs install >"$TMP_ROOT/orphan-install-rejected.out" 2>&1
+orphan_install_status=$?
+set -e
+[[ "$orphan_install_status" -ne 0 ]]
+grep -Fq 'private Wine processes are running; run lfs-linux stop before install' "$TMP_ROOT/orphan-install-rejected.out"
+run_lfs stop >"$TMP_ROOT/orphan-stop.out"
+[[ -e "$orphan_kill" && ! -e "$state/prefix/lingering-helper.pid" ]]
+run_lfs status | grep -Fq 'Process:    stopped'
+WINEPREFIX="$state/prefix" bash -c 'exec -a browser-helper sleep 10' &
+unrelated_prefix_pid=$!
+sleep 0.1
+run_lfs status | grep -Fq 'Process:    stopped'
+kill "$unrelated_prefix_pid"
+wait "$unrelated_prefix_pid" 2>/dev/null || true
+unset LFS_TEST_CAPTURE_KILL
+
+restart_kill="$TMP_ROOT/restarted-game-killed"
+export LFS_TEST_SELF_UPDATE_VERSION='9Z3' LFS_TEST_RESTART_DELAY_SECONDS='1.5' \
+  LFS_TEST_RESTART_SECONDS='3' LFS_TEST_EXIT_STATUS='7' LFS_TEST_CAPTURE_KILL="$restart_kill"
+set +e
+run_lfs launch >"$TMP_ROOT/restarted-trusted-game-update.out" 2>&1
+restart_status=$?
+set -e
+unset LFS_TEST_SELF_UPDATE_VERSION LFS_TEST_RESTART_DELAY_SECONDS LFS_TEST_RESTART_SECONDS \
+  LFS_TEST_EXIT_STATUS LFS_TEST_CAPTURE_KILL
+[[ "$restart_status" -eq 7 && ! -e "$restart_kill" ]]
+grep -Fq 'Updater restarted LFS; waiting for the active game to exit' "$TMP_ROOT/restarted-trusted-game-update.out"
+grep -Fq 'Recorded LFS 0.9Z3 in-game update as the verified local launch baseline' "$TMP_ROOT/restarted-trusted-game-update.out"
+grep -Fqx "LFS_VERSION='0.9Z3'" "$state/install.env"
+[[ ! -e "$state/launch-session.env" ]]
+latest_launch_log="$logs/$(readlink "$logs/latest.log")"
+grep -Fq 'lfs-linux event=start session=' "$latest_launch_log"
+grep -Fq 'lfs-linux event=wine-parent-exit status=7' "$latest_launch_log"
+grep -Eq 'game_active=yes action=continue(-after-grace)?' "$latest_launch_log"
+grep -Fq 'lfs-linux event=update-recorded version=0.9Z3' "$latest_launch_log"
+grep -Fq 'lfs-linux event=finish status=7' "$latest_launch_log"
+
+pre_fault_manifest_name="$(marker_field LFS_STOCK_MANIFEST_NAME)"
+pre_fault_manifest_hash="$(sha256sum "$state/$pre_fault_manifest_name" | awk '{print $1}')"
+concurrent_hold_file="$TMP_ROOT/concurrent-update-active"
+export LFS_TEST_SELF_UPDATE_VERSION='9Z4' LFS_TEST_LAUNCH_HOLD_FILE="$concurrent_hold_file" \
+  LFS_TEST_LAUNCH_HOLD_SECONDS='2'
+LFS_LINUX_TEST_FAIL_BEFORE_MARKER=1 run_lfs launch >"$TMP_ROOT/interrupted-marker-commit.out" 2>&1 &
+interrupted_commit_pid=$!
+for ((attempt = 0; attempt < 100; attempt++)); do
+  [[ -e "$concurrent_hold_file" ]] && break
+  kill -0 "$interrupted_commit_pid" 2>/dev/null || break
+  sleep 0.05
+done
+[[ -e "$concurrent_hold_file" ]]
+set +e
+run_lfs launch >"$TMP_ROOT/concurrent-launch-rejected-before-validation.out" 2>&1
+concurrent_launch_status=$?
+wait "$interrupted_commit_pid"
+interrupted_commit_status=$?
+set -e
+unset LFS_TEST_SELF_UPDATE_VERSION LFS_TEST_LAUNCH_HOLD_FILE LFS_TEST_LAUNCH_HOLD_SECONDS
+[[ "$concurrent_launch_status" -eq 0 ]]
+grep -Fq 'LFS is already launching or running' "$TMP_ROOT/concurrent-launch-rejected-before-validation.out"
+[[ "$interrupted_commit_status" -ne 0 ]]
+grep -Fq 'test fault before in-game update marker commit; previous baseline retained' "$TMP_ROOT/interrupted-marker-commit.out"
+grep -Fqx "LFS_VERSION='0.9Z3'" "$state/install.env"
+[[ "$(marker_field LFS_STOCK_MANIFEST_NAME)" == "$pre_fault_manifest_name" ]]
+[[ "$(sha256sum "$state/$pre_fault_manifest_name" | awk '{print $1}')" == "$pre_fault_manifest_hash" ]]
+[[ -f "$state/launch-session.env" ]]
+[[ "$(find "$state" -maxdepth 1 -type f -name 'game-update-*.manifest' -printf . | wc -c)" -ge 2 ]]
+recovery_log="$logs/$(session_field LOG_BASENAME)"
+cp "$state/launch-session.env" "$TMP_ROOT/valid-launch-session.env"
+chmod 0644 "$state/launch-session.env"
+set +e
+LFS_LINUX_CONFIRM_UPDATE_RECOVERY=1 run_lfs recover-update >"$TMP_ROOT/recovery-rejects-open-permissions.out" 2>&1
+recovery_permissions_status=$?
+set -e
+[[ "$recovery_permissions_status" -ne 0 ]]
+grep -Fq 'launch-session evidence is missing or changed; no files changed' "$TMP_ROOT/recovery-rejects-open-permissions.out"
+install -m 0600 "$TMP_ROOT/valid-launch-session.env" "$state/launch-session.env"
+printf "UNEXPECTED='malformed'\n" >>"$state/launch-session.env"
+set +e
+LFS_LINUX_CONFIRM_UPDATE_RECOVERY=1 run_lfs recover-update >"$TMP_ROOT/recovery-rejects-unknown-key.out" 2>&1
+recovery_unknown_key_status=$?
+set -e
+[[ "$recovery_unknown_key_status" -ne 0 ]]
+grep -Fq 'launch-session evidence is missing or changed; no files changed' "$TMP_ROOT/recovery-rejects-unknown-key.out"
+install -m 0600 "$TMP_ROOT/valid-launch-session.env" "$state/launch-session.env"
+printf "BASELINE_VERSION='tampered'\n" >>"$state/launch-session.env"
+set +e
+LFS_LINUX_CONFIRM_UPDATE_RECOVERY=1 run_lfs recover-update >"$TMP_ROOT/recovery-rejects-tampered-evidence.out" 2>&1
+recovery_tamper_status=$?
+set -e
+[[ "$recovery_tamper_status" -ne 0 ]]
+grep -Fq 'launch-session evidence is missing or changed; no files changed' "$TMP_ROOT/recovery-rejects-tampered-evidence.out"
+install -m 0600 "$TMP_ROOT/valid-launch-session.env" "$state/launch-session.env"
+sed -i "s/^STARTED_AT='[^']*'/STARTED_AT='1'/" "$state/launch-session.env"
+set +e
+LFS_LINUX_CONFIRM_UPDATE_RECOVERY=1 run_lfs recover-update >"$TMP_ROOT/recovery-rejects-event-time-mismatch.out" 2>&1
+recovery_time_status=$?
+set -e
+[[ "$recovery_time_status" -ne 0 ]]
+grep -Fq 'launch-session evidence is missing or changed; no files changed' "$TMP_ROOT/recovery-rejects-event-time-mismatch.out"
+install -m 0600 "$TMP_ROOT/valid-launch-session.env" "$state/launch-session.env"
+prompt_snapshot_events_before="$(grep -Fc 'lfs-linux event=recovery-snapshot-ready' "$recovery_log" || true)"
+set +e
+LFS_LINUX_CONFIRM_UPDATE_RECOVERY=1 LFS_LINUX_TEST_CONFIRMATION_DELAY_SECONDS=4 \
+  run_lfs recover-update >"$TMP_ROOT/recovery-rejects-prompt-race.out" 2>&1 &
+recovery_pid=$!
+set -e
+prompt_snapshot_ready=0
+for ((attempt = 0; attempt < 200; attempt++)); do
+  prompt_snapshot_events_now="$(grep -Fc 'lfs-linux event=recovery-snapshot-ready' "$recovery_log" || true)"
+  if (( prompt_snapshot_events_now > prompt_snapshot_events_before )); then
+    prompt_snapshot_ready=1
+    break
+  fi
+  kill -0 "$recovery_pid" 2>/dev/null || break
+  sleep 0.05
+done
+[[ "$prompt_snapshot_ready" -eq 1 ]]
+printf "UNEXPECTED='prompt-race'\n" >>"$state/launch-session.env"
+set +e
+wait "$recovery_pid"
+recovery_race_status=$?
+set -e
+[[ "$recovery_race_status" -ne 0 ]]
+grep -Fq 'launch-session evidence changed during confirmation; no files changed' "$TMP_ROOT/recovery-rejects-prompt-race.out"
+grep -Fqx "LFS_VERSION='0.9Z3'" "$state/install.env"
+install -m 0600 "$TMP_ROOT/valid-launch-session.env" "$state/launch-session.env"
+cp "$game/game-update.stock" "$TMP_ROOT/game-update.stock.before-confirmation-race"
+snapshot_events_before="$(grep -Fc 'lfs-linux event=recovery-snapshot-ready' "$recovery_log" || true)"
+set +e
+LFS_LINUX_CONFIRM_UPDATE_RECOVERY=1 LFS_LINUX_TEST_CONFIRMATION_DELAY_SECONDS=4 \
+  run_lfs recover-update >"$TMP_ROOT/recovery-rejects-content-race.out" 2>&1 &
+content_recovery_pid=$!
+set -e
+snapshot_ready=0
+for ((attempt = 0; attempt < 200; attempt++)); do
+  snapshot_events_now="$(grep -Fc 'lfs-linux event=recovery-snapshot-ready' "$recovery_log" || true)"
+  if (( snapshot_events_now > snapshot_events_before )); then
+    snapshot_ready=1
+    break
+  fi
+  kill -0 "$content_recovery_pid" 2>/dev/null || break
+  sleep 0.05
+done
+[[ "$snapshot_ready" -eq 1 ]]
+printf 'changed-after-confirmation-snapshot' >"$game/game-update.stock"
+set +e
+WINEPREFIX="$state/prefix" bash -c 'exec -a LFS.exe sleep 0.2' &
+transient_game_pid=$!
+wait "$transient_game_pid"
+wait "$content_recovery_pid"
+content_recovery_status=$?
+set -e
+[[ "$content_recovery_status" -ne 0 ]]
+grep -Fq 'protected LFS files changed after recovery confirmation; previous baseline retained' "$TMP_ROOT/recovery-rejects-content-race.out"
+grep -Fqx "LFS_VERSION='0.9Z3'" "$state/install.env"
+cp "$TMP_ROOT/game-update.stock.before-confirmation-race" "$game/game-update.stock"
+if compgen -G "$state/.recovery-candidate.manifest.*" >/dev/null; then
+  printf 'failed recovery left a pre-confirmation snapshot\n' >&2
+  exit 1
+fi
+set +e
+run_lfs recover-update </dev/null >"$TMP_ROOT/recovery-needs-confirmation.out" 2>&1
+recovery_confirmation_status=$?
+set -e
+[[ "$recovery_confirmation_status" -ne 0 ]]
+grep -Fq 'update recovery needs a terminal or LFS_LINUX_CONFIRM_UPDATE_RECOVERY=1' "$TMP_ROOT/recovery-needs-confirmation.out"
+grep -Fqx "LFS_VERSION='0.9Z3'" "$state/install.env"
+LFS_LINUX_CONFIRM_UPDATE_RECOVERY=1 run_lfs recover-update >"$TMP_ROOT/recovered-trusted-game-update.out"
+grep -Fq 'Recovered LFS 0.9Z4 as the verified local launch baseline' "$TMP_ROOT/recovered-trusted-game-update.out"
+grep -Fqx "LFS_VERSION='0.9Z4'" "$state/install.env"
+recovered_manifest_name="$(marker_field LFS_STOCK_MANIFEST_NAME)"
+[[ "$recovered_manifest_name" =~ ^game-update-[0-9a-f]{64}\.manifest$ ]]
+[[ -f "$state/$recovered_manifest_name" && ! -e "$state/$pre_fault_manifest_name" ]]
+[[ "$(find "$state" -maxdepth 1 -type f -name 'game-update-*.manifest' -printf . | wc -c)" -eq 1 ]]
+[[ ! -e "$state/launch-session.env" ]]
+(
+  cd "$game"
+  sha256sum --check --quiet "$player_hashes"
+)
+grep -Eq 'lfs-linux event=recovery-recorded session=[0-9]+-[0-9]+ version=0\.9Z4' "$recovery_log"
+run_lfs ready
+run_lfs launch >"$TMP_ROOT/recovered-next-day-launch.out"
+grep -Fq 'Starting verified LFS 0.9Z4' "$TMP_ROOT/recovered-next-day-launch.out"
+
 if [[ -n "$original_display" ]]; then export DISPLAY="$original_display"; else unset DISPLAY; fi
 run_lfs doctor >"$TMP_ROOT/game-update-doctor.out"
 grep -Fq 'Doctor summary: 0 failure(s)' "$TMP_ROOT/game-update-doctor.out"
 rm -f "$cached_installer"
 run_lfs install >"$TMP_ROOT/game-update-install.out"
-grep -Fq 'Verified locally recorded LFS 0.9Z2 in-game update' "$TMP_ROOT/game-update-install.out"
+grep -Fq 'Verified locally recorded LFS 0.9Z4 in-game update' "$TMP_ROOT/game-update-install.out"
 [[ ! -e "$cached_installer" ]]
 grep -Fqx 'game-owned-update' "$game/game-update.stock"
 printf 'out-of-session-tamper' >"$game/game-update.stock"
@@ -431,7 +785,7 @@ rm -rf "$game"
 mkdir -p "$game"
 cp -a "$TMP_ROOT/before-trusted-game-update/." "$game/"
 cp "$TMP_ROOT/before-trusted-game-update.env" "$state/install.env"
-rm -f "$state/game-update.manifest"
+rm -f "$state"/game-update-*.manifest "$state/game-update.manifest"
 
 printf 'unknown-self-update' >"$game/LFS.exe"
 cp -a "$game" "$TMP_ROOT/before-rejected-update"
@@ -442,6 +796,13 @@ set -e
 [[ "$rejected_status" -ne 0 ]]
 grep -Fq 'unrecognized LFS update detected' "$TMP_ROOT/rejected-update.out"
 grep -Fq 'no files changed' "$TMP_ROOT/rejected-update.out"
+diff -qr "$TMP_ROOT/before-rejected-update" "$game" >/dev/null
+set +e
+LFS_LINUX_CONFIRM_UPDATE_RECOVERY=1 run_lfs recover-update >"$TMP_ROOT/recovery-rejects-missing-evidence.out" 2>&1
+missing_recovery_status=$?
+set -e
+[[ "$missing_recovery_status" -ne 0 ]]
+grep -Fq 'no interrupted trusted launch session is available for recovery' "$TMP_ROOT/recovery-rejects-missing-evidence.out"
 diff -qr "$TMP_ROOT/before-rejected-update" "$game" >/dev/null
 
 printf '[PASS] resumable input, atomic upgrade, trusted in-game update relaunch, preservation, repair, recovery, and drift guards pass\n'

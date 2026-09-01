@@ -43,6 +43,8 @@ listing="$(tar -tzf "$archive_one")"
 grep -Fq "$ARCHIVE_ROOT/bin/lfs-linux" <<<"$listing"
 grep -Fq "$ARCHIVE_ROOT/bin/lfs-linux-desktop" <<<"$listing"
 grep -Fq "$ARCHIVE_ROOT/libexec/lfs-linux-core" <<<"$listing"
+grep -Fq "$ARCHIVE_ROOT/packaging/debian/build-deb.sh" <<<"$listing"
+grep -Fq "$ARCHIVE_ROOT/packaging/debian/README.md" <<<"$listing"
 if grep -Eq '(^|/)(legacy|artifacts|\.pi-glla|__pycache__)(/|$)|\.py[co]$' <<<"$listing"; then
   printf 'local evidence or generated Python bytecode entered release archive\n' >&2
   exit 1
@@ -62,5 +64,8 @@ python3 "$archive_dir/tests/test-triage-feedback.py" >/dev/null
 "$archive_dir/tests/test-website.sh" >/dev/null
 make -C "$archive_dir" DESTDIR="$TMP_ROOT/pkgroot" PREFIX=/usr install >/dev/null
 "$archive_dir/tests/test-package-boundary.sh" "$TMP_ROOT/pkgroot" >/dev/null
+if command -v dpkg-deb >/dev/null 2>&1; then
+  "$archive_dir/tests/test-debian-package.sh" >/dev/null
+fi
 
-printf '[PASS] release archive is deterministic, self-testing, and excludes local/proprietary evidence\n'
+printf '[PASS] release archive is deterministic, self-testing, packageable, and excludes local/proprietary evidence\n'

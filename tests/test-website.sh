@@ -12,7 +12,7 @@ readonly JS="$ROOT_DIR/website/feedback.js"
 (( $(stat -c %s "$CSS") < 102400 ))
 (( $(stat -c %s "$JS") < 102400 ))
 
-python3 - "$HTML" <<'PY'
+python3 - "$HTML" "$ROOT_DIR/VERSION" <<'PY'
 from html.parser import HTMLParser
 from pathlib import Path
 import sys
@@ -42,6 +42,7 @@ class Audit(HTMLParser):
 
 audit = Audit()
 text = Path(sys.argv[1]).read_text()
+version = Path(sys.argv[2]).read_text().strip()
 audit.feed(text)
 assert audit.h1 == 1, audit.h1
 assert audit.title == 1, audit.title
@@ -55,7 +56,10 @@ assert 'action="#support"' in text
 assert 'name="' not in text[text.index('<form id="feedback-form"'):text.index('</form>', text.index('<form id="feedback-form"'))]
 assert all(link.startswith(("#", "https://")) for link in audit.links), audit.links
 assert "not affiliated with or endorsed" in text
-assert "0.3.0" in text
+assert text.count(f"<strong>{version}</strong>") == 2
+assert f"v{version}/live-for-speed-linux_{version}-1_amd64.deb" in text
+assert "0.3.0" not in text
+assert "Debian 13" in text and "Ubuntu 24.04" in text
 assert "0.8C20" in text
 assert "updates itself" in text
 assert "No game binaries" in text

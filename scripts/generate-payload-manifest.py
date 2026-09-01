@@ -9,7 +9,10 @@ import os
 from pathlib import Path, PurePosixPath
 
 PLAYER_OWNED_PREFIXES = (
+    "cache/",
+    "mods/",
     "data/colours/",
+    "data/grids/",
     "data/layout/",
     "data/knw/",
     "data/misc/",
@@ -20,11 +23,21 @@ PLAYER_OWNED_PREFIXES = (
     "data/setups/",
     "data/settings/",
     "data/shots/",
+    "data/skins/",
+    "data/skins_x/",
+    "data/skins_y/",
     "data/spr/",
     "data/training/",
     "data/views/",
 )
-PLAYER_OWNED_FILES = {"cfg.txt", "interface_cfg.txt"}
+PLAYER_OWNED_FILES = {
+    "card_cfg.txt",
+    "cfg.txt",
+    "deb.log",
+    "deb_old.log",
+    "guest.txt",
+    "interface_cfg.txt",
+}
 
 
 def sha256(path: Path) -> str:

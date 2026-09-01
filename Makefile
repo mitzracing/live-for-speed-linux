@@ -4,8 +4,9 @@ DESTDIR ?=
 BINDIR := $(DESTDIR)$(PREFIX)/bin
 LIBEXECDIR := $(DESTDIR)$(PREFIX)/lib/lfs-linux
 DATADIR := $(DESTDIR)$(PREFIX)/share
+MANDIR := $(DATADIR)/man
 
-.PHONY: install test package-check release-archive
+.PHONY: install test package-check release-archive deb deb-check
 
 install:
 	install -Dm755 bin/lfs-linux $(BINDIR)/lfs-linux
@@ -26,6 +27,8 @@ install:
 	install -Dm644 docs/TROUBLESHOOTING.md $(DATADIR)/doc/live-for-speed-linux/TROUBLESHOOTING.md
 	install -Dm644 docs/ARCHITECTURE.md $(DATADIR)/doc/live-for-speed-linux/ARCHITECTURE.md
 	install -Dm644 docs/MAINTENANCE.md $(DATADIR)/doc/live-for-speed-linux/MAINTENANCE.md
+	install -Dm644 docs/lfs-linux.1 $(MANDIR)/man1/lfs-linux.1
+	ln -sfn lfs-linux.1 $(MANDIR)/man1/lfs-linux-desktop.1
 
 test:
 	./tests/test-public-static.sh
@@ -44,3 +47,9 @@ package-check:
 
 release-archive:
 	./scripts/build-release-archive.sh
+
+deb:
+	./packaging/debian/build-deb.sh
+
+deb-check:
+	./tests/test-debian-package.sh

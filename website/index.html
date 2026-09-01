@@ -32,7 +32,7 @@
       </a>
       <div class="release-chip" aria-label="Current release">
         <span>WRAPPER</span>
-        <strong>0.3.0</strong>
+        <strong>0.3.1</strong>
         <small>LFS 0.8C20 TEST</small>
       </div>
     </div>
@@ -63,7 +63,7 @@
       <section class="race-card" aria-labelledby="hero-title">
         <div class="track-lines" aria-hidden="true"></div>
         <div class="hero-copy">
-          <p class="eyebrow">Arch Linux · Manjaro · x86_64</p>
+          <p class="eyebrow">Arch · Manjaro · Debian 13 · Ubuntu 24.04 · x86_64</p>
           <h1 id="hero-title">Race on Linux.<br>Keep LFS stock.</h1>
           <p>Live for Speed Linux installs exact official 0.8C20 new graphics into one private Wine prefix. When LFS updates itself, later launches verify and start that local version without downgrading it.</p>
           <div class="hero-actions">
@@ -83,11 +83,10 @@
           <article>
             <span class="step-number">1</span>
             <div>
-              <h3>Install the verified source release</h3>
-              <pre><code>git clone --branch v0.3.0 --depth 1 https://github.com/mitzracing/live-for-speed-linux.git
-cd live-for-speed-linux
-make test &amp;&amp; sudo make install</code></pre>
-              <p>The AUR recipe is ready, but publication still awaits maintainer SSH access.</p>
+              <h3>Install the verified wrapper release</h3>
+              <pre><code>curl -fLO https://github.com/mitzracing/live-for-speed-linux/releases/download/v0.3.1/live-for-speed-linux_0.3.1-1_amd64.deb
+sudo apt install ./live-for-speed-linux_0.3.1-1_amd64.deb</code></pre>
+              <p>The direct <code>.deb</code> supports Debian 13 and Ubuntu 24.04. The AUR recipe is ready, but publication still awaits maintainer SSH access. A verified source archive remains available on GitHub.</p>
             </div>
           </article>
           <article>
@@ -104,7 +103,7 @@ make test &amp;&amp; sudo make install</code></pre>
               <p>The wrapper verifies the complete stock inventory before Wine starts the untouched game.</p>
             </div>
           </article>
-          <p class="publication"><strong>Public-test channel:</strong> v0.3.0 bootstraps exact LFS 0.8C20 new graphics and records later versioned in-game updates after LFS exits. Immutable <a href="https://github.com/mitzracing/live-for-speed-linux/releases/tag/v0.1.6">v0.1.6</a> remains the old-graphics 0.7G fallback. AUR publication is pending maintainer SSH access.</p>
+          <p class="publication"><strong>Public-test channel:</strong> v0.3.1 bootstraps exact LFS 0.8C20 new graphics and safely records later versioned in-game updates after LFS exits. Immutable <a href="https://github.com/mitzracing/live-for-speed-linux/releases/tag/v0.1.6">v0.1.6</a> remains the old-graphics 0.7G fallback. The <code>.deb</code> is a GitHub download, not a Debian archive or PPA; AUR publication is pending maintainer SSH access.</p>
         </div>
       </section>
 
@@ -274,7 +273,7 @@ make test &amp;&amp; sudo make install</code></pre>
       <section class="side-panel">
         <h2>RELEASE STATUS</h2>
         <div class="side-body status-list">
-          <p><span>Wrapper</span><strong>0.3.0</strong></p>
+          <p><span>Wrapper</span><strong>0.3.1</strong></p>
           <p><span>Game pin</span><strong>0.8C20</strong></p>
           <p><span>Channel</span><strong>PUBLIC TEST</strong></p>
           <p><span>Wine pin</span><strong>11.15-1</strong></p>

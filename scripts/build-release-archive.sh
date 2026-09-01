@@ -23,6 +23,7 @@ readonly -a ENTRIES=(
   libexec
   share
   docs
+  packaging/debian
   scripts
   tests
   website

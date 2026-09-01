@@ -17,10 +17,20 @@ for path in \
   usr/share/lfs-linux/wine-11.15-1-runtime.manifest \
   usr/share/applications/io.github.mitzracing.live_for_speed_linux.desktop \
   usr/share/metainfo/io.github.mitzracing.live_for_speed_linux.metainfo.xml \
-  usr/share/icons/hicolor/scalable/apps/io.github.mitzracing.live_for_speed_linux.svg \
-  usr/share/licenses/live-for-speed-linux/LICENSE; do
+  usr/share/icons/hicolor/scalable/apps/io.github.mitzracing.live_for_speed_linux.svg; do
   [[ -e "$ROOT/$path" ]] || { printf 'missing package file: %s\n' "$path" >&2; exit 1; }
 done
+
+if [[ ! -f "$ROOT/usr/share/licenses/live-for-speed-linux/LICENSE" &&
+      ! -f "$ROOT/usr/share/doc/live-for-speed-linux/copyright" ]]; then
+  printf 'missing installed wrapper license\n' >&2
+  exit 1
+fi
+if [[ ! -f "$ROOT/usr/share/man/man1/lfs-linux.1" &&
+      ! -f "$ROOT/usr/share/man/man1/lfs-linux.1.gz" ]]; then
+  printf 'missing lfs-linux manual page\n' >&2
+  exit 1
+fi
 
 if find "$ROOT" -type f \( -iname '*.exe' -o -iname '*.dll' -o -iname '*.msi' \) -print -quit | grep -q .; then
   printf 'Windows payload found in wrapper package\n' >&2
