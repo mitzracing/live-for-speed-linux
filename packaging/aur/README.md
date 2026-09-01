@@ -8,7 +8,7 @@ The AUR RPC reported this name as unused on 2026-08-14. Submission remains pendi
 
 AUR supports community-maintained wrappers and exposes them to Arch software tools. Pamac can show AUR packages when the user enables AUR support.
 
-The package installs only MIT-licensed wrapper files. Runtime game downloads happen as the desktop user, never during `makepkg`.
+The package installs only the MIT-licensed wrapper files and the GPL-3.0-or-later public signing certificate. Runtime game downloads happen as the desktop user, never during `makepkg`.
 
 ## Source integrity
 
@@ -26,7 +26,7 @@ Local verification can use the already-built archive without downloading it:
 SRCDEST="$PWD/dist" makepkg --verifysource -p packaging/aur/PKGBUILD
 ```
 
-Run the complete publication procedure in `docs/RELEASING.md`.
+Run the complete publication procedure in `docs/RELEASING.md`. After submission, set the AUR package-base keywords to `game`, `games`, `racing`, `simulator`, `wine`, and `lfs`, then verify them through the AUR package page and RPC before announcing catalog search visibility.
 
 ## Dependencies
 
@@ -35,6 +35,7 @@ The package requires exact `wine=11.15-1`, matching the only runtime payload acc
 The package directly requires:
 
 - `7zip` to extract the verified official NSIS archive without executing its installer stub
+- `gnupg` to verify the pinned Wine package against the shipped Arch certificate
 - `libarchive` for verified private Wine package extraction
 - the Vulkan loader and one `vulkan-driver` provider
 - PulseAudio client compatibility for Wine audio

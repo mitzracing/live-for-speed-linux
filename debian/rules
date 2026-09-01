@@ -11,9 +11,9 @@ override_dh_auto_build:
 override_dh_auto_test:
 ifeq (,$(filter nocheck,$(DEB_BUILD_OPTIONS)))
 	LFS_LINUX_SOURCE_ARCHIVE=1 ./tests/test-public-static.sh
-	shellcheck debian/tools/test-runtime-trust.sh debian/tests/installed-smoke debian/tests/root-rejection
+	shellcheck tests/test-runtime-trust.sh debian/tests/installed-smoke debian/tests/root-rejection
 	./tests/test-public-core.sh
-	./debian/tools/test-runtime-trust.sh
+	./tests/test-runtime-trust.sh
 	./tests/test-upgrade.sh
 	python3 tests/test-support-static.py
 	python3 tests/test-triage-feedback.py

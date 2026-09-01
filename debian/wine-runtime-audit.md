@@ -5,7 +5,7 @@
 Audited artifact:
 `wine-11.15-1-x86_64.pkg.tar.zst` (81,887,639 bytes), SHA-256
 `5ee6a5522f81aba8441474c833552dd8f86bc9b9927c4efc9cb9251121124af4`.
-This is the exact immutable Arch Linux Archive package pinned by wrapper 0.3.1.
+This is the exact immutable Arch Linux Archive package pinned by wrapper 0.3.2.
 Audit ran on Debian unstable amd64 on 2026-09-01. It parsed every runtime ELF
 file and every member of the Unix static archives with `readelf`; it did not
 execute Wine while collecting dependencies. Mandatory tool or parse failures

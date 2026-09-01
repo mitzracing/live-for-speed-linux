@@ -1,11 +1,10 @@
-live-for-speed-linux (0.3.1-2) UNRELEASED; urgency=medium
+live-for-speed-linux (0.3.2-1) UNRELEASED; urgency=medium
 
   * Initial Debian release.
   * Package the free wrapper only in contrib; no proprietary runtime payloads
     are built, installed, or redistributed.
   * Add offline build tests and unprivileged installed-package autopkgtests.
-  * Carry runtime hardening pending the next upstream wrapper release.
-  * Verify the pinned Arch Wine package signature before safe extraction.
-  * Add deterministic signature and hostile-archive regression fixtures.
+  * Package upstream runtime trust hardening and authenticated Wine bootstrap.
+  * Use upstream public-key and hostile-archive regression fixtures directly.
 
  -- Mitz Racing <300233368+mitzracing@users.noreply.github.com>  Tue, 01 Sep 2026 08:43:54 +0000

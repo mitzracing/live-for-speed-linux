@@ -11,6 +11,25 @@ if command -v shellcheck >/dev/null 2>&1; then
   shellcheck "$ROOT_DIR/bin/"* "$ROOT_DIR/libexec/lfs-linux-core" "$ROOT_DIR/scripts/"*.sh "$ROOT_DIR/tests/"*.sh
 fi
 
+python3 - "$ROOT_DIR/share/metainfo/io.github.mitzracing.live_for_speed_linux.metainfo.xml" "$ROOT_DIR/share/applications/io.github.mitzracing.live_for_speed_linux.desktop" <<'PY'
+import configparser
+import sys
+import xml.etree.ElementTree as ET
+
+component = ET.parse(sys.argv[1]).getroot()
+categories = {node.text for node in component.findall("./categories/category")}
+keywords = {node.text.casefold() for node in component.findall("./keywords/keyword")}
+assert {"Game", "Simulation", "SportsGame"} <= categories
+assert {"game", "games", "racing", "simulator"} <= keywords
+
+desktop = configparser.ConfigParser(interpolation=None, strict=True)
+desktop.optionxform = str
+desktop.read(sys.argv[2])
+entry = desktop["Desktop Entry"]
+assert {"Game", "Simulation", "SportsGame"} <= set(filter(None, entry["Categories"].split(";")))
+assert {"game", "games", "racing", "simulator"} <= {word.casefold() for word in filter(None, entry["Keywords"].split(";"))}
+PY
+
 # shellcheck source=/dev/null
 source "$ROOT_DIR/share/lfs-linux/release.env"
 [[ "$LFS_LINUX_VERSION" == "$(<"$ROOT_DIR/VERSION")" ]]
@@ -162,6 +181,17 @@ fi
 [[ "$WINE_PACKAGE_URL" == https://archive.archlinux.org/packages/w/wine/* ]]
 [[ "$WINE_PACKAGE_SIZE" =~ ^[0-9]+$ ]]
 [[ "$WINE_PACKAGE_SHA256" =~ ^[0-9a-f]{64}$ ]]
+[[ "$WINE_PACKAGE_SIGNATURE_URL" == "$WINE_PACKAGE_URL.sig" ]]
+[[ "$WINE_PACKAGE_SIGNATURE_SIZE" == '119' ]]
+[[ "$WINE_PACKAGE_SIGNATURE_SHA256" =~ ^[0-9a-f]{64}$ ]]
+[[ "$WINE_SIGNING_KEY_NAME" == 'arch-wine-peter-jung.pgp' ]]
+[[ "$WINE_SIGNING_KEY_SIZE" == '1527' ]]
+[[ "$WINE_SIGNING_KEY_SHA256" == 'c3186f2f7bdbe1cd02002dc84bce781580e4edc49fdc3ad848096af6768f3a89' ]]
+[[ "$WINE_SIGNING_KEY_FINGERPRINT" == 'D2E95FEC015CF1F911AAAB0C3D4C5008BB5C8D29' ]]
+wine_signing_key="$ROOT_DIR/share/lfs-linux/$WINE_SIGNING_KEY_NAME"
+[[ -f "$wine_signing_key" ]]
+[[ "$(stat -c %s "$wine_signing_key")" == "$WINE_SIGNING_KEY_SIZE" ]]
+[[ "$(sha256sum "$wine_signing_key" | awk '{print $1}')" == "$WINE_SIGNING_KEY_SHA256" ]]
 wine_runtime_manifest="$ROOT_DIR/share/lfs-linux/$WINE_RUNTIME_MANIFEST_NAME"
 [[ "$(stat -c %s "$wine_runtime_manifest")" == "$WINE_RUNTIME_MANIFEST_SIZE" ]]
 [[ "$(sha256sum "$wine_runtime_manifest" | awk '{print $1}')" == "$WINE_RUNTIME_MANIFEST_SHA256" ]]
@@ -215,7 +245,12 @@ if grep -R -nE '(curl|wget).*(launch_game|case.*launch)' "$ROOT_DIR/libexec/lfs-
   printf 'network command found in launch hot path\n' >&2
   exit 1
 fi
-grep -Fq '7z x -y' "$ROOT_DIR/libexec/lfs-linux-core"
+grep -Fq 'extract_7z_archive()' "$ROOT_DIR/libexec/lfs-linux-core"
+grep -Fq "keep-existing) overwrite_option='-aos'" "$ROOT_DIR/libexec/lfs-linux-core"
+grep -Fq "replace-existing) overwrite_option='-aoa'" "$ROOT_DIR/libexec/lfs-linux-core"
+grep -Fq 'preflight_7z_archive' "$ROOT_DIR/libexec/lfs-linux-core"
+grep -Fq 'preflight_bsdtar_archive' "$ROOT_DIR/libexec/lfs-linux-core"
+grep -Fq 'gpgv --status-fd 1' "$ROOT_DIR/libexec/lfs-linux-core"
 grep -Fq "verify_extracted_game_tree \"\$unpack\" 'extracted LFS'" "$ROOT_DIR/libexec/lfs-linux-core"
 grep -Fq "verify_payload_manifest \"\$label immutable stock payload\"" "$ROOT_DIR/libexec/lfs-linux-core"
 if grep -Eq 'LFS_INSTALLER_ACCEPTED_EXIT_CODES|ALLOW_UNTESTED_WINE|WINE_TESTED_MAJOR|wine>=10' "$ROOT_DIR/libexec/lfs-linux-core" "$ROOT_DIR/share/lfs-linux/release.env"; then
@@ -231,13 +266,14 @@ if find "$ROOT_DIR" \( -path "$ROOT_DIR/legacy" -o -path "$ROOT_DIR/artifacts" \
 fi
 
 [[ -x "$ROOT_DIR/packaging/debian/build-deb.sh" ]]
-grep -Fq 'Section: contrib/utils' "$ROOT_DIR/packaging/debian/build-deb.sh"
+grep -Fq 'Section: contrib/games' "$ROOT_DIR/packaging/debian/build-deb.sh"
 grep -Fq 'libc6 (>= 2.38)' "$ROOT_DIR/packaging/debian/build-deb.sh"
+grep -Fq 'gpgv' "$ROOT_DIR/packaging/debian/build-deb.sh"
+grep -Fq 'libsane1' "$ROOT_DIR/packaging/debian/build-deb.sh"
 grep -Fq 'libvulkan1' "$ROOT_DIR/packaging/debian/build-deb.sh"
 grep -Fq 'vulkan-icd' "$ROOT_DIR/packaging/debian/build-deb.sh"
-grep -Fq 'wine64' "$ROOT_DIR/packaging/debian/build-deb.sh"
-if grep -Eq 'wine32|:i386' "$ROOT_DIR/packaging/debian/build-deb.sh"; then
-  printf 'Debian package incorrectly requires i386 Unix libraries for pure WoW64\n' >&2
+if grep -Eq 'wine32|wine64|:i386' "$ROOT_DIR/packaging/debian/build-deb.sh"; then
+  printf 'Debian package incorrectly requires system Wine or i386 Unix libraries for pure WoW64\n' >&2
   exit 1
 fi
 grep -Fq 'does not contain Live for Speed, Wine, DXVK' "$ROOT_DIR/packaging/debian/README.md"
@@ -247,13 +283,20 @@ grep -Eq 'image: ubuntu@sha256:[0-9a-f]{64}$' "$ROOT_DIR/.github/workflows/ci.ym
 grep -Eq 'image: debian@sha256:[0-9a-f]{64}$' "$ROOT_DIR/.github/workflows/ci.yml"
 grep -Fq 'LFS_LINUX_DISPOSABLE_CONTAINER' "$ROOT_DIR/scripts/test-debian-compat.sh"
 grep -Fq '/.dockerenv' "$ROOT_DIR/scripts/test-debian-compat.sh"
-python3 - "$ROOT_DIR/libexec/lfs-linux-core" "$ROOT_DIR/docs/lfs-linux.1" <<'PY'
+python3 - "$ROOT_DIR/libexec/lfs-linux-core" "$ROOT_DIR/docs/lfs-linux.1" "$ROOT_DIR/bin/lfs-linux" "$ROOT_DIR/bin/lfs-linux-desktop" <<'PY'
 import re
 import sys
 from pathlib import Path
 
 core = Path(sys.argv[1]).read_text()
 manual = Path(sys.argv[2]).read_text()
+wrapper = Path(sys.argv[3]).read_text()
+desktop = Path(sys.argv[4]).read_text()
+assert core.index("(( EUID != 0 ))") < core.index('source "$RELEASE_FILE"')
+assert wrapper.index("(( EUID != 0 ))") < wrapper.index('LFS_LINUX_LIBEXEC_DIR')
+assert desktop.index("(( EUID != 0 ))") < desktop.index('LFS_LINUX_COMMAND')
+detect = core.split("detect_wine() {", 1)[1].split("\n}", 1)[0]
+assert detect.index("wine_runtime_is_complete") < detect.index('--version')
 usage = core.split("Commands:\n", 1)[1].split("\nEnvironment:", 1)[0]
 usage_commands = set(re.findall(r"^  ([a-z][a-z-]*)\s", usage, re.MULTILINE))
 dispatch_commands = set(re.findall(r"^  ([a-z][a-z-]*)(?:\||\))", core, re.MULTILINE))
@@ -271,7 +314,13 @@ if [[ "${LFS_LINUX_SOURCE_ARCHIVE:-0}" != '1' ]]; then
   grep -Fq 'No Flatpak manifest exists here by design.' "$ROOT_DIR/packaging/flathub/README.md"
 
   # AUR recipe must use the exact audited Wine and a pinned project release asset.
+  grep -Fq "pkgver=$(<"$ROOT_DIR/VERSION")" "$ROOT_DIR/packaging/aur/PKGBUILD"
+  grep -Fq "pkgver = $(<"$ROOT_DIR/VERSION")" "$ROOT_DIR/packaging/aur/.SRCINFO"
+  grep -Fq "pkgdesc='Unofficial launcher for Live for Speed, a racing simulator game'" "$ROOT_DIR/packaging/aur/PKGBUILD"
+  grep -Fq 'pkgdesc = Unofficial launcher for Live for Speed, a racing simulator game' "$ROOT_DIR/packaging/aur/.SRCINFO"
   grep -Fq "'wine=11.15-1'" "$ROOT_DIR/packaging/aur/PKGBUILD"
+  grep -Fq "'gnupg'" "$ROOT_DIR/packaging/aur/PKGBUILD"
+  grep -Fq 'depends = gnupg' "$ROOT_DIR/packaging/aur/.SRCINFO"
   if grep -Eq 'ALLOW_UNTESTED_WINE|WINE_TESTED_MAJOR|wine>=10' "$ROOT_DIR/packaging/aur/PKGBUILD"; then
     printf 'broad Wine dependency remains in the AUR recipe\n' >&2
     exit 1

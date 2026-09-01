@@ -1,4 +1,0 @@
-debian/arch-wine-peter-jung.pgp
-debian/tests/fixtures/runtime-trust/combined-keys.pgp
-debian/tests/fixtures/runtime-trust/valid.sig
-debian/tests/fixtures/runtime-trust/wrong.sig

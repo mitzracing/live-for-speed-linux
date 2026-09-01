@@ -76,11 +76,11 @@ Conflicts:
 Replaces:
  lfs-linux,
  live-for-speed-launcher,
-Description: unofficial launcher for the LFS new-graphics public test
+Description: unofficial launcher for the Live for Speed racing simulator
  Live for Speed Linux verifies and installs untouched official Live for Speed
- downloads into a private Wine prefix. The game, Wine, and DXVK payloads are
- not included in this package and are fetched only after an explicit user
- command.
+ racing simulator downloads into a private Wine prefix. The game, Wine, and
+ DXVK payloads are not included in this package and are fetched only after
+ an explicit user command.
  .
  Live for Speed 0.8C20 is a public test and is not represented as stable.
  Live for Speed is proprietary software; its terms apply separately.

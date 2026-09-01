@@ -2,6 +2,7 @@
 set -Eeuo pipefail
 
 readonly PROGRAM_NAME='Live for Speed Linux'
+(( EUID != 0 )) || { printf '%s: do not run per-user LFS commands as root\n' "$PROGRAM_NAME" >&2; exit 1; }
 SELF_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 readonly SELF_DIR
 readonly LFS_COMMAND="${LFS_LINUX_COMMAND:-$SELF_DIR/lfs-linux}"
@@ -26,6 +27,8 @@ run_terminal() {
     alacritty --title "$PROGRAM_NAME Setup" -e "$SELF_DIR/lfs-linux-desktop" "$mode"
   elif command -v kitty >/dev/null 2>&1; then
     kitty --title "$PROGRAM_NAME Setup" "$SELF_DIR/lfs-linux-desktop" "$mode"
+  elif command -v x-terminal-emulator >/dev/null 2>&1; then
+    x-terminal-emulator -e "$SELF_DIR/lfs-linux-desktop" "$mode"
   else
     fail 'no supported terminal found; run: lfs-linux setup'
   fi

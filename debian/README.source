@@ -4,36 +4,31 @@ Debian source and runtime provenance
 Upstream orig tarball
 ---------------------
 
-Version 0.3.1 uses the deterministic upstream release asset, not a generated
+Version 0.3.2 uses the deterministic upstream release asset, not a generated
 GitHub snapshot:
 
-  https://github.com/mitzracing/live-for-speed-linux/releases/download/v0.3.1/live-for-speed-linux-0.3.1.tar.gz
-  SHA-256: 6f0f9f8713cba348fb6a187ddb4f93068e45b0fb7c949f59463c311cae50b0ed
+  https://github.com/mitzracing/live-for-speed-linux/releases/download/v0.3.2/live-for-speed-linux-0.3.2.tar.gz
+  SHA-256: a36b63ed70a652bca8987917e9bc26769a2f23930523292c764544d4e0faaa1a
 
-Rename it to live-for-speed-linux_0.3.1.orig.tar.gz next to the unpacked source
-before building the Debian source package. The archive contains only the MIT
-wrapper sources and CC0 AppStream metadata. No proprietary or prebuilt runtime
-payload is present. `debian/rules` builds and tests without network access.
+Rename it to live-for-speed-linux_0.3.2.orig.tar.gz next to the unpacked source
+before building the Debian source package. The archive contains the Expat
+wrapper sources, CC0 AppStream metadata, and GPL-3.0-or-later public Arch
+packager certificate. No proprietary or prebuilt runtime payload is present.
+`debian/rules` builds and tests without network access.
 
-The first archive candidate uses Debian revision -2 because the already
-published GitHub direct-download package used 0.3.1-1 with different package
-bytes. Distinct bytes must not share package name, version, and architecture.
-Future non-Debian builds should use a lower-sorting suffix such as
-0.3.2-1~github1 while Debian uses 0.3.2-1.
+The Debian draft uses revision 0.3.2-1. The published GitHub direct-download
+package uses lower-sorting revision 0.3.2-0github1, so distinct package bytes do
+not share a version and an official Debian package sorts newer.
 
 Debian delta
 ------------
 
-The `0.3.1-2` draft carries
-`debian/patches/0001-harden-runtime-trust-boundaries.patch`. A post-release
-review found that Wine version probing occurred before full manifest
-verification, root invocation could honor user-controlled wrapper paths,
-archive extraction lacked wrapper-level member preflight, and the desktop
-helper did not implement Debian's generic terminal alternative. The patch
-fixes those defects, authenticates the Arch package signature, and adds
-regression tests. It is marked `Forwarded: not-yet`; publishing an upstream
-security release and repackaging that release without the delta is a
-pre-upload gate unless the sponsor explicitly accepts the carried patch.
+Upstream 0.3.2 contains the reviewed runtime hardening, signer certificate,
+and regression fixtures previously carried in the Debian draft. This package
+therefore has no quilt delta. The remaining Debian directory contains only
+archive packaging, policy metadata, offline build and installed-package tests,
+and the documented Wine ABI audit. Sponsor agreement on the external archived
+Wine model and optional runtime-library boundary remains a pre-upload gate.
 
 External runtime correspondence
 -------------------------------
@@ -109,8 +104,8 @@ at runtime are included in the source package.
 Git and upload binding gate
 ---------------------------
 
-The orig tarball above is byte-identical to the published `v0.3.1` asset and
-maps to upstream Git commit `3aae4570bb7e101872bff15d216b0532f4360dbd`.
+The orig tarball above is byte-identical to the published `v0.3.2` asset and
+maps to upstream Git commit `4355f776cc5c0f6d2bd160986945a687666d5886`.
 The current Debian directory is a review draft, not an upload identity. Before
 signing or uploading, move the packaging to the sponsor-approved public VCS,
 replace the draft Vcs fields, commit the complete Debian delta, and rebuild the
@@ -125,12 +120,12 @@ Use a clean unstable chroot and build as an unprivileged user, for example:
 
   sbuild --dist=unstable --arch=amd64 --source --no-clean-source
 
-The build tests include static public-key/signature fixtures for real `gpgv`
-acceptance, wrong-signer and bad-signature rejection, and a missing-`VALIDSIG`
-parser case. Locally generated tar fixtures cover absolute and parent paths,
-duplicate normalized members, escaping symlinks, hardlinks, special types,
-safe links, and non-empty extraction destinations. No private test key is
-included.
+The upstream build tests include static public-key/signature fixtures for real
+`gpgv` acceptance, wrong-signer and bad-signature rejection, and a missing-
+`VALIDSIG` parser case. Locally generated archive fixtures cover absolute and
+parent paths, duplicate normalized members, escaping links, hardlinks, special
+types, replacement ordering, safe links, and non-empty extraction destinations.
+No private test key is included.
 
 Run the installed-package tests with autopkgtest. They use only local package
 content and do not contact Live for Speed, Arch Linux, GitHub, or WineHQ.

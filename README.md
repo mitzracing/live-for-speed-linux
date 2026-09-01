@@ -2,7 +2,7 @@
 
 Unofficial community Linux launcher for the untouched official [Live for Speed](https://www.lfs.net/) Windows build.
 
-**Status:** v0.3.1 public-test wrapper release. The validated AUR recipe awaits maintainer SSH access. The core works without Steam, Bottles, Lutris, or a background launcher.
+**Status:** v0.3.2 public-test wrapper release. The validated AUR recipe awaits maintainer SSH access. The core works without Steam, Bottles, Lutris, or a background launcher.
 
 This release bootstraps exact official **LFS 0.8C20 new graphics**, which lfs.net still labels **PUBLIC TEST**. It is not represented as a stable LFS release. Use immutable [v0.1.6](https://github.com/mitzracing/live-for-speed-linux/releases/tag/v0.1.6) for the audited old-graphics 0.7G fallback.
 
@@ -16,7 +16,7 @@ The public package is `live-for-speed-linux`. The stable command and player-stat
 
 - Downloads LFS directly from `lfs.net` after an explicit user command.
 - Verifies the official archive and all 52 nested archives, extracts without executing the installer, checks every official seed file, then tracks protected stock separately from mutable player data.
-- Creates one private Wine prefix and uses only audited Wine 11.15-1 under the XDG data directory.
+- Authenticates the pinned Wine package with its detached Arch packager signature, then creates one private Wine prefix under the XDG data directory.
 - Deploys only DXVK's audited 32-bit D3D11 and DXGI DLLs required by LFS 0.8C20.
 - Starts Wine directly with no wrapper daemon or container.
 - Records a versioned in-game update after the trusted LFS session exits, then verifies that local baseline on later launches.
@@ -63,7 +63,7 @@ lfs-linux remove        Remove per-user prefix after explicit confirmation
 - Linux x86_64
 - Audited Wine 11.15-1 (the wrapper provisions the pinned Arch runtime when that exact system package is unavailable)
 - Vulkan-capable GPU and driver
-- Bash, 7-Zip, curl, GNU core utilities, findutils, libarchive (`bsdtar`), tar, and util-linux
+- Bash, 7-Zip, curl, `gpgv`, GNU core utilities, findutils, libarchive (`bsdtar`), tar, and util-linux
 - A supported terminal for graphical first-run setup (`xterm` is the AUR default)
 
 The audited Arch Wine runtime uses pure WoW64. This lets its x86_64 package run the 32-bit LFS executable without the traditional 32-bit Unix Wine stack. Other Wine versions fail closed instead of being accepted by a broad compatibility range.
@@ -87,16 +87,16 @@ The AUR package contains only this open-source wrapper. It does not contain the 
 
 ## Debian and Ubuntu
 
-A deterministic wrapper-only `.deb` is supported on Debian 13 and Ubuntu 24.04. Install the GitHub release asset with APT so its amd64 Wine and Vulkan host dependencies are resolved. The audited private Wine runtime uses pure WoW64 and does not require an i386 Unix library stack:
+A deterministic wrapper-only `.deb` is supported on Debian 13 and Ubuntu 24.04. Install the GitHub release asset with APT so its audited amd64 host-library and Vulkan dependencies are resolved. The package does not depend on Debian or Ubuntu Wine: it provisions the exact authenticated private Wine runtime. Pure WoW64 requires no i386 Unix library stack:
 
 ```bash
 sudo apt update
-sudo apt install ./live-for-speed-linux_0.3.1-1_amd64.deb
+sudo apt install ./live-for-speed-linux_0.3.2-0github1_amd64.deb
 ```
 
 The package does not contain the game, Wine, DXVK, or player data. It installs no proprietary payload and downloads nothing during package installation. See [`packaging/debian/`](packaging/debian/README.md) for the support boundary, deterministic build, removal behavior, and repository-publication distinction.
 
-The `.deb` is a direct GitHub download, not a Debian archive, PPA, or graphical catalog listing. The pinned private Wine runtime requires glibc 2.38 or newer, so Ubuntu 22.04 and Debian 12 are not supported.
+The `.deb` is a direct GitHub download, not a Debian archive or PPA. It cannot appear in GNOME Software or KDE Discover by itself. AppStream and desktop metadata include the `Game`, `Simulation`, and `SportsGame` categories and `games`, `racing`, and `simulator` search terms; graphical catalog discovery begins only after the package is accepted into a configured Debian archive. The pinned private Wine runtime requires glibc 2.38 or newer, so Ubuntu 22.04 and Debian 12 are not supported.
 
 The package name uses the full game name to avoid confusion with Linux From Scratch. Existing scripts can continue to use the `lfs-linux` command.
 

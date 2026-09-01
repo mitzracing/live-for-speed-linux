@@ -57,7 +57,7 @@ assert 'name="' not in text[text.index('<form id="feedback-form"'):text.index('<
 assert all(link.startswith(("#", "https://")) for link in audit.links), audit.links
 assert "not affiliated with or endorsed" in text
 assert text.count(f"<strong>{version}</strong>") == 2
-assert f"v{version}/live-for-speed-linux_{version}-1_amd64.deb" in text
+assert f"v{version}/live-for-speed-linux_{version}-0github1_amd64.deb" in text
 assert "0.3.0" not in text
 assert "Debian 13" in text and "Ubuntu 24.04" in text
 assert "0.8C20" in text
