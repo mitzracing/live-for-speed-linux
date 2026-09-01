@@ -16,10 +16,31 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - name: Install validation tools and runtime-test dependencies
-        run: sudo apt-get update && sudo apt-get install -y appstream curl desktop-file-utils libarchive-tools libxml2-utils python3 python3-yaml 7zip shellcheck
+        run: sudo apt-get update && sudo apt-get install -y appstream curl desktop-file-utils dpkg-dev libarchive-tools libxml2-utils python3 python3-yaml 7zip shellcheck
       - name: Run static and unit checks
         run: make test
+      - name: Build and validate deterministic Debian package
+        run: make deb-check
       - name: Build staged install
         run: make DESTDIR="$PWD/pkgroot" PREFIX=/usr install
       - name: Reject proprietary payloads
         run: ./tests/test-package-boundary.sh pkgroot
+
+  debian-family-compatibility:
+    name: ${{ matrix.name }} compatibility
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Ubuntu 24.04
+            image: ubuntu@sha256:561618e2c15bf2397621dd04f96926663a3b5616c189cf7e38db7e82f5c538ea
+          - name: Debian 13
+            image: debian@sha256:f324c7ff54321e8d9c588493a20244965938ce0aa50bbd1022d38010e9ffc4b1
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Run wrapper and package checks in clean container
+        run: docker run --rm -e LFS_LINUX_DISPOSABLE_CONTAINER=1 -v "$GITHUB_WORKSPACE:/source:ro" "${{ matrix.image }}" bash /source/scripts/test-debian-compat.sh

@@ -4,14 +4,16 @@
 
 1. Run `make test`.
 2. Build a staged filesystem with `make DESTDIR="$PWD/pkgroot" install`.
-3. Validate the desktop file and AppStream metadata.
-4. Build the AUR package from a real signed or immutable project tag.
-5. Install the staged package in a disposable environment.
-6. Run a clean `lfs-linux install`.
-7. Run `lfs-linux doctor`.
-8. Run a cold GUI launch on the project display.
-9. Confirm DXVK, Vulkan device, audio stream, and clean exit.
-10. Publish wrapper source only.
+3. Run `make deb-check` in clean Ubuntu 24.04 and Debian 13 containers.
+4. Validate the desktop file and AppStream metadata.
+5. Build the AUR package from a real signed or immutable project tag.
+6. Install each candidate package in a disposable environment.
+7. Run a clean `lfs-linux install` without copying an existing prefix.
+8. Run `lfs-linux doctor`.
+9. Run a cold GUI launch on the project display.
+10. Confirm DXVK, Vulkan device, audio stream, and clean exit.
+11. Remove the package and confirm user-owned state remains unchanged.
+12. Publish only audited wrapper artifacts.
 
 ## Upstream pin update
 
@@ -36,11 +38,26 @@ Delete a randomly selected immutable file that is not one of the separately pinn
 
 Then test an in-place upgrade from every digest listed in `LFS_UPGRADE_FROM_SHA256S`. Require its complete protected predecessor migration manifest, compare player-owned paths before and after the atomic swap, interrupt each swap state to prove recovery, and confirm that the complete new stock tree passes validation. Prove a changed predecessor stock file and unknown out-of-session executable drift are rejected before game-tree mutation. Remove a digest and predecessor manifest when that path is no longer supported.
 
-Simulate an in-game update from a fully validated launch. Require a newer `data/versions/*.txt` marker, changed `LFS.exe`, and at least one added protected file. Confirm the foreground launcher records a local manifest after Wine exits, `ready` succeeds, next launch uses that baseline without downloading the packaged installer, `doctor` passes, explicit `install` preserves it, and later out-of-session drift fails closed.
+Simulate an in-game update from a fully validated launch. Require a newer `data/versions/*.txt` marker, changed `LFS.exe`, and at least one added protected file. Make the original Wine parent exit nonzero while `LFS.exe` starts during the settle-grace boundary and remains active beyond another interval; confirm the wrapper waits without killing it, preserves the parent status, then records only after exit. Make `wineserver --wait` return an unexpected status and confirm exact propagation without cleanup. Keep a real non-game Wine-prefix process past the interval; confirm launch never calls prefix-wide kill, retains recovery evidence, reports the service, releases its foreground lock to descendants, and only explicit `stop` terminates it. Also give an unrelated native helper the same `WINEPREFIX`; confirm process status ignores it. Fault between content-addressed manifest placement and marker commit; confirm the old pair remains valid. While that failed commit still holds the launch lock, start another launcher and confirm it rejects before baseline validation. Precreate a public fallback lock directory and a lock-file symlink; confirm both fail without truncating the symlink target. Verify recovery rejects open-permission, unknown-key, duplicate-key, event-time, confirmation-evidence-race, protected-content race by a short-lived game process, and missing evidence. Require a validated pre-confirmation snapshot digest plus an identical post-confirmation inventory, preserve mutable account/log/cache/mod/skin paths, and succeed with valid interrupted-session evidence. Finally confirm `ready` succeeds, next launch uses the baseline without downloading the packaged installer, `doctor` passes, explicit `install` preserves it, and later out-of-session drift fails closed.
 
 Then run the full wrapper release procedure.
 
 Do not copy an existing user prefix into a release. A clean prefix is mandatory.
+
+## Debian and Ubuntu `.deb` publication
+
+The `.deb` is a GitHub release asset, not entry into the Debian archive, an Ubuntu PPA, or a graphical software catalog. Those channels require separate ownership, signing, review, and explicit approval.
+
+1. Run `packaging/debian/build-deb.sh` twice and compare SHA-256 digests.
+2. Run `tests/test-debian-package.sh` and inspect `dpkg-deb --info` plus `dpkg-deb --contents`.
+3. Confirm the package contains only the same wrapper files accepted by `tests/test-package-boundary.sh`.
+4. In fresh Ubuntu 24.04 and Debian 13 environments, install with `apt install ./live-for-speed-linux_<version>-1_amd64.deb`.
+5. Confirm APT resolves only amd64 host libraries for the audited pure-WoW64 runtime.
+6. On each distribution, use an empty state directory, run the official audited install, `doctor`, a real DXVK/Vulkan GUI launch, and a clean stop.
+7. Create user-state sentinels, remove the package, and prove those sentinels and all XDG game data remain.
+8. Upload that exact `.deb` beside the deterministic source archive on the matching GitHub release.
+
+Normal package installation and removal must never download, embed, replace, or delete proprietary game payloads or player-owned state.
 
 ## AUR publication
 

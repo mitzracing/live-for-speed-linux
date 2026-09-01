@@ -52,6 +52,34 @@ if grep -Eq $'\tdata/(knw|training)/' "$lfs_stock_manifest"; then
 fi
 grep -Fq '"data/knw/"' "$ROOT_DIR/scripts/generate-payload-manifest.py"
 grep -Fq '"data/training/"' "$ROOT_DIR/scripts/generate-payload-manifest.py"
+python3 - "$ROOT_DIR/scripts/generate-payload-manifest.py" <<'PY'
+import importlib.util
+from pathlib import Path
+import sys
+
+spec = importlib.util.spec_from_file_location("payload_manifest", Path(sys.argv[1]))
+module = importlib.util.module_from_spec(spec)
+assert spec.loader is not None
+spec.loader.exec_module(module)
+mutable_paths = (
+    "cfg.txt",
+    "interface_cfg.txt",
+    "card_cfg.txt",
+    "deb.log",
+    "deb_old.log",
+    "guest.txt",
+    "cache/events/banner.png",
+    "mods/vehicles/example.mod",
+    "data/grids/player.rac",
+    "data/skins/player.jpg",
+    "data/skins_x/downloaded.dds",
+    "data/skins_y/generated.dds",
+)
+assert all(not module.include_path("lfs", path) for path in mutable_paths)
+assert all(module.include_path("lfs-seed", path) for path in mutable_paths)
+assert module.include_path("lfs", "UninstallLFS.exe")
+assert module.include_path("lfs", "data/skins_dds/HEL_DEFAULT.dds")
+PY
 [[ "$LFS_TREE_MIN_FILE_COUNT" == "$LFS_STOCK_MANIFEST_ENTRIES" ]]
 [[ "$LFS_TREE_MIN_BYTES" =~ ^[0-9]+$ && "$LFS_TREE_MIN_BYTES" -ge 3900000000 ]]
 immutable_bytes="$(awk -F '\t' '$1 == "f" { total += $3 } END { printf "%.0f", total }' "$lfs_stock_manifest")"
@@ -141,6 +169,7 @@ wine_runtime_manifest="$ROOT_DIR/share/lfs-linux/$WINE_RUNTIME_MANIFEST_NAME"
 
 "$ROOT_DIR/bin/lfs-linux" help | grep -Fq 'setup'
 "$ROOT_DIR/bin/lfs-linux" help | grep -Fq 'update-check'
+"$ROOT_DIR/bin/lfs-linux" help | grep -Fq 'recover-update'
 "$ROOT_DIR/bin/lfs-linux" help | grep -Fq 'verify-sources'
 "$ROOT_DIR/bin/lfs-linux" help | grep -Fq 'remove'
 status_output="$("$ROOT_DIR/bin/lfs-linux" status)"
@@ -195,11 +224,46 @@ if grep -Eq 'LFS_INSTALLER_ACCEPTED_EXIT_CODES|ALLOW_UNTESTED_WINE|WINE_TESTED_M
 fi
 
 # Public package tree must not contain proprietary Windows payloads.
-if find "$ROOT_DIR" -path "$ROOT_DIR/legacy" -prune -o -type f \
+if find "$ROOT_DIR" \( -path "$ROOT_DIR/legacy" -o -path "$ROOT_DIR/artifacts" \) -prune -o -type f \
   \( -iname '*.exe' -o -iname '*.dll' -o -iname '*.msi' -o -iname '*.zip' \) -print -quit | grep -q .; then
   printf 'proprietary or binary runtime payload found in public tree\n' >&2
   exit 1
 fi
+
+[[ -x "$ROOT_DIR/packaging/debian/build-deb.sh" ]]
+grep -Fq 'Section: contrib/utils' "$ROOT_DIR/packaging/debian/build-deb.sh"
+grep -Fq 'libc6 (>= 2.38)' "$ROOT_DIR/packaging/debian/build-deb.sh"
+grep -Fq 'libvulkan1' "$ROOT_DIR/packaging/debian/build-deb.sh"
+grep -Fq 'vulkan-icd' "$ROOT_DIR/packaging/debian/build-deb.sh"
+grep -Fq 'wine64' "$ROOT_DIR/packaging/debian/build-deb.sh"
+if grep -Eq 'wine32|:i386' "$ROOT_DIR/packaging/debian/build-deb.sh"; then
+  printf 'Debian package incorrectly requires i386 Unix libraries for pure WoW64\n' >&2
+  exit 1
+fi
+grep -Fq 'does not contain Live for Speed, Wine, DXVK' "$ROOT_DIR/packaging/debian/README.md"
+grep -Fq $'deb-check:\n\t./tests/test-debian-package.sh' "$ROOT_DIR/Makefile"
+grep -Fq 'LFS_LINUX_DISPOSABLE_CONTAINER=1' "$ROOT_DIR/.github/workflows/ci.yml"
+grep -Eq 'image: ubuntu@sha256:[0-9a-f]{64}$' "$ROOT_DIR/.github/workflows/ci.yml"
+grep -Eq 'image: debian@sha256:[0-9a-f]{64}$' "$ROOT_DIR/.github/workflows/ci.yml"
+grep -Fq 'LFS_LINUX_DISPOSABLE_CONTAINER' "$ROOT_DIR/scripts/test-debian-compat.sh"
+grep -Fq '/.dockerenv' "$ROOT_DIR/scripts/test-debian-compat.sh"
+python3 - "$ROOT_DIR/libexec/lfs-linux-core" "$ROOT_DIR/docs/lfs-linux.1" <<'PY'
+import re
+import sys
+from pathlib import Path
+
+core = Path(sys.argv[1]).read_text()
+manual = Path(sys.argv[2]).read_text()
+usage = core.split("Commands:\n", 1)[1].split("\nEnvironment:", 1)[0]
+usage_commands = set(re.findall(r"^  ([a-z][a-z-]*)\s", usage, re.MULTILINE))
+dispatch_commands = set(re.findall(r"^  ([a-z][a-z-]*)(?:\||\))", core, re.MULTILINE))
+manual_commands = set(re.findall(r"^\.TP\n\.B ([a-z][a-z-]*)$", manual, re.MULTILINE))
+assert usage_commands == dispatch_commands == manual_commands, (
+    usage_commands,
+    dispatch_commands,
+    manual_commands,
+)
+PY
 
 if [[ "${LFS_LINUX_SOURCE_ARCHIVE:-0}" != '1' ]]; then
   # Flathub stays policy-gated until upstream authorization.

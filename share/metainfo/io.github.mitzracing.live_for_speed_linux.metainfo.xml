@@ -10,7 +10,7 @@
   </developer>
   <description>
     <p>Live for Speed Linux is an unofficial community launcher for the untouched official Live for Speed Windows build.</p>
-    <p>Version 0.3.0 bootstraps exact LFS 0.8C20 new graphics, which upstream labels PUBLIC TEST rather than stable.</p>
+    <p>Version 0.3.1 bootstraps exact LFS 0.8C20 new graphics, which upstream labels PUBLIC TEST rather than stable.</p>
     <p>On first launch, one informed setup prompt downloads official files, verifies every protected game and Wine runtime file, configures exact Wine 11.15-1 and DXVK D3D11/DXGI, and starts the game. Versioned updates completed by LFS are recorded after exit and accepted on later launches.</p>
     <p>Live for Speed is proprietary software from Scawen Roberts, Eric Bailey, and Victor van Vlaardingen. This community wrapper is not affiliated with or endorsed by the Live for Speed developers.</p>
   </description>
@@ -29,6 +29,11 @@
     <content_attribute id="social-chat">intense</content_attribute>
   </content_rating>
   <releases>
+    <release version="0.3.1" date="2026-08-31">
+      <description>
+        <p>Keep updater-restarted LFS sessions alive, add durable launch events, recover interrupted trusted updates only with validated evidence and explicit confirmation, and add a deterministic Debian 13 and Ubuntu 24.04 package.</p>
+      </description>
+    </release>
     <release version="0.3.0" date="2026-08-24">
       <description>
         <p>Bootstrap exact public-test LFS 0.8C20 and preserve versioned in-game updates as verified local baselines for later launches.</p>

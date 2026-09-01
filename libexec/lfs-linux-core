@@ -32,7 +32,8 @@ readonly INSTALLER="$CACHE_DIR/$LFS_INSTALLER_NAME"
 readonly WINE_PACKAGE="$CACHE_DIR/$WINE_PACKAGE_NAME"
 readonly DXVK_ARCHIVE="$CACHE_DIR/$DXVK_ARCHIVE_NAME"
 readonly INSTALL_MARKER="$STATE_ROOT/install.env"
-readonly LOCAL_GAME_MANIFEST="$STATE_ROOT/game-update.manifest"
+readonly LEGACY_LOCAL_GAME_MANIFEST="$STATE_ROOT/game-update.manifest"
+readonly LAUNCH_SESSION="$STATE_ROOT/launch-session.env"
 readonly STATE_SENTINEL="$STATE_ROOT/.managed-by-lfs-linux"
 readonly GAME_BACKUP="$STATE_ROOT/.lfs-game-backup"
 readonly DXVK_OVERRIDE='native,builtin'
@@ -44,6 +45,7 @@ WINE_VERSION=''
 WINE_ROOT=''
 WINE_LIB_DIR=''
 ACTIVE_UNPACK=''
+ACTIVE_RECOVERY_SNAPSHOT=''
 ACTIVE_BASELINE_KIND='package'
 ACTIVE_LFS_VERSION="$LFS_VERSION"
 ACTIVE_LFS_EXE_SIZE="$LFS_EXE_SIZE"
@@ -57,6 +59,10 @@ cleanup_active_unpack() {
   [[ -z "$ACTIVE_UNPACK" ]] || rm -rf --one-file-system "$ACTIVE_UNPACK"
 }
 
+cleanup_active_recovery_snapshot() {
+  [[ -z "$ACTIVE_RECOVERY_SNAPSHOT" ]] || rm -f -- "$ACTIVE_RECOVERY_SNAPSHOT"
+}
+
 usage() {
   cat <<'EOF'
 Usage: lfs-linux <command>
@@ -65,6 +71,7 @@ Commands:
   setup         Explain downloads, ask once, install or repair, then return
   install       Install or repair directly after an explicit CLI command
   launch        Validate the installation and start Live for Speed
+  recover-update  Explicitly recover an interrupted trusted in-game update
   stop          Request a clean exit, then stop only this private Wine prefix
   doctor        Check host, manifest, prefix, DXVK, game, and graphics prerequisites
   status        Show paths, versions, and process state
@@ -80,6 +87,7 @@ Environment:
   LFS_LINUX_CACHE_DIR   Override download cache
   LFS_LINUX_LOG_DIR     Override runtime log directory
   LFS_LINUX_WINE        Select the exact audited Wine executable
+  LFS_LINUX_CONFIRM_UPDATE_RECOVERY=1  Confirm trusted update recovery
   LFS_LINUX_CONFIRM_REMOVE=1  Confirm non-interactive removal
 EOF
 }
@@ -87,6 +95,44 @@ EOF
 note() { printf '==> %s\n' "$*"; }
 warn() { printf 'warning: %s\n' "$*" >&2; }
 die() { printf 'error: %s\n' "$*" >&2; exit 1; }
+
+launch_log_event() {
+  local log="$1"
+  shift
+  [[ -n "$log" ]] || return 0
+  printf '%s lfs-linux %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*" >>"$log"
+}
+
+owner_private_regular_file() {
+  local path="$1" mode
+  [[ -f "$path" && ! -L "$path" ]] || return 1
+  [[ "$(stat -c %u "$path")" == "$UID" ]] || return 1
+  mode="$(stat -c %a "$path")"
+  [[ "$mode" =~ ^[0-7]{3,4}$ ]] || return 1
+  (( (8#$mode & 077) == 0 ))
+}
+
+open_launch_lock() {
+  local lock_file="$LOCK_DIR/launch.lock" mode
+  if [[ -e "$LOCK_DIR" || -L "$LOCK_DIR" ]]; then
+    [[ -d "$LOCK_DIR" && ! -L "$LOCK_DIR" ]] || die "unsafe launch lock directory: $LOCK_DIR"
+  elif ! mkdir -m 0700 -- "$LOCK_DIR" 2>/dev/null; then
+    [[ -d "$LOCK_DIR" && ! -L "$LOCK_DIR" ]] || die "could not create safe launch lock directory: $LOCK_DIR"
+  fi
+  [[ "$(stat -c %u "$LOCK_DIR")" == "$UID" ]] || die "launch lock directory is not owned by the current user: $LOCK_DIR"
+  mode="$(stat -c %a "$LOCK_DIR")"
+  [[ "$mode" =~ ^[0-7]{3,4}$ ]] || die "launch lock directory mode is invalid: $LOCK_DIR"
+  (( (8#$mode & 077) == 0 )) || die "launch lock directory is accessible by other users: $LOCK_DIR"
+  chmod 0700 -- "$LOCK_DIR"
+
+  if [[ -e "$lock_file" || -L "$lock_file" ]]; then
+    owner_private_regular_file "$lock_file" || die "unsafe launch lock file: $lock_file"
+  elif ! (set -o noclobber; : >"$lock_file") 2>/dev/null; then
+    owner_private_regular_file "$lock_file" || die "could not create safe launch lock file: $lock_file"
+  fi
+  chmod 0600 -- "$lock_file"
+  exec 9<>"$lock_file" || die "could not open launch lock file: $lock_file"
+}
 
 require_command() {
   command -v "$1" >/dev/null 2>&1 || die "required command not found: $1"
@@ -141,14 +187,14 @@ use_packaged_game_baseline() {
   ACTIVE_LFS_STOCK_MANIFEST_ENTRIES="$LFS_STOCK_MANIFEST_ENTRIES"
 }
 
-marker_value() {
-  local key="$1" prefix line value
+metadata_value() {
+  local file="$1" key="$2" prefix line value
   local -a matches=()
   prefix="${key}='"
-  [[ -f "$INSTALL_MARKER" ]] || return 1
+  [[ -f "$file" && ! -L "$file" ]] || return 1
   while IFS= read -r line; do
     [[ "$line" == "$prefix"* && "$line" == *"'" ]] && matches+=("$line")
-  done <"$INSTALL_MARKER"
+  done <"$file"
   (( ${#matches[@]} == 1 )) || return 1
   line="${matches[0]}"
   value="${line#"$prefix"}"
@@ -157,8 +203,12 @@ marker_value() {
   printf '%s\n' "$value"
 }
 
+marker_value() {
+  metadata_value "$INSTALL_MARKER" "$1"
+}
+
 load_active_game_baseline() {
-  local kind version exe_size exe_hash manifest_size manifest_hash manifest_entries
+  local kind version exe_size exe_hash manifest_name manifest_path manifest_size manifest_hash manifest_entries
   use_packaged_game_baseline
   [[ -f "$INSTALL_MARKER" ]] || return 1
   kind="$(marker_value LFS_BASELINE_KIND 2>/dev/null || true)"
@@ -180,18 +230,27 @@ load_active_game_baseline() {
   [[ "$manifest_size" =~ ^[0-9]+$ && "$manifest_size" -gt 0 ]] || return 1
   [[ "$manifest_hash" =~ ^[0-9a-f]{64}$ ]] || return 1
   [[ "$manifest_entries" =~ ^[0-9]+$ && "$manifest_entries" -gt 0 ]] || return 1
-  manifest_metadata_is_valid "$LOCAL_GAME_MANIFEST" "$manifest_size" "$manifest_hash" "$manifest_entries" || return 1
+  manifest_name="$(marker_value LFS_STOCK_MANIFEST_NAME 2>/dev/null || true)"
+  if [[ -n "$manifest_name" ]]; then
+    [[ "$manifest_name" == "game-update-$manifest_hash.manifest" ]] || return 1
+    manifest_path="$STATE_ROOT/$manifest_name"
+  else
+    manifest_path="$LEGACY_LOCAL_GAME_MANIFEST"
+  fi
+  owner_private_regular_file "$manifest_path" || return 1
+  manifest_metadata_is_valid "$manifest_path" "$manifest_size" "$manifest_hash" "$manifest_entries" || return 1
   ACTIVE_BASELINE_KIND='game-update'
   ACTIVE_LFS_VERSION="$version"
   ACTIVE_LFS_EXE_SIZE="$exe_size"
   ACTIVE_LFS_EXE_SHA256="$exe_hash"
-  ACTIVE_LFS_STOCK_MANIFEST="$LOCAL_GAME_MANIFEST"
+  ACTIVE_LFS_STOCK_MANIFEST="$manifest_path"
   ACTIVE_LFS_STOCK_MANIFEST_SIZE="$manifest_size"
   ACTIVE_LFS_STOCK_MANIFEST_SHA256="$manifest_hash"
   ACTIVE_LFS_STOCK_MANIFEST_ENTRIES="$manifest_entries"
 }
 
 active_game_marker_is_valid() {
+  local manifest_name
   grep -Fqx "LFS_VERSION='$ACTIVE_LFS_VERSION'" "$INSTALL_MARKER" || return 1
   grep -Fqx "LFS_CHANNEL='$LFS_CHANNEL'" "$INSTALL_MARKER" || return 1
   grep -Fqx "LFS_EXE_SHA256='$ACTIVE_LFS_EXE_SHA256'" "$INSTALL_MARKER" || return 1
@@ -201,6 +260,8 @@ active_game_marker_is_valid() {
     grep -Fqx "LFS_EXE_SIZE='$ACTIVE_LFS_EXE_SIZE'" "$INSTALL_MARKER" || return 1
     grep -Fqx "LFS_STOCK_MANIFEST_SIZE='$ACTIVE_LFS_STOCK_MANIFEST_SIZE'" "$INSTALL_MARKER" || return 1
     grep -Fqx "LFS_STOCK_MANIFEST_ENTRIES='$ACTIVE_LFS_STOCK_MANIFEST_ENTRIES'" "$INSTALL_MARKER" || return 1
+    manifest_name="$(marker_value LFS_STOCK_MANIFEST_NAME 2>/dev/null || true)"
+    [[ -z "$manifest_name" || "$manifest_name" == "$(basename "$ACTIVE_LFS_STOCK_MANIFEST")" ]] || return 1
   else
     [[ "$ACTIVE_BASELINE_KIND" == 'package' ]] || return 1
   fi
@@ -208,7 +269,7 @@ active_game_marker_is_valid() {
 
 game_path_is_player_owned() {
   case "$1" in
-    cfg.txt|interface_cfg.txt|data/colours/*|data/layout/*|data/knw/*|data/misc/*|data/move/*|data/mpr/*|data/raf/*|data/script/*|data/setups/*|data/settings/*|data/shots/*|data/spr/*|data/training/*|data/views/*)
+    cfg.txt|interface_cfg.txt|card_cfg.txt|deb.log|deb_old.log|guest.txt|cache/*|mods/*|data/colours/*|data/grids/*|data/layout/*|data/knw/*|data/misc/*|data/move/*|data/mpr/*|data/raf/*|data/script/*|data/setups/*|data/settings/*|data/shots/*|data/skins/*|data/skins_x/*|data/skins_y/*|data/spr/*|data/training/*|data/views/*)
       return 0
       ;;
     *)
@@ -435,17 +496,76 @@ kill_private_wineserver() {
 }
 
 wait_private_wineserver() {
-  if ! wine_env timeout --foreground --kill-after=5s 60 "$WINE_SERVER" --wait; then
+  local log="${1:-}" mode="${2:-strict}" active_timeouts=0 wait_status
+  while true; do
+    if wine_env timeout --foreground --kill-after=5s 60 "$WINE_SERVER" --wait 9>&-; then
+      launch_log_event "$log" "event=wine-settled active_timeouts=$active_timeouts"
+      return 0
+    else
+      wait_status=$?
+    fi
+    if [[ "$wait_status" != '124' && "$wait_status" != '137' ]]; then
+      launch_log_event "$log" "event=wine-wait-error phase=primary status=$wait_status"
+      [[ "$mode" == 'launch' ]] && return "$wait_status"
+      die "private Wine wait failed with status $wait_status"
+    fi
+    if [[ "$mode" == 'launch' ]] && game_is_running; then
+      active_timeouts=$((active_timeouts + 1))
+      if (( active_timeouts == 1 )); then
+        note 'Updater restarted LFS; waiting for the active game to exit'
+      fi
+      launch_log_event "$log" "event=wine-settle-timeout status=$wait_status game_active=yes action=continue"
+      continue
+    fi
+    if [[ "$mode" == 'launch' ]]; then
+      launch_log_event "$log" "event=wine-settle-timeout status=$wait_status game_active=no action=grace"
+      if wine_env timeout --foreground --kill-after=2s 5 "$WINE_SERVER" --wait 9>&-; then
+        launch_log_event "$log" "event=wine-settled active_timeouts=$active_timeouts grace=yes"
+        return 0
+      else
+        wait_status=$?
+      fi
+      if [[ "$wait_status" != '124' && "$wait_status" != '137' ]]; then
+        launch_log_event "$log" "event=wine-wait-error phase=grace status=$wait_status"
+        return "$wait_status"
+      fi
+      if game_is_running; then
+        active_timeouts=$((active_timeouts + 1))
+        if (( active_timeouts == 1 )); then
+          note 'Updater restarted LFS; waiting for the active game to exit'
+        fi
+        launch_log_event "$log" "event=wine-settle-timeout status=$wait_status game_active=yes action=continue-after-grace"
+        continue
+      fi
+      launch_log_event "$log" "event=wine-settle-timeout status=$wait_status game_active=no action=retain-evidence"
+      warn 'private Wine services did not settle after LFS exited; they were left running and protected changes were not recorded'
+      return 1
+    fi
     kill_private_wineserver
     die 'private Wine processes did not settle within 60 seconds'
-  fi
+  done
 }
 
 prefix_processes() {
-  local pid prefix
+  local pid prefix command_name command_zero executable
   for pid in /proc/[0-9]*; do
     prefix="$(sed -z -n 's/^WINEPREFIX=//p' "$pid/environ" 2>/dev/null | tr -d '\0' || true)"
-    [[ "$prefix" == "$PREFIX" ]] && printf '%s\n' "${pid##*/}"
+    [[ "$prefix" == "$PREFIX" ]] || continue
+    command_name="$(cat "$pid/comm" 2>/dev/null || true)"
+    command_zero="$(tr '\0' '\n' <"$pid/cmdline" 2>/dev/null | head -n 1 || true)"
+    executable="$(readlink -f "$pid/exe" 2>/dev/null || true)"
+    case "${command_name,,}" in
+      wine*|*.exe) printf '%s\n' "${pid##*/}"; continue ;;
+    esac
+    command_zero="${command_zero##*/}"
+    case "${command_zero,,}" in
+      wine*|*.exe) printf '%s\n' "${pid##*/}"; continue ;;
+    esac
+    if [[ -n "$WINE_LIB_DIR" && "$executable" == "$WINE_LIB_DIR/"* ]] ||
+       [[ -n "$WINE_BIN" && "$executable" == "$WINE_BIN" ]] ||
+       [[ -n "$WINE_SERVER" && "$executable" == "$WINE_SERVER" ]]; then
+      printf '%s\n' "${pid##*/}"
+    fi
   done
 }
 
@@ -464,10 +584,23 @@ game_is_running() {
   [[ -n "$(game_processes)" ]]
 }
 
+prefix_is_running() {
+  [[ -n "$(prefix_processes)" ]]
+}
+
 wait_for_exit() {
   local seconds="$1" i
   for ((i = 0; i < seconds; i++)); do
     game_is_running || return 0
+    sleep 1
+  done
+  return 1
+}
+
+wait_for_prefix_exit() {
+  local seconds="$1" i
+  for ((i = 0; i < seconds; i++)); do
+    prefix_is_running || return 0
     sleep 1
   done
   return 1
@@ -790,6 +923,18 @@ replace_game_tree() {
   rm -rf --one-file-system "$GAME_BACKUP"
 }
 
+remove_local_game_manifests_except() {
+  local keep="${1:-}" path name status=0
+  for path in "$STATE_ROOT"/game-update-*.manifest; do
+    [[ -e "$path" || -L "$path" ]] || continue
+    name="$(basename "$path")"
+    [[ "$name" =~ ^game-update-[0-9a-f]{64}\.manifest$ ]] || continue
+    [[ "$path" == "$keep" ]] || rm -f -- "$path" || status=1
+  done
+  [[ "$LEGACY_LOCAL_GAME_MANIFEST" == "$keep" ]] || rm -f -- "$LEGACY_LOCAL_GAME_MANIFEST" || status=1
+  return "$status"
+}
+
 install_game() {
   local unpack="$STATE_ROOT/.lfs-unpack.$$" actual_size actual_checksum source_manifest source_seed_manifest extract_log="$LOG_DIR/lfs-extract.log"
   recover_interrupted_game_swap
@@ -807,7 +952,7 @@ install_game() {
     actual_checksum="$(sha256_of "$GAME_EXE")" || die 'existing LFS.exe hashing failed or exceeded 1800 seconds'
     if [[ "$actual_size" == "$LFS_EXE_SIZE" && "$actual_checksum" == "$LFS_EXE_SHA256" ]]; then
       if game_tree_is_complete; then
-        rm -f "$LOCAL_GAME_MANIFEST"
+        remove_local_game_manifests_except
         use_packaged_game_baseline
         note 'Verified complete stock LFS installation; preserving game-owned data'
         return
@@ -846,19 +991,21 @@ install_game() {
   ACTIVE_UNPACK=''
   trap - EXIT
   verify_game_tree "$GAME_DIR" 'installed LFS'
-  rm -f "$LOCAL_GAME_MANIFEST"
+  remove_local_game_manifests_except
   use_packaged_game_baseline
 }
 
 write_marker() {
-  local tmp="$INSTALL_MARKER.tmp"
+  local tmp="$INSTALL_MARKER.tmp" manifest_name
+  manifest_name="$(basename "$ACTIVE_LFS_STOCK_MANIFEST")"
   umask 077
-  cat >"$tmp" <<EOF
+  if ! cat >"$tmp" <<EOF
 LFS_BASELINE_KIND='$ACTIVE_BASELINE_KIND'
 LFS_VERSION='$ACTIVE_LFS_VERSION'
 LFS_CHANNEL='$LFS_CHANNEL'
 LFS_EXE_SIZE='$ACTIVE_LFS_EXE_SIZE'
 LFS_EXE_SHA256='$ACTIVE_LFS_EXE_SHA256'
+LFS_STOCK_MANIFEST_NAME='$manifest_name'
 LFS_STOCK_MANIFEST_SIZE='$ACTIVE_LFS_STOCK_MANIFEST_SIZE'
 LFS_STOCK_MANIFEST_SHA256='$ACTIVE_LFS_STOCK_MANIFEST_SHA256'
 LFS_STOCK_MANIFEST_ENTRIES='$ACTIVE_LFS_STOCK_MANIFEST_ENTRIES'
@@ -871,14 +1018,96 @@ WINE_RUNTIME_MANIFEST_SHA256='$WINE_RUNTIME_MANIFEST_SHA256'
 WINE_VERSION='$WINE_VERSION'
 PREFIX_ARCH='win64'
 EOF
-  mv "$tmp" "$INSTALL_MARKER"
+  then
+    rm -f "$tmp"
+    return 1
+  fi
+  if ! mv "$tmp" "$INSTALL_MARKER"; then
+    rm -f "$tmp"
+    return 1
+  fi
+}
+
+write_launch_session() {
+  local log="$1" before_marker="$2" started_at="$3" session_id="$4" tmp="$LAUNCH_SESSION.tmp"
+  [[ -n "$before_marker" ]] || before_marker='none'
+  if ! cat >"$tmp" <<EOF
+FORMAT_VERSION='1'
+STATE='running'
+SESSION_ID='$session_id'
+STARTED_AT='$started_at'
+BASELINE_KIND='$ACTIVE_BASELINE_KIND'
+BASELINE_VERSION='$ACTIVE_LFS_VERSION'
+BASELINE_EXE_SHA256='$ACTIVE_LFS_EXE_SHA256'
+BASELINE_MANIFEST_SHA256='$ACTIVE_LFS_STOCK_MANIFEST_SHA256'
+BEFORE_MARKER='$before_marker'
+LOG_BASENAME='$(basename "$log")'
+EOF
+  then
+    rm -f "$tmp"
+    return 1
+  fi
+  chmod 0600 "$tmp"
+  mv "$tmp" "$LAUNCH_SESSION"
+}
+
+launch_session_schema_is_valid() {
+  awk -F= '
+    BEGIN {
+      split("FORMAT_VERSION STATE SESSION_ID STARTED_AT BASELINE_KIND BASELINE_VERSION BASELINE_EXE_SHA256 BASELINE_MANIFEST_SHA256 BEFORE_MARKER LOG_BASENAME", keys, " ")
+      for (i in keys) expected[keys[i]] = 1
+    }
+    !($1 in expected) || seen[$1]++ { exit 1 }
+    END {
+      if (NR != 10) exit 1
+      for (key in expected) if (seen[key] != 1) exit 1
+    }
+  ' "$LAUNCH_SESSION"
+}
+
+launch_session_is_valid() {
+  local format state session_id started_at baseline_kind baseline_version baseline_exe_hash baseline_manifest_hash
+  local before_marker log_basename log now start_event
+  owner_private_regular_file "$LAUNCH_SESSION" || return 1
+  launch_session_schema_is_valid || return 1
+  format="$(metadata_value "$LAUNCH_SESSION" FORMAT_VERSION)" || return 1
+  state="$(metadata_value "$LAUNCH_SESSION" STATE)" || return 1
+  session_id="$(metadata_value "$LAUNCH_SESSION" SESSION_ID)" || return 1
+  started_at="$(metadata_value "$LAUNCH_SESSION" STARTED_AT)" || return 1
+  baseline_kind="$(metadata_value "$LAUNCH_SESSION" BASELINE_KIND)" || return 1
+  baseline_version="$(metadata_value "$LAUNCH_SESSION" BASELINE_VERSION)" || return 1
+  baseline_exe_hash="$(metadata_value "$LAUNCH_SESSION" BASELINE_EXE_SHA256)" || return 1
+  baseline_manifest_hash="$(metadata_value "$LAUNCH_SESSION" BASELINE_MANIFEST_SHA256)" || return 1
+  before_marker="$(metadata_value "$LAUNCH_SESSION" BEFORE_MARKER)" || return 1
+  log_basename="$(metadata_value "$LAUNCH_SESSION" LOG_BASENAME)" || return 1
+  [[ "$format" == '1' && "$state" == 'running' ]] || return 1
+  [[ "$started_at" =~ ^[0-9]+$ ]] || return 1
+  [[ "$session_id" =~ ^[0-9]+-[0-9]+$ && "$session_id" == "$started_at-"* ]] || return 1
+  [[ "$baseline_kind" == "$ACTIVE_BASELINE_KIND" ]] || return 1
+  [[ "$baseline_version" == "$ACTIVE_LFS_VERSION" ]] || return 1
+  [[ "$baseline_exe_hash" == "$ACTIVE_LFS_EXE_SHA256" ]] || return 1
+  [[ "$baseline_manifest_hash" == "$ACTIVE_LFS_STOCK_MANIFEST_SHA256" ]] || return 1
+  [[ "$before_marker" == 'none' || "$before_marker" =~ ^[0-9]+[A-Z][0-9]*$ ]] || return 1
+  [[ "$log_basename" =~ ^launch-[0-9]{8}-[0-9]{6}(-[0-9]+)?\.log$ ]] || return 1
+  log="$LOG_DIR/$log_basename"
+  owner_private_regular_file "$log" || return 1
+  now="$(date +%s)"
+  (( started_at <= now + 300 )) || return 1
+  (( $(stat -c %Y "$log") >= started_at )) || return 1
+  start_event="lfs-linux event=start session=$session_id started_at=$started_at baseline=$baseline_version baseline_kind=$baseline_kind before_marker=$before_marker "
+  [[ "$(grep -Fc "$start_event" "$log")" == '1' ]]
 }
 
 record_game_update() {
-  local before_marker="$1" after_marker temporary manifest_size manifest_hash manifest_entries
+  local before_marker="$1" require_stopped="${2:-0}" expected_manifest_hash="${3:-}"
+  local after_marker temporary manifest_path manifest_size manifest_hash manifest_entries
   local exe_size exe_hash updated_version
   after_marker="$(game_version_marker)"
   version_marker_advanced "$before_marker" "$after_marker" || return 0
+  if [[ "$require_stopped" == '1' ]] && prefix_is_running; then
+    warn 'private Wine processes restarted before update inventory; previous baseline retained'
+    return 1
+  fi
 
   temporary="$(mktemp "$STATE_ROOT/.game-update.manifest.XXXXXX")"
   if ! snapshot_game_manifest "$GAME_DIR" "$temporary"; then
@@ -888,6 +1117,11 @@ record_game_update() {
   fi
   manifest_size="$(stat -c %s "$temporary")"
   manifest_hash="$(sha256_of "$temporary")" || { rm -f "$temporary"; return 1; }
+  if [[ -n "$expected_manifest_hash" && "$manifest_hash" != "$expected_manifest_hash" ]]; then
+    rm -f "$temporary"
+    warn 'protected LFS files changed after recovery confirmation; previous baseline retained'
+    return 1
+  fi
   manifest_entries="$(awk -F '\t' '$1 == "f" || $1 == "l" { count++ } END { print count + 0 }' "$temporary")"
   [[ "$manifest_entries" -gt 0 ]] || { rm -f "$temporary"; warn 'in-game update inventory was empty'; return 1; }
   grep -Fq $'\tLFS.exe' "$temporary" || { rm -f "$temporary"; warn 'in-game update removed LFS.exe'; return 1; }
@@ -904,20 +1138,152 @@ record_game_update() {
     warn 'in-game update inventory failed validation'
     return 1
   }
+  if [[ "$require_stopped" == '1' ]] && prefix_is_running; then
+    rm -f "$temporary"
+    warn 'private Wine processes restarted during update inventory; previous baseline retained'
+    return 1
+  fi
 
-  mv "$temporary" "$LOCAL_GAME_MANIFEST"
-  chmod 0600 "$LOCAL_GAME_MANIFEST"
+  manifest_path="$STATE_ROOT/game-update-$manifest_hash.manifest"
+  if [[ -e "$manifest_path" || -L "$manifest_path" ]]; then
+    if ! owner_private_regular_file "$manifest_path" ||
+       ! manifest_metadata_is_valid "$manifest_path" "$manifest_size" "$manifest_hash" "$manifest_entries"; then
+      rm -f "$temporary"
+      warn 'content-addressed in-game update manifest path is occupied or changed; previous baseline retained'
+      return 1
+    fi
+    rm -f "$temporary"
+  else
+    if ! mv "$temporary" "$manifest_path"; then
+      rm -f "$temporary"
+      warn 'could not place content-addressed in-game update manifest; previous baseline retained'
+      return 1
+    fi
+    chmod 0600 "$manifest_path"
+  fi
+  if [[ "$require_stopped" == '1' ]] && prefix_is_running; then
+    warn 'private Wine processes restarted before update commit; previous baseline retained'
+    return 1
+  fi
+  if [[ "${LFS_LINUX_TEST_FAIL_BEFORE_MARKER:-0}" == '1' ]]; then
+    warn 'test fault before in-game update marker commit; previous baseline retained'
+    return 1
+  fi
+
   updated_version="0.$after_marker"
   ACTIVE_BASELINE_KIND='game-update'
   ACTIVE_LFS_VERSION="$updated_version"
   ACTIVE_LFS_EXE_SIZE="$exe_size"
   ACTIVE_LFS_EXE_SHA256="$exe_hash"
-  ACTIVE_LFS_STOCK_MANIFEST="$LOCAL_GAME_MANIFEST"
+  ACTIVE_LFS_STOCK_MANIFEST="$manifest_path"
   ACTIVE_LFS_STOCK_MANIFEST_SIZE="$manifest_size"
   ACTIVE_LFS_STOCK_MANIFEST_SHA256="$manifest_hash"
   ACTIVE_LFS_STOCK_MANIFEST_ENTRIES="$manifest_entries"
-  write_marker
+  if [[ "$require_stopped" == '1' ]] && prefix_is_running; then
+    warn 'private Wine processes restarted at update commit; previous baseline retained'
+    return 1
+  fi
+  if ! write_marker; then
+    warn 'could not commit in-game update marker; previous marker and manifest remain valid'
+    return 1
+  fi
+  remove_local_game_manifests_except "$manifest_path" || warn 'kept an obsolete local game-update manifest after atomic marker commit'
   note "Recorded LFS $updated_version in-game update as the verified local launch baseline"
+}
+
+recover_game_update() {
+  local before_marker after_marker log_basename log previous_version answer candidate_manifest
+  local session_hash_before session_hash_after marker_hash log_hash session_id candidate_size candidate_hash candidate_entries
+  require_unprivileged
+  require_host_arch
+  require_command awk
+  require_command find
+  require_command flock
+  require_command mktemp
+  require_command readlink
+  require_command sha256sum
+  require_command sort
+  require_command stat
+  require_command timeout
+  open_launch_lock
+  flock -n 9 || die 'LFS is already launching or running'
+  require_wine
+  [[ -f "$INSTALL_MARKER" && ! -L "$INSTALL_MARKER" ]] || die 'installation marker is missing or unsafe; run lfs-linux install'
+  load_active_game_baseline || die 'installed LFS baseline metadata is missing or changed'
+  active_game_marker_is_valid || die 'installation marker LFS baseline drift'
+  [[ -f "$LAUNCH_SESSION" && ! -L "$LAUNCH_SESSION" ]] || die 'no interrupted trusted launch session is available for recovery'
+  session_hash_before="$(sha256_of "$LAUNCH_SESSION")" || die 'could not hash interrupted launch-session evidence'
+  launch_session_is_valid || die 'interrupted launch-session evidence is missing or changed; no files changed'
+  before_marker="$(metadata_value "$LAUNCH_SESSION" BEFORE_MARKER)"
+  log_basename="$(metadata_value "$LAUNCH_SESSION" LOG_BASENAME)"
+  session_id="$(metadata_value "$LAUNCH_SESSION" SESSION_ID)"
+  log="$LOG_DIR/$log_basename"
+  session_hash_after="$(sha256_of "$LAUNCH_SESSION")" || die 'could not recheck interrupted launch-session evidence'
+  [[ "$session_hash_before" == "$session_hash_after" ]] || die 'interrupted launch-session evidence changed during validation; no files changed'
+  marker_hash="$(sha256_of "$INSTALL_MARKER")" || die 'could not hash installation marker'
+  log_hash="$(sha256_of "$log")" || die 'could not hash interrupted launch log'
+  if prefix_is_running; then
+    die 'private Wine processes are still running; run lfs-linux stop first'
+  fi
+  [[ "$before_marker" != 'none' ]] || before_marker=''
+  after_marker="$(game_version_marker)"
+  version_marker_advanced "$before_marker" "$after_marker" || die 'no newer LFS version marker was produced by the interrupted session; no files changed'
+
+  candidate_manifest="$(mktemp "$STATE_ROOT/.recovery-candidate.manifest.XXXXXX")"
+  ACTIVE_RECOVERY_SNAPSHOT="$candidate_manifest"
+  trap cleanup_active_recovery_snapshot EXIT
+  snapshot_game_manifest "$GAME_DIR" "$candidate_manifest" || die 'could not snapshot protected LFS files before recovery confirmation; no files changed'
+  candidate_size="$(stat -c %s "$candidate_manifest")"
+  candidate_hash="$(sha256_of "$candidate_manifest")" || die 'could not hash protected LFS recovery snapshot; no files changed'
+  candidate_entries="$(awk -F '\t' '$1 == "f" || $1 == "l" { count++ } END { print count + 0 }' "$candidate_manifest")"
+  [[ "$candidate_entries" -gt 0 ]] || die 'protected LFS recovery snapshot was empty; no files changed'
+  manifest_metadata_is_valid "$candidate_manifest" "$candidate_size" "$candidate_hash" "$candidate_entries" ||
+    die 'protected LFS files changed during pre-confirmation snapshot; no files changed'
+  grep -Fq $'\tLFS.exe' "$candidate_manifest" || die 'protected LFS recovery snapshot omitted LFS.exe; no files changed'
+  grep -Fq $'\t'"data/versions/$after_marker.txt" "$candidate_manifest" ||
+    die 'protected LFS recovery snapshot omitted the newer version marker; no files changed'
+  if prefix_is_running; then
+    die 'private Wine processes restarted during pre-confirmation snapshot; no files changed'
+  fi
+  [[ "$(game_version_marker)" == "$after_marker" ]] || die 'LFS version marker changed during pre-confirmation snapshot; no files changed'
+  [[ "$(sha256_of "$LAUNCH_SESSION")" == "$session_hash_before" ]] || die 'interrupted launch-session evidence changed during pre-confirmation snapshot; no files changed'
+  [[ "$(sha256_of "$INSTALL_MARKER")" == "$marker_hash" ]] || die 'installation marker changed during pre-confirmation snapshot; no files changed'
+  [[ "$(sha256_of "$log")" == "$log_hash" ]] || die 'interrupted launch log changed during pre-confirmation snapshot; no files changed'
+  launch_log_event "$log" "event=recovery-snapshot-ready session=$session_id marker=$after_marker snapshot=$candidate_hash"
+  log_hash="$(sha256_of "$log")" || die 'could not bind interrupted launch log to recovery snapshot'
+
+  if [[ "${LFS_LINUX_CONFIRM_UPDATE_RECOVERY:-0}" != '1' ]]; then
+    [[ -t 0 ]] || die 'update recovery needs a terminal or LFS_LINUX_CONFIRM_UPDATE_RECOVERY=1'
+    printf 'Trust protected LFS snapshot %s as update %s from the interrupted verified session? [y/N] ' "$candidate_hash" "$after_marker"
+    read -r answer
+    [[ "${answer,,}" == 'y' || "${answer,,}" == 'yes' ]] || { note 'Update recovery cancelled'; return 3; }
+  fi
+  if [[ -n "${LFS_LINUX_TEST_CONFIRMATION_DELAY_SECONDS:-}" ]]; then
+    [[ "$LFS_LINUX_TEST_CONFIRMATION_DELAY_SECONDS" =~ ^[0-9]+([.][0-9]+)?$ ]] || die 'invalid recovery confirmation test delay'
+    sleep "$LFS_LINUX_TEST_CONFIRMATION_DELAY_SECONDS"
+  fi
+  [[ "$(sha256_of "$LAUNCH_SESSION")" == "$session_hash_before" ]] || die 'interrupted launch-session evidence changed during confirmation; no files changed'
+  [[ "$(sha256_of "$INSTALL_MARKER")" == "$marker_hash" ]] || die 'installation marker changed during confirmation; no files changed'
+  [[ "$(sha256_of "$log")" == "$log_hash" ]] || die 'interrupted launch log changed during confirmation; no files changed'
+  load_active_game_baseline || die 'installed LFS baseline changed during confirmation; no files changed'
+  active_game_marker_is_valid || die 'installation marker baseline changed during confirmation; no files changed'
+  launch_session_is_valid || die 'interrupted launch-session evidence became invalid during confirmation; no files changed'
+  if prefix_is_running; then
+    die 'private Wine processes restarted during confirmation; no files changed'
+  fi
+  [[ "$(game_version_marker)" == "$after_marker" ]] || die 'LFS version marker changed during confirmation; no files changed'
+  previous_version="$ACTIVE_LFS_VERSION"
+  launch_log_event "$log" "event=recovery-confirmed session=$session_id from=$previous_version marker=$after_marker snapshot=$candidate_hash"
+  if prefix_is_running; then
+    die 'private Wine processes restarted before recovery inventory; launch-session evidence retained'
+  fi
+  record_game_update "$before_marker" 1 "$candidate_hash" || die 'could not record the confirmed protected LFS snapshot; launch-session evidence retained'
+  [[ "$ACTIVE_LFS_VERSION" != "$previous_version" ]] || die 'interrupted update did not produce a new baseline; launch-session evidence retained'
+  launch_log_event "$log" "event=recovery-recorded session=$session_id version=$ACTIVE_LFS_VERSION snapshot=$candidate_hash"
+  rm -f "$LAUNCH_SESSION" "$candidate_manifest"
+  ACTIVE_RECOVERY_SNAPSHOT=''
+  trap - EXIT
+  note "Recovered LFS $ACTIVE_LFS_VERSION as the verified local launch baseline"
 }
 
 validate_installation() {
@@ -1024,6 +1390,7 @@ install_all() {
   require_command curl
   require_command du
   require_command find
+  require_command flock
   require_command mktemp
   require_command readlink
   require_command sha256sum
@@ -1031,6 +1398,12 @@ install_all() {
   require_command stat
   require_command tar
   require_command timeout
+  open_launch_lock
+  flock -n 9 || die 'LFS is already launching, installing, or recovering'
+  detect_wine 2>/dev/null || true
+  if prefix_is_running; then
+    die 'private Wine processes are running; run lfs-linux stop before install'
+  fi
   validate_existing_game_source
   ensure_wine_runtime
   require_wine
@@ -1038,11 +1411,12 @@ install_all() {
   install_game
   install_dxvk
   write_marker
+  rm -f "$LAUNCH_SESSION"
   note 'Installation complete. Run: lfs-linux launch'
 }
 
 launch_game() {
-  local log lock_file game_status record_status=0 before_marker
+  local log game_status wait_status record_status=0 final_status before_marker after_marker marker_for_log started_at session_id
   require_unprivileged
   require_host_arch
   require_command awk
@@ -1055,11 +1429,7 @@ launch_game() {
   require_command sort
   require_command stat
   require_command timeout
-  validate_installation
-  [[ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]] || die 'no graphical session is available'
-  mkdir -p "$LOG_DIR" "$LOCK_DIR" "$CACHE_DIR/dxvk-shaders"
-  lock_file="$LOCK_DIR/launch.lock"
-  exec 9>"$lock_file"
+  open_launch_lock
   if ! flock -n 9; then
     if command -v wmctrl >/dev/null 2>&1; then
       wmctrl -a 'Live for Speed' 2>/dev/null || true
@@ -1074,10 +1444,24 @@ launch_game() {
     note 'LFS is already running'
     return
   fi
-  log="$LOG_DIR/launch-$(date +%Y%m%d-%H%M%S).log"
+  if prefix_is_running; then
+    die 'private Wine services remain; run lfs-linux stop before launch'
+  fi
+  validate_installation
+  if prefix_is_running; then
+    die 'private Wine services started during launch validation; run lfs-linux stop before launch'
+  fi
+  [[ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]] || die 'no graphical session is available'
+  mkdir -p "$LOG_DIR" "$CACHE_DIR/dxvk-shaders"
+  log="$LOG_DIR/launch-$(date +%Y%m%d-%H%M%S)-$$.log"
   ln -sfn "$(basename "$log")" "$LOG_DIR/latest.log"
   note "Starting verified LFS $ACTIVE_LFS_VERSION [$LFS_CHANNEL_LABEL] with $WINE_VERSION and private DXVK $DXVK_VERSION"
   before_marker="$(game_version_marker)"
+  marker_for_log="${before_marker:-none}"
+  started_at="$(date +%s)"
+  session_id="$started_at-$$"
+  write_launch_session "$log" "$before_marker" "$started_at" "$session_id"
+  launch_log_event "$log" "event=start session=$session_id started_at=$started_at baseline=$ACTIVE_LFS_VERSION baseline_kind=$ACTIVE_BASELINE_KIND before_marker=$marker_for_log wine=$WINE_VERSION dxvk=$DXVK_VERSION"
   cd "$GAME_DIR"
   set +e
   env \
@@ -1087,16 +1471,37 @@ launch_game() {
     WINEDLLOVERRIDES="$WINE_DLL_OVERRIDES" \
     DXVK_LOG_PATH="$LOG_DIR" \
     DXVK_SHADER_CACHE_PATH="$CACHE_DIR/dxvk-shaders" \
-    "$WINE_BIN" "$GAME_EXE" /windowed=yes >>"$log" 2>&1
+    "$WINE_BIN" "$GAME_EXE" /windowed=yes 9>&- >>"$log" 2>&1
   game_status=$?
   set -e
-  wait_private_wineserver
+  launch_log_event "$log" "event=wine-parent-exit status=$game_status"
+  if wait_private_wineserver "$log" launch; then
+    :
+  else
+    wait_status=$?
+    launch_log_event "$log" "event=finish status=$wait_status reason=wine-wait-failed"
+    warn 'Wine wait failed or private services remain; run lfs-linux stop before recovery'
+    return "$wait_status"
+  fi
+  after_marker="$(game_version_marker)"
   record_game_update "$before_marker" || record_status=$?
+  if (( record_status == 0 )); then
+    if version_marker_advanced "$before_marker" "$after_marker"; then
+      launch_log_event "$log" "event=update-recorded version=$ACTIVE_LFS_VERSION"
+    else
+      launch_log_event "$log" "event=update-none marker=${after_marker:-none}"
+    fi
+    rm -f "$LAUNCH_SESSION"
+  else
+    launch_log_event "$log" "event=update-record-failed status=$record_status marker=${after_marker:-none}"
+  fi
   if (( game_status != 0 )); then
     warn "LFS exited with status $game_status; any completed versioned update was still checked"
   fi
-  (( record_status == 0 )) || return "$record_status"
-  return "$game_status"
+  final_status="$game_status"
+  (( record_status == 0 )) || final_status="$record_status"
+  launch_log_event "$log" "event=finish status=$final_status"
+  return "$final_status"
 }
 
 stop_game() {
@@ -1105,30 +1510,40 @@ stop_game() {
   require_unprivileged
   require_command timeout
   require_wine
-  game_is_running || { note 'LFS is already stopped'; return; }
+  prefix_is_running || { note 'LFS is already stopped'; return; }
   window=''
-  if [[ -n "${DISPLAY:-}" ]] && command -v xdotool >/dev/null 2>&1; then
+  if game_is_running && [[ -n "${DISPLAY:-}" ]] && command -v xdotool >/dev/null 2>&1; then
     window="$(xdotool search --onlyvisible --name '^Live for Speed$' 2>/dev/null | head -n 1 || true)"
   fi
   if [[ -n "$window" ]]; then
     xdotool windowactivate --sync "$window" 2>/dev/null || true
     xdotool key --clearmodifiers alt+F4
-    wait_for_exit 5 && { note 'LFS stopped cleanly via window close'; return; }
+    if wait_for_exit 5 && wait_for_prefix_exit 5; then
+      note 'LFS stopped cleanly via window close'
+      return
+    fi
     window="$(xdotool search --onlyvisible --name '^Live for Speed$' 2>/dev/null | head -n 1 || true)"
-    if [[ -n "$window" ]]; then
+    if game_is_running && [[ -n "$window" ]]; then
       xdotool windowactivate --sync "$window" 2>/dev/null || true
       xdotool key --clearmodifiers t
       xdotool type --clearmodifiers --delay 20 '/exit'
       xdotool key --clearmodifiers Return
-      wait_for_exit 10 && { note 'LFS stopped cleanly'; return; }
+      if wait_for_exit 10 && wait_for_prefix_exit 5; then
+        note 'LFS stopped cleanly'
+        return
+      fi
     fi
   fi
   warn 'clean in-game exit was unavailable; stopping only the private Wine prefix'
   kill_private_wineserver
-  wait_for_exit 5 && return
+  if wait_for_prefix_exit 5; then
+    note 'Private Wine prefix stopped'
+    return
+  fi
   mapfile -t pid_list < <(prefix_processes)
   (( ${#pid_list[@]} == 0 )) || kill -TERM "${pid_list[@]}" 2>/dev/null || true
-  wait_for_exit 3 || die 'private prefix processes did not stop'
+  wait_for_prefix_exit 3 || die 'private prefix processes did not stop'
+  note 'Private Wine prefix stopped'
 }
 
 run_doctor() {
@@ -1251,7 +1666,13 @@ run_doctor() {
   else
     info 'not installed yet'
   fi
-  if game_is_running; then info 'private prefix is running'; else info 'private prefix is stopped'; fi
+  if game_is_running; then
+    info 'LFS is running in the private prefix'
+  elif prefix_is_running; then
+    info 'private Wine services remain; run lfs-linux stop before recovery'
+  else
+    info 'private prefix is stopped'
+  fi
   version_output="wrapper $LFS_LINUX_VERSION; LFS $ACTIVE_LFS_VERSION ($ACTIVE_BASELINE_KIND, $LFS_CHANNEL_LABEL); Wine $WINE_RUNTIME_VERSION; DXVK $DXVK_VERSION"
   info "$version_output"
   printf '\nDoctor summary: %d failure(s)\n' "$failures"
@@ -1272,7 +1693,14 @@ show_status() {
   printf 'State:      %s\n' "$STATE_ROOT"
   printf 'Game:       %s\n' "$GAME_EXE"
   printf 'Logs:       %s\n' "$LOG_DIR"
-  game_is_running && printf 'Process:    running\n' || printf 'Process:    stopped\n'
+  [[ ! -f "$LAUNCH_SESSION" ]] || printf 'Recovery:   interrupted launch evidence present\n'
+  if game_is_running; then
+    printf 'Process:    LFS running\n'
+  elif prefix_is_running; then
+    printf 'Process:    Wine services remain (run lfs-linux stop)\n'
+  else
+    printf 'Process:    stopped\n'
+  fi
 }
 
 update_check() {
@@ -1382,10 +1810,18 @@ purge_cache() {
 }
 
 remove_state() {
+  local answer
   require_unprivileged
+  require_command flock
+  require_command stat
   [[ -d "$STATE_ROOT" ]] || { note 'No user installation exists'; return; }
   [[ -f "$STATE_SENTINEL" ]] || die 'state directory is not marked as managed; refusing removal'
-  game_is_running && die 'LFS is running; run lfs-linux stop first'
+  open_launch_lock
+  flock -n 9 || die 'LFS is already launching, installing, or recovering'
+  detect_wine 2>/dev/null || true
+  if prefix_is_running; then
+    die 'private Wine processes are running; run lfs-linux stop first'
+  fi
   if [[ "${LFS_LINUX_CONFIRM_REMOVE:-0}" != '1' ]]; then
     [[ -t 0 ]] || die 'removal needs a terminal or LFS_LINUX_CONFIRM_REMOVE=1'
     printf 'Remove the complete Live for Speed Linux prefix and game-owned player data at %s? [y/N] ' "$STATE_ROOT"
@@ -1393,7 +1829,8 @@ remove_state() {
     [[ "$answer" == 'y' || "$answer" == 'Y' ]] || { note 'Removal cancelled'; return; }
   fi
   rm -rf --one-file-system "$PREFIX" "$RUNTIME_DIR"
-  rm -f -- "$INSTALL_MARKER" "$LOCAL_GAME_MANIFEST" "$STATE_SENTINEL"
+  remove_local_game_manifests_except
+  rm -f -- "$INSTALL_MARKER" "$LAUNCH_SESSION" "$STATE_SENTINEL"
   rmdir -- "$STATE_ROOT" 2>/dev/null || warn 'kept unrecognized files in the state directory'
   note 'Removed user installation. Wrapper package remains installed.'
 }
@@ -1404,6 +1841,7 @@ case "${1:-launch}" in
   setup) setup_interactive ;;
   install) install_all ;;
   launch) launch_game ;;
+  recover-update) recover_game_update ;;
   stop) stop_game ;;
   doctor) run_doctor ;;
   status) show_status ;;

@@ -11,7 +11,22 @@ Read the newest launch log:
 
 ```bash
 less ~/.local/state/lfs-linux/latest.log
+grep 'lfs-linux event=' ~/.local/state/lfs-linux/latest.log
 ```
+
+Version 0.3.1 and later write timestamped wrapper events into each launch log: session ID and epoch, verified baseline, Wine parent status, updater-restart waits, Wine wait result, update-recording result, and final status. Raw Wine and DXVK output remains in the same file. Desktop stderr also remains available in the user journal:
+
+```bash
+journalctl --user --since today | grep lfs-linux
+```
+
+For one diagnostic terminal launch, set Wine's standard debug channels explicitly:
+
+```bash
+WINEDEBUG=+timestamp,+seh,+tid lfs-linux launch
+```
+
+This can produce a large local log. Review and redact home paths, server details, and other private values before sharing it.
 
 ## Stop a stuck game
 
@@ -58,7 +73,7 @@ Every wrapper launch passes `/windowed=yes`. This gives a recoverable default wi
 
 ## Setup reports an incomplete stock tree
 
-The wrapper does not execute the NSIS installer under Wine. It extracts the verified official archive and its pinned nested payloads with 7-Zip, then verifies every protected stock file against the shipped 0.8C20 manifest. Player-owned settings, setups, layouts, replays, AI knowledge cache, training content, and similar paths are excluded from that inventory and preserved during repair. If packaged stock is absent or changed, diagnostics fail and `lfs-linux install` restores it from the verified archive before writing a new marker.
+The wrapper does not execute the NSIS installer under Wine. It extracts the verified official archive and its pinned nested payloads with 7-Zip, then verifies every protected stock file against the shipped 0.8C20 manifest. Player-owned account/configuration state, debug logs, caches, downloaded mods and skins, settings, setups, layouts, replays, AI knowledge, training content, and similar mutable paths are excluded from local update inventories and preserved during repair. If packaged stock is absent or changed, diagnostics fail and `lfs-linux install` restores it from the verified archive before writing a new marker.
 
 ## Upstream update detected
 
@@ -76,11 +91,20 @@ Do not bypass checksum checks. Do not patch `LFS.exe`.
 
 ## LFS updated itself but later launch fails
 
-Version 0.3.0 and later support this flow: launch a verified game, accept its in-game update, close LFS normally, then launch the updated game later without a wrapper update or full game download. The wrapper waits for private Wine processes to exit and writes `~/.local/share/lfs-linux/game-update.manifest` only when LFS adds a newer version marker during that session.
+Version 0.3.0 and later support this flow: launch a verified game, accept its in-game update, close LFS normally, then launch the updated game later without a wrapper update or full game download. The wrapper waits for private Wine processes to exit and records a local protected-file manifest only when LFS adds a newer version marker during that session. Version 0.3.1 stores new manifests as `~/.local/share/lfs-linux/game-update-<sha256>.manifest`; it still reads the legacy v0.3.0 `game-update.manifest` file.
 
-Run `lfs-linux status`. `Installed` should show the newer version and `game-update baseline`. Then run `lfs-linux doctor`. If protected files changed after LFS closed, diagnostics reject that out-of-session drift. Restore the recorded files or install a reviewed wrapper that contains the newer bootstrap. Do not delete player data or bypass the check.
+Version 0.3.0 could mistake an updater-restarted game for lingering Wine services after 60 seconds and stop it before recording the new baseline. Version 0.3.1 fixes this: launch never performs an automatic prefix-wide kill. It waits while restarted `LFS.exe` is active. If non-game Wine services remain after the grace period, it leaves them running, retains `~/.local/share/lfs-linux/launch-session.env`, and tells you to run `lfs-linux stop`. Protected changes are not recorded automatically on that failure path.
 
-Version 0.2.x did not record updates after exit. Wrapper 0.3.0 directly recognizes exact official 0.8C20, so an existing C19-to-C20 in-game update can be adopted with `lfs-linux install` without redownloading the game when its protected tree matches.
+Run `lfs-linux status`. `Installed` should show the newer version and `game-update baseline` after normal completion. If status instead reports interrupted launch evidence, inspect `latest.log`, confirm LFS performed the update and the private prefix is stopped, then run:
+
+```bash
+lfs-linux recover-update
+lfs-linux doctor
+```
+
+Recovery validates exact-schema pending evidence, prior baseline hashes, matching launch-log session/epoch, ownership, and newer version marker. It acquires an owner-private, non-symlink launch lock and requires a stopped prefix. Before asking, it snapshots and validates current protected files and shows that snapshot digest. After confirmation it rechecks evidence, marker, log, version, process state, and a second protected-file inventory; the two inventory digests must match. Missing, changed, or raced evidence or content fails without modifying the previous marker/manifest pair. Do not create recovery metadata manually, bypass confirmation, or use recovery for arbitrary out-of-session drift.
+
+If no recovery evidence exists, or protected files changed after LFS closed, diagnostics reject that drift. Restore the recorded files or install a reviewed wrapper containing the newer bootstrap. Do not delete player data. Version 0.2.x did not record updates after exit. Wrapper 0.3.0 directly recognizes exact official 0.8C20, so an existing C19-to-C20 in-game update can be adopted with `lfs-linux install` without redownloading the game when its protected tree matches.
 
 ## Upgrade stops before changing the game
 
