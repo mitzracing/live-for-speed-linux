@@ -3,6 +3,9 @@ set -Eeuo pipefail
 
 readonly ROOT="${1:-}"
 [[ -n "$ROOT" && -d "$ROOT" ]] || { printf 'Usage: %s STAGED_PACKAGE_ROOT\n' "$0" >&2; exit 2; }
+TMP_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/lfs-linux-package-boundary.XXXXXX")"
+readonly TMP_ROOT
+trap 'rm -rf -- "$TMP_ROOT"' EXIT
 
 for path in \
   usr/bin/lfs-linux \
@@ -21,6 +24,65 @@ for path in \
   usr/share/icons/hicolor/scalable/apps/io.github.mitzracing.live_for_speed_linux.svg; do
   [[ -e "$ROOT/$path" ]] || { printf 'missing package file: %s\n' "$path" >&2; exit 1; }
 done
+
+expected_inventory="$TMP_ROOT/expected.txt"
+actual_inventory="$TMP_ROOT/actual.txt"
+if [[ -f "$ROOT/usr/share/doc/live-for-speed-linux/copyright" ]]; then
+  cat >"$expected_inventory" <<'EOF'
+usr/bin/lfs-linux
+usr/bin/lfs-linux-desktop
+usr/lib/lfs-linux/lfs-linux-core
+usr/share/applications/io.github.mitzracing.live_for_speed_linux.desktop
+usr/share/doc/live-for-speed-linux/ARCHITECTURE.md
+usr/share/doc/live-for-speed-linux/LEGAL.md
+usr/share/doc/live-for-speed-linux/MAINTENANCE.md
+usr/share/doc/live-for-speed-linux/TROUBLESHOOTING.md
+usr/share/doc/live-for-speed-linux/changelog.Debian.gz
+usr/share/doc/live-for-speed-linux/copyright
+usr/share/icons/hicolor/scalable/apps/io.github.mitzracing.live_for_speed_linux.svg
+usr/share/lfs-linux/arch-wine-peter-jung.pgp
+usr/share/lfs-linux/lfs-0.8C20-seed.manifest
+usr/share/lfs-linux/lfs-0.8C20-stock.manifest
+usr/share/lfs-linux/lfs-0.8C24-nested.manifest
+usr/share/lfs-linux/lfs-0.8C24-seed.manifest
+usr/share/lfs-linux/lfs-0.8C24-stock.manifest
+usr/share/lfs-linux/release.env
+usr/share/lfs-linux/wine-11.15-1-runtime.manifest
+usr/share/lintian/overrides/live-for-speed-linux
+usr/share/man/man1/lfs-linux-desktop.1.gz
+usr/share/man/man1/lfs-linux.1.gz
+usr/share/metainfo/io.github.mitzracing.live_for_speed_linux.metainfo.xml
+EOF
+else
+  cat >"$expected_inventory" <<'EOF'
+usr/bin/lfs-linux
+usr/bin/lfs-linux-desktop
+usr/lib/lfs-linux/lfs-linux-core
+usr/share/applications/io.github.mitzracing.live_for_speed_linux.desktop
+usr/share/doc/live-for-speed-linux/ARCHITECTURE.md
+usr/share/doc/live-for-speed-linux/LEGAL.md
+usr/share/doc/live-for-speed-linux/MAINTENANCE.md
+usr/share/doc/live-for-speed-linux/TROUBLESHOOTING.md
+usr/share/icons/hicolor/scalable/apps/io.github.mitzracing.live_for_speed_linux.svg
+usr/share/lfs-linux/arch-wine-peter-jung.pgp
+usr/share/lfs-linux/lfs-0.8C20-seed.manifest
+usr/share/lfs-linux/lfs-0.8C20-stock.manifest
+usr/share/lfs-linux/lfs-0.8C24-nested.manifest
+usr/share/lfs-linux/lfs-0.8C24-seed.manifest
+usr/share/lfs-linux/lfs-0.8C24-stock.manifest
+usr/share/lfs-linux/release.env
+usr/share/lfs-linux/wine-11.15-1-runtime.manifest
+usr/share/licenses/live-for-speed-linux/LICENSE
+usr/share/man/man1/lfs-linux-desktop.1
+usr/share/man/man1/lfs-linux.1
+usr/share/metainfo/io.github.mitzracing.live_for_speed_linux.metainfo.xml
+EOF
+fi
+find "$ROOT" \( -type f -o -type l \) -printf '%P\n' | LC_ALL=C sort >"$actual_inventory"
+cmp "$expected_inventory" "$actual_inventory" || {
+  printf 'package file/symlink inventory differs from the exact allowlist\n' >&2
+  exit 1
+}
 
 if [[ ! -f "$ROOT/usr/share/licenses/live-for-speed-linux/LICENSE" &&
       ! -f "$ROOT/usr/share/doc/live-for-speed-linux/copyright" ]]; then
