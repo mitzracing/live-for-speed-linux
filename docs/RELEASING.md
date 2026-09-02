@@ -3,17 +3,18 @@
 ## Wrapper release
 
 1. Run `make test`.
-2. Build a staged filesystem with `make DESTDIR="$PWD/pkgroot" install`.
-3. Run `make deb-check` in clean Ubuntu 24.04 and Debian 13 containers.
-4. Validate the desktop file and AppStream metadata.
-5. Build the AUR package from a real signed or immutable project tag.
-6. Install each candidate package in a disposable environment.
-7. Run a clean `lfs-linux install` without copying an existing prefix.
-8. Run `lfs-linux doctor`.
-9. Run a cold GUI launch on the project display.
-10. Confirm DXVK, Vulkan device, audio stream, and clean exit.
-11. Remove the package and confirm user-owned state remains unchanged.
-12. Publish only audited wrapper artifacts.
+2. Run `make package-check`; its exact direct-package allowlist must reject every unexpected file or symlink.
+3. Build a staged filesystem with `make DESTDIR="$PWD/pkgroot" install`.
+4. Run `make deb-check` in clean Ubuntu 24.04 and Debian 13 containers.
+5. Validate the desktop file and AppStream metadata.
+6. Build the AUR package from a real signed or immutable project tag.
+7. Install each candidate package in a disposable environment.
+8. Run a clean `lfs-linux install` without copying an existing prefix.
+9. Run `lfs-linux doctor`.
+10. Run a cold GUI launch on the project display.
+11. Confirm DXVK, Vulkan device, audio stream, and clean exit.
+12. Remove the package and confirm user-owned state remains unchanged.
+13. Publish only audited wrapper artifacts.
 
 ## Upstream pin update
 
@@ -63,7 +64,7 @@ Normal package installation and removal must never download, embed, replace, or 
 
 The AUR recipe uses the deterministic archive created by `make release-archive`, not GitHub's generated source snapshot. Set `VERSION` to a new, unreleased value first: the builder refuses to reuse an archive name whose matching tag already points to another commit. `LFS_LINUX_ALLOW_POST_RELEASE_ARCHIVE=1` is reserved for deterministic test snapshots and must not be used for publication.
 
-1. Run `make release-archive` twice and compare SHA-256 digests.
+1. Run `make release-archive` twice under different timezone, umask, and checkout-mode conditions and compare SHA-256 digests. The source-boundary scanner must reject unapproved binary/archive magic, payload extensions, special entries, escaping links, or a selected tree of 4 MiB or more; the compressed archive must remain below 2 MiB.
 2. Confirm the digest equals `packaging/aur/PKGBUILD`.
 3. Upload that exact archive as `live-for-speed-linux-<version>.tar.gz` on the matching GitHub release.
 4. Run `makepkg --verifysource`.
