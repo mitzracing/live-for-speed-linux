@@ -41,6 +41,14 @@ readonly STATE_SENTINEL="$STATE_ROOT/.managed-by-lfs-linux"
 readonly GAME_BACKUP="$STATE_ROOT/.lfs-game-backup"
 readonly DXVK_OVERRIDE='native,builtin'
 readonly WINE_DLL_OVERRIDES="mscoree,mshtml=;d3d11=$DXVK_OVERRIDE;dxgi=$DXVK_OVERRIDE"
+readonly -a PLAYER_OWNED_GAME_FILES=(
+  cfg.txt interface_cfg.txt card_cfg.txt deb.log deb_old.log guest.txt
+)
+readonly -a PLAYER_OWNED_GAME_DIRS=(
+  cache mods data/colours data/grids data/layout data/knw data/misc data/move
+  data/mpr data/raf data/script data/setups data/settings data/shots data/skins
+  data/skins_x data/skins_y data/spr data/training data/views
+)
 
 WINE_BIN=''
 WINE_SERVER=''
@@ -277,14 +285,14 @@ active_game_marker_is_valid() {
 }
 
 game_path_is_player_owned() {
-  case "$1" in
-    cfg.txt|interface_cfg.txt|card_cfg.txt|deb.log|deb_old.log|guest.txt|cache/*|mods/*|data/colours/*|data/grids/*|data/layout/*|data/knw/*|data/misc/*|data/move/*|data/mpr/*|data/raf/*|data/script/*|data/setups/*|data/settings/*|data/shots/*|data/skins/*|data/skins_x/*|data/skins_y/*|data/spr/*|data/training/*|data/views/*)
-      return 0
-      ;;
-    *)
-      return 1
-      ;;
-  esac
+  local relative="$1" owned
+  for owned in "${PLAYER_OWNED_GAME_FILES[@]}"; do
+    [[ "$relative" == "$owned" ]] && return 0
+  done
+  for owned in "${PLAYER_OWNED_GAME_DIRS[@]}"; do
+    [[ "$relative" == "$owned/"* ]] && return 0
+  done
+  return 1
 }
 
 write_game_inventory() {
@@ -1118,6 +1126,27 @@ merge_preserved_game_files() {
   fi
 }
 
+copy_complete_player_owned_game_paths() {
+  local existing="$1" staging="$2" relative source destination unsupported preserved=0
+  for relative in "${PLAYER_OWNED_GAME_FILES[@]}" "${PLAYER_OWNED_GAME_DIRS[@]}"; do
+    source="$existing/$relative"
+    [[ -e "$source" || -L "$source" ]] || continue
+    if [[ ! -f "$source" && ! -d "$source" && ! -L "$source" ]]; then
+      die "unsupported player-owned game entry during migration: $relative"
+    fi
+    if [[ -d "$source" && ! -L "$source" ]]; then
+      unsupported="$(find -P "$source" ! -type d ! -type f ! -type l -print -quit)"
+      [[ -z "$unsupported" ]] || die "unsupported player-owned game entry during migration: ${unsupported#"$existing/"}"
+    fi
+    destination="$staging/$relative"
+    rm -rf --one-file-system -- "$destination"
+    mkdir -p "$(dirname "$destination")"
+    cp -a -- "$source" "$destination" || die "could not preserve player-owned game path: $relative"
+    preserved=$((preserved + 1))
+  done
+  note "Preserved complete player-owned paths from the verified local update ($preserved roots)"
+}
+
 recover_interrupted_game_swap() {
   [[ -d "$GAME_BACKUP" ]] || return 0
   if [[ ! -e "$GAME_DIR" ]]; then
@@ -1136,8 +1165,12 @@ recover_interrupted_game_swap() {
 }
 
 replace_game_tree() {
-  local staging="$1" source_manifest="$2" source_seed_manifest="$3"
-  merge_preserved_game_files "$GAME_DIR" "$staging" "$source_manifest" "$source_seed_manifest"
+  local staging="$1" source_manifest="$2" source_seed_manifest="$3" preservation_mode="${4:-seed-diff}"
+  if [[ "$preservation_mode" == 'complete-player-paths' ]]; then
+    copy_complete_player_owned_game_paths "$GAME_DIR" "$staging"
+  else
+    merge_preserved_game_files "$GAME_DIR" "$staging" "$source_manifest" "$source_seed_manifest"
+  fi
   rm -rf --one-file-system "$GAME_BACKUP"
   mv "$GAME_DIR" "$GAME_BACKUP"
   if ! mv "$staging" "$GAME_DIR"; then
@@ -1166,17 +1199,23 @@ remove_local_game_manifests_except() {
 
 install_game() {
   local unpack="$STATE_ROOT/.lfs-unpack.$$" actual_size actual_checksum source_manifest source_seed_manifest extract_log="$LOG_DIR/lfs-extract.log"
+  local preservation_mode='seed-diff'
   recover_interrupted_game_swap
   if [[ "$(marker_value LFS_BASELINE_KIND 2>/dev/null || true)" == 'game-update' ]]; then
     load_active_game_baseline || die 'recorded in-game update metadata is missing or changed'
     active_game_tree_is_complete || die 'recorded in-game update baseline drifted; no files changed'
-    note "Verified locally recorded LFS $ACTIVE_LFS_VERSION in-game update; preserving game-owned data"
-    return
+    if local_game_update_requires_upgrade; then
+      preservation_mode='complete-player-paths'
+      note "Verified locally recorded LFS $ACTIVE_LFS_VERSION as the approved catch-up predecessor"
+    else
+      note "Verified locally recorded LFS $ACTIVE_LFS_VERSION in-game update; preserving game-owned data"
+      return
+    fi
   fi
   use_packaged_game_baseline
   source_manifest="$LFS_STOCK_MANIFEST"
   source_seed_manifest="$LFS_STOCK_SEED_MANIFEST"
-  if [[ -f "$GAME_EXE" ]]; then
+  if [[ "$preservation_mode" != 'complete-player-paths' && -f "$GAME_EXE" ]]; then
     actual_size="$(stat -c %s "$GAME_EXE")"
     actual_checksum="$(sha256_of "$GAME_EXE")" || die 'existing LFS.exe hashing failed or exceeded 1800 seconds'
     if [[ "$actual_size" == "$LFS_EXE_SIZE" && "$actual_checksum" == "$LFS_EXE_SHA256" ]]; then
@@ -1215,7 +1254,7 @@ install_game() {
     mkdir -p "$(dirname "$GAME_DIR")"
     mv "$unpack" "$GAME_DIR"
   else
-    replace_game_tree "$unpack" "$source_manifest" "$source_seed_manifest"
+    replace_game_tree "$unpack" "$source_manifest" "$source_seed_manifest" "$preservation_mode"
   fi
   ACTIVE_UNPACK=''
   trap - EXIT
