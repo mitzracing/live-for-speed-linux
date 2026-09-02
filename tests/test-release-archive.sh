@@ -196,6 +196,28 @@ set -e
 [[ "$package_directory_status" -ne 0 ]]
 grep -Fq 'package directory inventory differs from the exact allowlist' "$TMP_ROOT/rejected-package-directory.out"
 rmdir "$TMP_ROOT/pkgroot/unexpected-empty-directory"
+mv "$TMP_ROOT/pkgroot/usr/bin/lfs-linux" "$TMP_ROOT/lfs-linux.expected-regular"
+ln -s ../lib/lfs-linux/lfs-linux-core "$TMP_ROOT/pkgroot/usr/bin/lfs-linux"
+set +e
+"$archive_dir/tests/test-package-boundary.sh" "$TMP_ROOT/pkgroot" >"$TMP_ROOT/rejected-package-file-symlink.out" 2>&1
+package_file_symlink_status=$?
+set -e
+[[ "$package_file_symlink_status" -ne 0 ]]
+grep -Fq 'package regular-file inventory differs from the exact allowlist' \
+  "$TMP_ROOT/rejected-package-file-symlink.out"
+rm "$TMP_ROOT/pkgroot/usr/bin/lfs-linux"
+mv "$TMP_ROOT/lfs-linux.expected-regular" "$TMP_ROOT/pkgroot/usr/bin/lfs-linux"
+rm "$TMP_ROOT/pkgroot/usr/share/man/man1/lfs-linux-desktop.1"
+ln -s wrong-manual-target "$TMP_ROOT/pkgroot/usr/share/man/man1/lfs-linux-desktop.1"
+set +e
+"$archive_dir/tests/test-package-boundary.sh" "$TMP_ROOT/pkgroot" >"$TMP_ROOT/rejected-package-link-target.out" 2>&1
+package_link_target_status=$?
+set -e
+[[ "$package_link_target_status" -ne 0 ]]
+grep -Fq 'package symlink inventory differs from the exact allowlist' \
+  "$TMP_ROOT/rejected-package-link-target.out"
+rm "$TMP_ROOT/pkgroot/usr/share/man/man1/lfs-linux-desktop.1"
+ln -s lfs-linux.1 "$TMP_ROOT/pkgroot/usr/share/man/man1/lfs-linux-desktop.1"
 [[ "$(sha256sum "$TMP_ROOT/pkgroot/usr/share/lfs-linux/arch-wine-peter-jung.pgp" | awk '{print $1}')" == 'c3186f2f7bdbe1cd02002dc84bce781580e4edc49fdc3ad848096af6768f3a89' ]]
 if command -v dpkg-deb >/dev/null 2>&1; then
   "$archive_dir/tests/test-debian-package.sh" >/dev/null
