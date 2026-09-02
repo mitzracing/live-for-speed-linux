@@ -63,6 +63,9 @@ WINE_ROOT=''
 WINE_LIB_DIR=''
 ACTIVE_UNPACK=''
 ACTIVE_RECOVERY_SNAPSHOT=''
+ACTIVE_PREDECESSOR_QUARANTINE=''
+QUARANTINE_PREDECESSOR_MANIFEST=''
+QUARANTINE_SOURCE_VERSION=''
 ACTIVE_BASELINE_KIND='package'
 ACTIVE_LFS_VERSION="$LFS_VERSION"
 ACTIVE_LFS_EXE_SIZE="$LFS_EXE_SIZE"
@@ -74,6 +77,14 @@ ACTIVE_LFS_STOCK_MANIFEST_ENTRIES="$LFS_STOCK_MANIFEST_ENTRIES"
 
 cleanup_active_unpack() {
   [[ -z "$ACTIVE_UNPACK" ]] || rm -rf --one-file-system "$ACTIVE_UNPACK"
+}
+
+cleanup_install_transaction() {
+  cleanup_active_unpack
+  if [[ "$ACTIVE_PREDECESSOR_QUARANTINE" == 'prepared' ]]; then
+    rollback_predecessor_quarantine ||
+      warn "could not fully restore predecessor quarantine; retained at $GAME_PREDECESSOR_QUARANTINE"
+  fi
 }
 
 cleanup_active_recovery_snapshot() {
@@ -1182,10 +1193,124 @@ cleanup_empty_predecessor_quarantine() {
   find "$GAME_PREDECESSOR_QUARANTINE" -depth -type d -empty -delete 2>/dev/null || true
 }
 
+predecessor_only_manifest_entry() {
+  local relative="$1"
+  awk -F '\t' -v wanted="$relative" '
+    NR == FNR {
+      if ($1 == "f" || $1 == "l") target[$4] = 1
+      next
+    }
+    ($1 == "f" || $1 == "l") && $4 == wanted && !($4 in target) {
+      print
+      found++
+    }
+    END { exit found == 1 ? 0 : 1 }
+  ' "$LFS_STOCK_MANIFEST" "$QUARANTINE_PREDECESSOR_MANIFEST"
+}
+
+rollback_predecessor_quarantine() {
+  local path relative entry type expected expected_size source status=0
+  if [[ ! -e "$GAME_PREDECESSOR_QUARANTINE" && ! -L "$GAME_PREDECESSOR_QUARANTINE" ]]; then
+    ACTIVE_PREDECESSOR_QUARANTINE=''
+    return 0
+  fi
+  if [[ ! -d "$GAME_PREDECESSOR_QUARANTINE" || -L "$GAME_PREDECESSOR_QUARANTINE" ]]; then
+    return 1
+  fi
+  while IFS= read -r -d '' path; do
+    [[ -d "$path" && ! -L "$path" ]] && continue
+    relative="${path#"$GAME_PREDECESSOR_QUARANTINE/"}"
+    if [[ ! -f "$path" && ! -L "$path" ]]; then
+      status=1
+      continue
+    fi
+    entry="$(predecessor_only_manifest_entry "$relative" 2>/dev/null)" || { status=1; continue; }
+    IFS=$'\t' read -r type expected expected_size relative <<<"$entry"
+    upgrade_game_path_is_player_owned "$relative" && { status=1; continue; }
+    source="$GAME_DIR/$relative"
+    if [[ -e "$source" || -L "$source" ]]; then
+      status=1
+      continue
+    fi
+    mkdir -p "$(dirname "$source")"
+    mv -- "$path" "$source" || status=1
+  done < <(find -P "$GAME_PREDECESSOR_QUARANTINE" -mindepth 1 -depth -print0)
+  cleanup_empty_predecessor_quarantine
+  if [[ -e "$GAME_PREDECESSOR_QUARANTINE" || -L "$GAME_PREDECESSOR_QUARANTINE" ]]; then
+    status=1
+  else
+    ACTIVE_PREDECESSOR_QUARANTINE=''
+    QUARANTINE_PREDECESSOR_MANIFEST=''
+    QUARANTINE_SOURCE_VERSION=''
+  fi
+  return "$status"
+}
+
+finalize_predecessor_quarantine() {
+  local path relative entry type expected expected_size fingerprint destination moved=0
+  local conflict_dir="$STATE_ROOT/migration-conflicts/from-$QUARANTINE_SOURCE_VERSION-to-$LFS_VERSION"
+  if [[ ! -e "$GAME_PREDECESSOR_QUARANTINE" && ! -L "$GAME_PREDECESSOR_QUARANTINE" ]]; then
+    ACTIVE_PREDECESSOR_QUARANTINE=''
+    return 0
+  fi
+  [[ -d "$GAME_PREDECESSOR_QUARANTINE" && ! -L "$GAME_PREDECESSOR_QUARANTINE" ]] ||
+    die "unsafe committed predecessor quarantine retained at $GAME_PREDECESSOR_QUARANTINE"
+  while IFS= read -r -d '' path; do
+    [[ -d "$path" && ! -L "$path" ]] && continue
+    relative="${path#"$GAME_PREDECESSOR_QUARANTINE/"}"
+    entry="$(predecessor_only_manifest_entry "$relative" 2>/dev/null)" ||
+      die "unrecognized committed predecessor quarantine content retained at $GAME_PREDECESSOR_QUARANTINE"
+    IFS=$'\t' read -r type expected expected_size relative <<<"$entry"
+    path_matches_manifest_entry "$path" "$type" "$expected" "$expected_size" ||
+      die "committed predecessor quarantine changed; retained at $GAME_PREDECESSOR_QUARANTINE"
+    if [[ "$type" == 'f' ]]; then
+      fingerprint="$expected"
+    else
+      fingerprint="$(printf 'link:%s' "$expected" | sha256sum | awk '{print $1}')"
+    fi
+    destination="$conflict_dir/$relative.$fingerprint.pre-upgrade"
+    mkdir -p "$(dirname "$destination")"
+    if [[ -e "$destination" || -L "$destination" ]]; then
+      path_matches_manifest_entry "$destination" "$type" "$expected" "$expected_size" ||
+        die "preserved predecessor-only path changed: $destination"
+      rm -f -- "$path"
+    else
+      mv -- "$path" "$destination" ||
+        die "could not preserve predecessor-only protected path: $relative"
+    fi
+    moved=$((moved + 1))
+  done < <(find -P "$GAME_PREDECESSOR_QUARANTINE" -mindepth 1 -depth -print0)
+  cleanup_empty_predecessor_quarantine
+  [[ ! -e "$GAME_PREDECESSOR_QUARANTINE" && ! -L "$GAME_PREDECESSOR_QUARANTINE" ]] ||
+    die "committed predecessor quarantine content retained at $GAME_PREDECESSOR_QUARANTINE"
+  ACTIVE_PREDECESSOR_QUARANTINE=''
+  QUARANTINE_PREDECESSOR_MANIFEST=''
+  QUARANTINE_SOURCE_VERSION=''
+  note "Preserved $moved predecessor-only protected path(s) under $conflict_dir"
+}
+
+recover_committed_predecessor_quarantine() {
+  local destination
+  [[ -e "$GAME_PREDECESSOR_QUARANTINE" || -L "$GAME_PREDECESSOR_QUARANTINE" ]] || return 0
+  [[ "$(marker_value LFS_BASELINE_KIND 2>/dev/null || true)" == 'package' &&
+     "$(marker_value LFS_VERSION 2>/dev/null || true)" == "$LFS_VERSION" &&
+     "$(marker_value LFS_EXE_SHA256 2>/dev/null || true)" == "$LFS_EXE_SHA256" ]] || return 0
+  [[ -d "$GAME_PREDECESSOR_QUARANTINE" && ! -L "$GAME_PREDECESSOR_QUARANTINE" ]] ||
+    die "unsafe committed predecessor quarantine retained at $GAME_PREDECESSOR_QUARANTINE"
+  destination="$STATE_ROOT/migration-conflicts/recovered-predecessor-quarantine"
+  [[ ! -e "$destination" && ! -L "$destination" ]] ||
+    die "committed predecessor quarantine recovery destination already exists: $destination"
+  mkdir -p "$(dirname "$destination")"
+  mv -- "$GAME_PREDECESSOR_QUARANTINE" "$destination" ||
+    die "could not retain committed predecessor quarantine at $destination"
+  note "Retained committed predecessor quarantine after interrupted cleanup at $destination"
+}
+
 quarantine_audited_predecessor_only_entries() {
-  local type expected expected_size relative source quarantine_path fingerprint destination mode
-  local moved=0
-  local conflict_dir="$STATE_ROOT/migration-conflicts/from-$LFS_LOCAL_UPDATE_UPGRADE_FROM_VERSION-to-$LFS_VERSION"
+  local type expected expected_size relative source quarantine_path mode path moved=0
+  local -A expected_paths=()
+  QUARANTINE_PREDECESSOR_MANIFEST="$ACTIVE_LFS_STOCK_MANIFEST"
+  QUARANTINE_SOURCE_VERSION="$ACTIVE_LFS_VERSION"
   if [[ -e "$GAME_PREDECESSOR_QUARANTINE" || -L "$GAME_PREDECESSOR_QUARANTINE" ]]; then
     [[ -d "$GAME_PREDECESSOR_QUARANTINE" && ! -L "$GAME_PREDECESSOR_QUARANTINE" ]] ||
       die "unsafe predecessor quarantine: $GAME_PREDECESSOR_QUARANTINE"
@@ -1196,20 +1321,14 @@ quarantine_audited_predecessor_only_entries() {
   else
     mkdir -m 0700 -- "$GAME_PREDECESSOR_QUARANTINE"
   fi
-  if [[ -n "${LFS_LINUX_TEST_OVERLAY_QUARANTINE_READY_FILE:-}" ]]; then
-    : >"$LFS_LINUX_TEST_OVERLAY_QUARANTINE_READY_FILE"
-  fi
-  if [[ -n "${LFS_LINUX_TEST_OVERLAY_QUARANTINE_DELAY_SECONDS:-}" ]]; then
-    [[ "$LFS_LINUX_TEST_OVERLAY_QUARANTINE_DELAY_SECONDS" =~ ^[0-9]+([.][0-9]+)?$ ]] ||
-      die 'invalid overlay quarantine test delay'
-    sleep "$LFS_LINUX_TEST_OVERLAY_QUARANTINE_DELAY_SECONDS"
-  fi
+  ACTIVE_PREDECESSOR_QUARANTINE='prepared'
   while IFS=$'\t' read -r type expected expected_size relative; do
     upgrade_game_path_is_player_owned "$relative" && continue
     [[ -n "$relative" && "$relative" != /* && "$relative" != *$'\t'* && \
        "$relative" != *$'\n'* && "$relative" != '..' && "$relative" != ../* && \
        "$relative" != */../* && "$relative" != */.. ]] ||
       die 'approved predecessor manifest contains an unsafe removable path'
+    expected_paths["$relative"]=1
     source="$GAME_DIR/$relative"
     quarantine_path="$GAME_PREDECESSOR_QUARANTINE/$relative"
     if [[ -e "$source" || -L "$source" ]]; then
@@ -1221,30 +1340,15 @@ quarantine_audited_predecessor_only_entries() {
     elif [[ ! -e "$quarantine_path" && ! -L "$quarantine_path" ]]; then
       continue
     fi
-    if ! path_matches_manifest_entry "$quarantine_path" "$type" "$expected" "$expected_size"; then
-      if [[ ! -e "$source" && ! -L "$source" ]]; then
-        mkdir -p "$(dirname "$source")"
-        mv -- "$quarantine_path" "$source" || true
-      fi
-      cleanup_empty_predecessor_quarantine
+    path_matches_manifest_entry "$quarantine_path" "$type" "$expected" "$expected_size" ||
       die "predecessor-only protected path changed before quarantine: $relative"
-    fi
-    if [[ "$type" == 'f' ]]; then
-      fingerprint="$expected"
-    else
-      fingerprint="$(printf 'link:%s' "$expected" | sha256sum | awk '{print $1}')"
-    fi
-    destination="$conflict_dir/$relative.$fingerprint.pre-upgrade"
-    mkdir -p "$(dirname "$destination")"
-    if [[ -e "$destination" || -L "$destination" ]]; then
-      path_matches_manifest_entry "$destination" "$type" "$expected" "$expected_size" ||
-        die "preserved predecessor-only path changed: $destination"
-      rm -f -- "$quarantine_path"
-    else
-      mv -- "$quarantine_path" "$destination" ||
-        die "could not preserve predecessor-only protected path: $relative"
-    fi
     moved=$((moved + 1))
+    if (( moved == 1 )) && [[ -n "${LFS_LINUX_TEST_OVERLAY_QUARANTINE_AFTER_FIRST_READY_FILE:-}" ]]; then
+      : >"$LFS_LINUX_TEST_OVERLAY_QUARANTINE_AFTER_FIRST_READY_FILE"
+      [[ "${LFS_LINUX_TEST_OVERLAY_QUARANTINE_AFTER_FIRST_DELAY_SECONDS:-}" =~ ^[0-9]+([.][0-9]+)?$ ]] ||
+        die 'invalid after-first-quarantine test delay'
+      sleep "$LFS_LINUX_TEST_OVERLAY_QUARANTINE_AFTER_FIRST_DELAY_SECONDS"
+    fi
   done < <(
     awk -F '\t' '
       NR == FNR {
@@ -1252,13 +1356,21 @@ quarantine_audited_predecessor_only_entries() {
         next
       }
       ($1 == "f" || $1 == "l") && !($4 in target) { print }
-    ' "$LFS_STOCK_MANIFEST" "$ACTIVE_LFS_STOCK_MANIFEST"
+    ' "$LFS_STOCK_MANIFEST" "$QUARANTINE_PREDECESSOR_MANIFEST"
   )
-  cleanup_empty_predecessor_quarantine
-  if [[ -e "$GAME_PREDECESSOR_QUARANTINE" || -L "$GAME_PREDECESSOR_QUARANTINE" ]]; then
-    die "unrecognized predecessor quarantine content retained at $GAME_PREDECESSOR_QUARANTINE"
+  while IFS= read -r -d '' path; do
+    [[ -d "$path" && ! -L "$path" ]] && continue
+    relative="${path#"$GAME_PREDECESSOR_QUARANTINE/"}"
+    [[ ( -f "$path" || -L "$path" ) && -n "${expected_paths[$relative]+present}" ]] ||
+      die "unrecognized predecessor quarantine content retained at $GAME_PREDECESSOR_QUARANTINE"
+  done < <(find -P "$GAME_PREDECESSOR_QUARANTINE" -mindepth 1 -depth -print0)
+  if (( moved == 0 )); then
+    cleanup_empty_predecessor_quarantine
+    ACTIVE_PREDECESSOR_QUARANTINE=''
+    QUARANTINE_PREDECESSOR_MANIFEST=''
+    QUARANTINE_SOURCE_VERSION=''
   fi
-  note "Preserved $moved predecessor-only protected path(s) under $conflict_dir"
+  note "Quarantined $moved predecessor-only protected path(s) pending package marker commit"
 }
 
 merge_preserved_game_files() {
@@ -1987,14 +2099,20 @@ install_all() {
   if prefix_is_running; then
     die 'private Wine processes are running; run lfs-linux stop before install'
   fi
+  recover_committed_predecessor_quarantine
   recover_interrupted_game_swap
   validate_existing_game_source
   ensure_wine_runtime
   require_wine
   init_prefix
+  trap cleanup_install_transaction EXIT
   install_game
   install_dxvk
   write_marker
+  if [[ "$ACTIVE_PREDECESSOR_QUARANTINE" == 'prepared' ]]; then
+    ACTIVE_PREDECESSOR_QUARANTINE='committed'
+    finalize_predecessor_quarantine
+  fi
   if [[ "$ACTIVE_BASELINE_KIND" == 'game-update' ]]; then
     remove_local_game_manifests_except "$ACTIVE_LFS_STOCK_MANIFEST" ||
       warn 'kept an obsolete local game-update manifest after marker commit'
@@ -2003,6 +2121,7 @@ install_all() {
       warn 'kept an obsolete local game-update manifest after package marker commit'
   fi
   rm -f "$LAUNCH_SESSION"
+  trap - EXIT
   note 'Installation complete. Run: lfs-linux launch'
 }
 
