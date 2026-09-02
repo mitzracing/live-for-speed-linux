@@ -35,6 +35,11 @@ expected_inventory="$TMP_ROOT/expected.txt"
 actual_inventory="$TMP_ROOT/actual.txt"
 expected_directories="$TMP_ROOT/expected-directories.txt"
 actual_directories="$TMP_ROOT/actual-directories.txt"
+expected_regular_files="$TMP_ROOT/expected-regular-files.txt"
+actual_regular_files="$TMP_ROOT/actual-regular-files.txt"
+expected_symlinks="$TMP_ROOT/expected-symlinks.txt"
+actual_symlinks="$TMP_ROOT/actual-symlinks.txt"
+symlink_paths="$TMP_ROOT/symlink-paths.txt"
 if [[ -f "$ROOT/usr/share/doc/live-for-speed-linux/copyright" ]]; then
   cat >"$expected_inventory" <<'EOF'
 usr/bin/lfs-linux
@@ -81,6 +86,7 @@ usr/share/man
 usr/share/man/man1
 usr/share/metainfo
 EOF
+  printf '%s\t%s\n' 'usr/share/man/man1/lfs-linux-desktop.1.gz' 'lfs-linux.1.gz' >"$expected_symlinks"
 else
   cat >"$expected_inventory" <<'EOF'
 usr/bin/lfs-linux
@@ -125,10 +131,25 @@ usr/share/man
 usr/share/man/man1
 usr/share/metainfo
 EOF
+  printf '%s\t%s\n' 'usr/share/man/man1/lfs-linux-desktop.1' 'lfs-linux.1' >"$expected_symlinks"
 fi
 find "$ROOT" \( -type f -o -type l \) -printf '%P\n' | LC_ALL=C sort >"$actual_inventory"
 cmp "$expected_inventory" "$actual_inventory" || {
   printf 'package file/symlink inventory differs from the exact allowlist\n' >&2
+  exit 1
+}
+cut -f 1 "$expected_symlinks" >"$symlink_paths"
+grep -Fvx -f "$symlink_paths" "$expected_inventory" >"$expected_regular_files"
+find -P "$ROOT" -type f -printf '%P\n' | LC_ALL=C sort >"$actual_regular_files"
+cmp "$expected_regular_files" "$actual_regular_files" || {
+  printf 'package regular-file inventory differs from the exact allowlist\n' >&2
+  exit 1
+}
+while IFS= read -r -d '' path; do
+  printf '%s\t%s\n' "${path#"$ROOT/"}" "$(readlink -- "$path")"
+done < <(find -P "$ROOT" -type l -print0) | LC_ALL=C sort >"$actual_symlinks"
+cmp "$expected_symlinks" "$actual_symlinks" || {
+  printf 'package symlink inventory differs from the exact allowlist\n' >&2
   exit 1
 }
 find -P "$ROOT" -mindepth 1 -type d -printf '%P\n' | LC_ALL=C sort >"$actual_directories"
