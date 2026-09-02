@@ -25,8 +25,16 @@ for path in \
   [[ -e "$ROOT/$path" ]] || { printf 'missing package file: %s\n' "$path" >&2; exit 1; }
 done
 
+special_entry="$(find -P "$ROOT" -mindepth 1 ! -type d ! -type f ! -type l -print -quit)"
+[[ -z "$special_entry" ]] || {
+  printf 'special filesystem entry in package: %s\n' "${special_entry#"$ROOT/"}" >&2
+  exit 1
+}
+
 expected_inventory="$TMP_ROOT/expected.txt"
 actual_inventory="$TMP_ROOT/actual.txt"
+expected_directories="$TMP_ROOT/expected-directories.txt"
+actual_directories="$TMP_ROOT/actual-directories.txt"
 if [[ -f "$ROOT/usr/share/doc/live-for-speed-linux/copyright" ]]; then
   cat >"$expected_inventory" <<'EOF'
 usr/bin/lfs-linux
@@ -53,6 +61,26 @@ usr/share/man/man1/lfs-linux-desktop.1.gz
 usr/share/man/man1/lfs-linux.1.gz
 usr/share/metainfo/io.github.mitzracing.live_for_speed_linux.metainfo.xml
 EOF
+  cat >"$expected_directories" <<'EOF'
+usr
+usr/bin
+usr/lib
+usr/lib/lfs-linux
+usr/share
+usr/share/applications
+usr/share/doc
+usr/share/doc/live-for-speed-linux
+usr/share/icons
+usr/share/icons/hicolor
+usr/share/icons/hicolor/scalable
+usr/share/icons/hicolor/scalable/apps
+usr/share/lfs-linux
+usr/share/lintian
+usr/share/lintian/overrides
+usr/share/man
+usr/share/man/man1
+usr/share/metainfo
+EOF
 else
   cat >"$expected_inventory" <<'EOF'
 usr/bin/lfs-linux
@@ -77,10 +105,35 @@ usr/share/man/man1/lfs-linux-desktop.1
 usr/share/man/man1/lfs-linux.1
 usr/share/metainfo/io.github.mitzracing.live_for_speed_linux.metainfo.xml
 EOF
+  cat >"$expected_directories" <<'EOF'
+usr
+usr/bin
+usr/lib
+usr/lib/lfs-linux
+usr/share
+usr/share/applications
+usr/share/doc
+usr/share/doc/live-for-speed-linux
+usr/share/icons
+usr/share/icons/hicolor
+usr/share/icons/hicolor/scalable
+usr/share/icons/hicolor/scalable/apps
+usr/share/lfs-linux
+usr/share/licenses
+usr/share/licenses/live-for-speed-linux
+usr/share/man
+usr/share/man/man1
+usr/share/metainfo
+EOF
 fi
 find "$ROOT" \( -type f -o -type l \) -printf '%P\n' | LC_ALL=C sort >"$actual_inventory"
 cmp "$expected_inventory" "$actual_inventory" || {
   printf 'package file/symlink inventory differs from the exact allowlist\n' >&2
+  exit 1
+}
+find -P "$ROOT" -mindepth 1 -type d -printf '%P\n' | LC_ALL=C sort >"$actual_directories"
+cmp "$expected_directories" "$actual_directories" || {
+  printf 'package directory inventory differs from the exact allowlist\n' >&2
   exit 1
 }
 
