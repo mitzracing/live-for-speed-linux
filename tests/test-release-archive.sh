@@ -92,14 +92,12 @@ if git -C "$ROOT_DIR" rev-parse --git-dir >/dev/null 2>&1; then
   find "$mode_source_two" -type d -exec chmod 0777 {} +
   find "$mode_source_two" -type f -exec chmod a+rw {} +
   (
-    export TZ=UTC
     umask 077
-    bash "$mode_source_one/scripts/build-release-archive.sh" "$TMP_ROOT/mode-one" >/dev/null
+    TZ=UTC bash "$mode_source_one/scripts/build-release-archive.sh" "$TMP_ROOT/mode-one" >/dev/null
   )
   (
-    export TZ=Pacific/Kiritimati
     umask 002
-    bash "$mode_source_two/scripts/build-release-archive.sh" "$TMP_ROOT/mode-two" >/dev/null
+    TZ=Pacific/Kiritimati bash "$mode_source_two/scripts/build-release-archive.sh" "$TMP_ROOT/mode-two" >/dev/null
   )
   mode_archive_one="$(find "$TMP_ROOT/mode-one" -type f -name '*.tar.gz' -print -quit)"
   mode_archive_two="$(find "$TMP_ROOT/mode-two" -type f -name '*.tar.gz' -print -quit)"
