@@ -39,6 +39,7 @@ readonly LEGACY_LOCAL_GAME_MANIFEST="$STATE_ROOT/game-update.manifest"
 readonly LAUNCH_SESSION="$STATE_ROOT/launch-session.env"
 readonly STATE_SENTINEL="$STATE_ROOT/.managed-by-lfs-linux"
 readonly GAME_BACKUP="$STATE_ROOT/.lfs-game-backup"
+readonly GAME_PREDECESSOR_QUARANTINE="$STATE_ROOT/.lfs-predecessor-quarantine"
 readonly DXVK_OVERRIDE='native,builtin'
 readonly WINE_DLL_OVERRIDES="mscoree,mshtml=;d3d11=$DXVK_OVERRIDE;dxgi=$DXVK_OVERRIDE"
 readonly -a PLAYER_OWNED_GAME_FILES=(
@@ -1160,29 +1161,103 @@ game_tree_matches_audited_target_overlay() {
   return "$status"
 }
 
-remove_audited_predecessor_only_entries() {
-  local relative path
-  while IFS= read -r relative; do
+path_matches_manifest_entry() {
+  local path="$1" type="$2" expected="$3" expected_size="$4"
+  case "$type" in
+    f)
+      [[ -f "$path" && ! -L "$path" ]] || return 1
+      [[ "$(stat -c %s "$path")" == "$expected_size" ]] || return 1
+      [[ "$(sha256_of "$path")" == "$expected" ]]
+      ;;
+    l)
+      [[ -L "$path" && "$(readlink -- "$path")" == "$expected" ]]
+      ;;
+    *) return 1 ;;
+  esac
+}
+
+cleanup_empty_predecessor_quarantine() {
+  [[ -d "$GAME_PREDECESSOR_QUARANTINE" && ! -L "$GAME_PREDECESSOR_QUARANTINE" ]] || return 0
+  find "$GAME_PREDECESSOR_QUARANTINE" -depth -type d -empty -delete 2>/dev/null || true
+}
+
+quarantine_audited_predecessor_only_entries() {
+  local type expected expected_size relative source quarantine_path fingerprint destination mode
+  local moved=0
+  local conflict_dir="$STATE_ROOT/migration-conflicts/from-$LFS_LOCAL_UPDATE_UPGRADE_FROM_VERSION-to-$LFS_VERSION"
+  if [[ -e "$GAME_PREDECESSOR_QUARANTINE" || -L "$GAME_PREDECESSOR_QUARANTINE" ]]; then
+    [[ -d "$GAME_PREDECESSOR_QUARANTINE" && ! -L "$GAME_PREDECESSOR_QUARANTINE" ]] ||
+      die "unsafe predecessor quarantine: $GAME_PREDECESSOR_QUARANTINE"
+    [[ "$(stat -c %u "$GAME_PREDECESSOR_QUARANTINE")" == "$UID" ]] ||
+      die "predecessor quarantine is not owned by the current user: $GAME_PREDECESSOR_QUARANTINE"
+    mode="$(stat -c %a "$GAME_PREDECESSOR_QUARANTINE")"
+    (( (8#$mode & 077) == 0 )) || die "predecessor quarantine is accessible by other users: $GAME_PREDECESSOR_QUARANTINE"
+  else
+    mkdir -m 0700 -- "$GAME_PREDECESSOR_QUARANTINE"
+  fi
+  if [[ -n "${LFS_LINUX_TEST_OVERLAY_QUARANTINE_READY_FILE:-}" ]]; then
+    : >"$LFS_LINUX_TEST_OVERLAY_QUARANTINE_READY_FILE"
+  fi
+  if [[ -n "${LFS_LINUX_TEST_OVERLAY_QUARANTINE_DELAY_SECONDS:-}" ]]; then
+    [[ "$LFS_LINUX_TEST_OVERLAY_QUARANTINE_DELAY_SECONDS" =~ ^[0-9]+([.][0-9]+)?$ ]] ||
+      die 'invalid overlay quarantine test delay'
+    sleep "$LFS_LINUX_TEST_OVERLAY_QUARANTINE_DELAY_SECONDS"
+  fi
+  while IFS=$'\t' read -r type expected expected_size relative; do
     upgrade_game_path_is_player_owned "$relative" && continue
     [[ -n "$relative" && "$relative" != /* && "$relative" != *$'\t'* && \
        "$relative" != *$'\n'* && "$relative" != '..' && "$relative" != ../* && \
        "$relative" != */../* && "$relative" != */.. ]] ||
       die 'approved predecessor manifest contains an unsafe removable path'
-    path="$GAME_DIR/$relative"
-    if [[ -f "$path" || -L "$path" ]]; then
-      rm -f -- "$path" || die "could not remove predecessor-only protected path: $relative"
-    elif [[ -e "$path" ]]; then
-      die "predecessor-only protected path changed type: $relative"
+    source="$GAME_DIR/$relative"
+    quarantine_path="$GAME_PREDECESSOR_QUARANTINE/$relative"
+    if [[ -e "$source" || -L "$source" ]]; then
+      [[ ! -e "$quarantine_path" && ! -L "$quarantine_path" ]] ||
+        die "both game and quarantine contain predecessor-only path: $relative"
+      [[ -f "$source" || -L "$source" ]] || die "predecessor-only protected path changed type: $relative"
+      mkdir -p "$(dirname "$quarantine_path")"
+      mv -- "$source" "$quarantine_path" || die "could not quarantine predecessor-only protected path: $relative"
+    elif [[ ! -e "$quarantine_path" && ! -L "$quarantine_path" ]]; then
+      continue
     fi
+    if ! path_matches_manifest_entry "$quarantine_path" "$type" "$expected" "$expected_size"; then
+      if [[ ! -e "$source" && ! -L "$source" ]]; then
+        mkdir -p "$(dirname "$source")"
+        mv -- "$quarantine_path" "$source" || true
+      fi
+      cleanup_empty_predecessor_quarantine
+      die "predecessor-only protected path changed before quarantine: $relative"
+    fi
+    if [[ "$type" == 'f' ]]; then
+      fingerprint="$expected"
+    else
+      fingerprint="$(printf 'link:%s' "$expected" | sha256sum | awk '{print $1}')"
+    fi
+    destination="$conflict_dir/$relative.$fingerprint.pre-upgrade"
+    mkdir -p "$(dirname "$destination")"
+    if [[ -e "$destination" || -L "$destination" ]]; then
+      path_matches_manifest_entry "$destination" "$type" "$expected" "$expected_size" ||
+        die "preserved predecessor-only path changed: $destination"
+      rm -f -- "$quarantine_path"
+    else
+      mv -- "$quarantine_path" "$destination" ||
+        die "could not preserve predecessor-only protected path: $relative"
+    fi
+    moved=$((moved + 1))
   done < <(
     awk -F '\t' '
       NR == FNR {
         if ($1 == "f" || $1 == "l") target[$4] = 1
         next
       }
-      ($1 == "f" || $1 == "l") && !($4 in target) { print $4 }
+      ($1 == "f" || $1 == "l") && !($4 in target) { print }
     ' "$LFS_STOCK_MANIFEST" "$ACTIVE_LFS_STOCK_MANIFEST"
   )
+  cleanup_empty_predecessor_quarantine
+  if [[ -e "$GAME_PREDECESSOR_QUARANTINE" || -L "$GAME_PREDECESSOR_QUARANTINE" ]]; then
+    die "unrecognized predecessor quarantine content retained at $GAME_PREDECESSOR_QUARANTINE"
+  fi
+  note "Preserved $moved predecessor-only protected path(s) under $conflict_dir"
 }
 
 merge_preserved_game_files() {
@@ -1394,7 +1469,7 @@ install_game() {
       fi
     elif local_game_update_requires_upgrade && game_tree_matches_audited_target_overlay; then
       note "Recognized exact audited $LFS_VERSION overlay on the verified $ACTIVE_LFS_VERSION baseline"
-      remove_audited_predecessor_only_entries
+      quarantine_audited_predecessor_only_entries
       game_tree_matches_audited_target_overlay || die 'audited target overlay changed during normalization; no player-owned files changed'
       game_tree_is_complete || die 'normalized audited target overlay failed complete target verification; no player-owned files changed'
       use_packaged_game_baseline
