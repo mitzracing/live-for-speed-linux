@@ -123,13 +123,25 @@ if [[ "${*: -1}" == '--wait' ]]; then
 fi
 exec /usr/bin/timeout "${args[@]}"
 EOF
-chmod +x "$fake_wine" "$fake_wine_root/usr/bin/wineserver" "$fake_bin/restart-delay" "$fake_bin/timeout"
+cat >"$fake_bin/gpgv" <<'EOF'
+#!/usr/bin/env bash
+printf '%s\n' '[GNUPG:] VALIDSIG AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA 2026-01-01 0 0 0 0 0 0 0 AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
+EOF
+chmod +x "$fake_wine" "$fake_wine_root/usr/bin/wineserver" "$fake_bin/restart-delay" \
+  "$fake_bin/timeout" "$fake_bin/gpgv"
 "$ROOT_DIR/scripts/generate-payload-manifest.py" wine "$fake_wine_root" "$data/fake-wine.manifest" >/dev/null
 wine_manifest_size="$(stat -c %s "$data/fake-wine.manifest")"
 wine_manifest_hash="$(sha256sum "$data/fake-wine.manifest" | awk '{print $1}')"
 printf 'fake-signing-key' >"$data/fake-signing-key.gpg"
 fake_signing_key_size="$(stat -c %s "$data/fake-signing-key.gpg")"
 fake_signing_key_hash="$(sha256sum "$data/fake-signing-key.gpg" | awk '{print $1}')"
+fake_wine_package="$TMP_ROOT/upstream/fake-wine.pkg.tar.gz"
+tar -czf "$fake_wine_package" -C "$fake_wine_root" usr
+fake_wine_package_size="$(stat -c %s "$fake_wine_package")"
+fake_wine_package_hash="$(sha256sum "$fake_wine_package" | awk '{print $1}')"
+printf 'fake-detached-signature' >"$TMP_ROOT/upstream/fake-wine.pkg.tar.gz.sig"
+fake_wine_signature_size="$(stat -c %s "$TMP_ROOT/upstream/fake-wine.pkg.tar.gz.sig")"
+fake_wine_signature_hash="$(sha256sum "$TMP_ROOT/upstream/fake-wine.pkg.tar.gz.sig" | awk '{print $1}')"
 
 mkdir -p "$old_stock/data/training" "$old_stock/data/knw" "$old_stock/data/versions"
 printf 'old-executable' >"$old_stock/LFS.exe"
@@ -292,6 +304,15 @@ WINE_RUNTIME_MANIFEST_ENTRIES='2'
 WINE_SIGNING_KEY_NAME='fake-signing-key.gpg'
 WINE_SIGNING_KEY_SIZE='$fake_signing_key_size'
 WINE_SIGNING_KEY_SHA256='$fake_signing_key_hash'
+WINE_SIGNING_KEY_FINGERPRINT='AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
+WINE_PACKAGE_NAME='fake-wine.pkg.tar.gz'
+WINE_PACKAGE_URL='file://$fake_wine_package'
+WINE_PACKAGE_SIZE='$fake_wine_package_size'
+WINE_PACKAGE_SHA256='$fake_wine_package_hash'
+WINE_PACKAGE_SIGNATURE_NAME='fake-wine.pkg.tar.gz.sig'
+WINE_PACKAGE_SIGNATURE_URL='file://$TMP_ROOT/upstream/fake-wine.pkg.tar.gz.sig'
+WINE_PACKAGE_SIGNATURE_SIZE='$fake_wine_signature_size'
+WINE_PACKAGE_SIGNATURE_SHA256='$fake_wine_signature_hash'
 EOF
 
 cp -a "$old_stock" "$game"
@@ -451,6 +472,17 @@ PREFIX_ARCH='win64'
 EOF
   chmod 0600 "$state/install.env"
 }
+
+rm -f "$cached_installer" "$cached_installer.part" "$cache/fake-wine.pkg.tar.gz" \
+  "$cache/fake-wine.pkg.tar.gz.part" "$cache/fake-wine.pkg.tar.gz.sig" \
+  "$cache/fake-wine.pkg.tar.gz.sig.part"
+run_lfs verify-sources >"$TMP_ROOT/verify-sources.out"
+grep -Fq 'All pinned upstream archive bytes, signatures, complete official seed files, and extracted runtime manifests are verified' \
+  "$TMP_ROOT/verify-sources.out"
+if compgen -G "$cache/.verify-payloads.*" >/dev/null; then
+  printf 'verify-sources left an extraction staging tree\n' >&2
+  exit 1
+fi
 
 printf 'must-not-escape-staging' >"$TMP_ROOT/unsafe-member"
 (
