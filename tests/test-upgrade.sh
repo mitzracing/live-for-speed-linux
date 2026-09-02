@@ -771,7 +771,11 @@ inventory_tree_metadata "$state/.lfs-game-backup/data/skins_dds/PLAYER.dds" \
   "$TMP_ROOT/local-player-dds.in-backup.jsonl"
 cmp "$TMP_ROOT/local-player.before.jsonl" "$TMP_ROOT/local-player.in-backup.jsonl"
 cmp "$TMP_ROOT/local-player-dds.before.jsonl" "$TMP_ROOT/local-player-dds.in-backup.jsonl"
-run_lfs install >"$TMP_ROOT/local-catchup-install.out"
+run_lfs install >"$TMP_ROOT/local-catchup-install.out" 2>&1
+if grep -Fq 'behavior of -n is non-portable' "$TMP_ROOT/local-catchup-install.out"; then
+  printf 'local catch-up used deprecated ambiguous no-clobber semantics\n' >&2
+  exit 1
+fi
 grep -Fq 'Recovered player data after an interrupted game-tree swap' "$TMP_ROOT/local-catchup-install.out"
 grep -Fq 'Verified locally recorded LFS test-local-old as the approved catch-up predecessor' \
   "$TMP_ROOT/local-catchup-install.out"
