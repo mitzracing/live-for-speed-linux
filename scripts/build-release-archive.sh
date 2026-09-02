@@ -41,6 +41,12 @@ if [[ "${LFS_LINUX_ALLOW_POST_RELEASE_ARCHIVE:-0}" != '1' ]] &&
   fi
 fi
 
+command -v python3 >/dev/null 2>&1 || {
+  printf 'error: python3 is required to validate the source archive boundary\n' >&2
+  exit 1
+}
+python3 "$ROOT_DIR/scripts/check-source-boundary.py" "$ROOT_DIR" "${ENTRIES[@]}"
+
 mkdir -p "$OUTPUT_DIR"
 rm -f "$OUTPUT_DIR/$ARCHIVE_NAME"
 (
