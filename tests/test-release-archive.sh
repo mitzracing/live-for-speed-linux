@@ -36,6 +36,46 @@ archive_hash="$(sha256sum "$archive_one" | awk '{print $1}')"
 [[ "$archive_hash" == "$(sha256sum "$archive_two" | awk '{print $1}')" ]]
 (( $(stat -c %s "$archive_one") < 2097152 ))
 (( $(gzip -cd "$archive_one" | wc -c) < 4194304 ))
+
+assert_source_boundary_rejection() {
+  local expected="$1" entry="${2:-selected}" status
+  set +e
+  python3 "$ROOT_DIR/scripts/check-source-boundary.py" "$TMP_ROOT/source-boundary" "$entry" \
+    >"$TMP_ROOT/source-boundary.out" 2>&1
+  status=$?
+  set -e
+  [[ "$status" -ne 0 ]]
+  grep -Fq "$expected" "$TMP_ROOT/source-boundary.out"
+}
+rm -rf "$TMP_ROOT/source-boundary"
+mkdir -p "$TMP_ROOT/source-boundary/selected"
+printf 'text-only fake executable' >"$TMP_ROOT/source-boundary/selected/payload.exe"
+assert_source_boundary_rejection '(.exe file)'
+rm -rf "$TMP_ROOT/source-boundary"
+mkdir -p "$TMP_ROOT/source-boundary/selected"
+printf 'MZdirect-magic-test' >"$TMP_ROOT/source-boundary/selected/payload"
+assert_source_boundary_rejection '(PE/Windows magic)'
+rm -rf "$TMP_ROOT/source-boundary"
+mkdir -p "$TMP_ROOT/source-boundary/selected"
+printf 'text\0binary' >"$TMP_ROOT/source-boundary/selected/payload"
+assert_source_boundary_rejection '(unapproved binary data)'
+rm -rf "$TMP_ROOT/source-boundary"
+mkdir -p "$TMP_ROOT/source-boundary/share/lfs-linux"
+printf 'drifted-key-fixture' >"$TMP_ROOT/source-boundary/share/lfs-linux/arch-wine-peter-jung.pgp"
+assert_source_boundary_rejection '(binary fixture checksum drift)' share
+rm -rf "$TMP_ROOT/source-boundary"
+mkdir -p "$TMP_ROOT/source-boundary/selected" "$TMP_ROOT/outside-source-boundary"
+ln -s ../../outside-source-boundary "$TMP_ROOT/source-boundary/selected/escape"
+assert_source_boundary_rejection '(escaping symlink)'
+rm -rf "$TMP_ROOT/source-boundary"
+mkdir -p "$TMP_ROOT/source-boundary/selected"
+ln -s /tmp "$TMP_ROOT/source-boundary/selected/absolute"
+assert_source_boundary_rejection '(absolute symlink)'
+rm -rf "$TMP_ROOT/source-boundary"
+mkdir -p "$TMP_ROOT/source-boundary/selected"
+mkfifo "$TMP_ROOT/source-boundary/selected/fifo"
+assert_source_boundary_rejection '(special filesystem entry)'
+
 if git -C "$ROOT_DIR" rev-parse --git-dir >/dev/null 2>&1; then
   mode_source_one="$TMP_ROOT/mode-source-one"
   mode_source_two="$TMP_ROOT/mode-source-two"
@@ -86,8 +126,13 @@ if git -C "$ROOT_DIR" rev-parse --git-dir >/dev/null 2>&1; then
   grep -Fq 'source payload boundary exceeds' "$TMP_ROOT/rejected-large.out"
 fi
 if [[ -f "$ROOT_DIR/packaging/aur/PKGBUILD" && "$post_release" -eq 0 ]]; then
-  pinned_hash="$(grep -Eo "sha256sums=\\('[0-9a-f]{64}'\\)" "$ROOT_DIR/packaging/aur/PKGBUILD" | grep -Eo '[0-9a-f]{64}')"
-  [[ "$archive_hash" == "$pinned_hash" ]]
+  mapfile -t pkgbuild_hashes < <(grep -Eo "sha256sums=\\('[0-9a-f]{64}'\\)" "$ROOT_DIR/packaging/aur/PKGBUILD" | grep -Eo '[0-9a-f]{64}')
+  mapfile -t srcinfo_hashes < <(awk '$1 == "sha256sums" && $2 == "=" { print $3 }' "$ROOT_DIR/packaging/aur/.SRCINFO")
+  [[ "${#pkgbuild_hashes[@]}" -eq 1 && "${#srcinfo_hashes[@]}" -eq 1 ]]
+  [[ "$archive_hash" == "${pkgbuild_hashes[0]}" && "$archive_hash" == "${srcinfo_hashes[0]}" ]]
+  expected_aur_source="live-for-speed-linux-$VERSION.tar.gz::https://github.com/mitzracing/live-for-speed-linux/releases/download/v$VERSION/live-for-speed-linux-$VERSION.tar.gz"
+  mapfile -t srcinfo_sources < <(awk '$1 == "source" && $2 == "=" { print $3 }' "$ROOT_DIR/packaging/aur/.SRCINFO")
+  [[ "${#srcinfo_sources[@]}" -eq 1 && "${srcinfo_sources[0]}" == "$expected_aur_source" ]]
 fi
 
 listing="$(tar -tzf "$archive_one")"
@@ -104,6 +149,25 @@ if grep -Ei '\.(exe|dll|msi|png)$' <<<"$listing"; then
   printf 'runtime or proprietary payload entered release archive\n' >&2
   exit 1
 fi
+python3 - "$archive_one" "$ROOT_DIR/scripts/release-executable-paths.txt" "$ARCHIVE_ROOT" <<'PY'
+from pathlib import Path
+import sys
+import tarfile
+
+executables = set(Path(sys.argv[2]).read_text(encoding="utf-8").splitlines())
+prefix = sys.argv[3] + "/"
+with tarfile.open(sys.argv[1], "r:gz") as archive:
+    for member in archive.getmembers():
+        assert member.name.startswith(prefix), member.name
+        relative = member.name[len(prefix):].rstrip("/")
+        if member.isdir():
+            assert member.mode == 0o755, (member.name, oct(member.mode))
+        elif member.isfile():
+            expected = 0o755 if relative in executables else 0o644
+            assert member.mode == expected, (member.name, oct(member.mode), oct(expected))
+        else:
+            assert member.issym(), (member.name, member.type)
+PY
 
 tar -xzf "$archive_one" -C "$TMP_ROOT"
 archive_dir="$TMP_ROOT/$ARCHIVE_ROOT"
@@ -116,6 +180,22 @@ python3 "$archive_dir/tests/test-triage-feedback.py" >/dev/null
 "$archive_dir/tests/test-website.sh" >/dev/null
 make -C "$archive_dir" DESTDIR="$TMP_ROOT/pkgroot" PREFIX=/usr install >/dev/null
 "$archive_dir/tests/test-package-boundary.sh" "$TMP_ROOT/pkgroot" >/dev/null
+mkfifo "$TMP_ROOT/pkgroot/unexpected-package-fifo"
+set +e
+"$archive_dir/tests/test-package-boundary.sh" "$TMP_ROOT/pkgroot" >"$TMP_ROOT/rejected-package-fifo.out" 2>&1
+package_fifo_status=$?
+set -e
+[[ "$package_fifo_status" -ne 0 ]]
+grep -Fq 'special filesystem entry in package' "$TMP_ROOT/rejected-package-fifo.out"
+rm "$TMP_ROOT/pkgroot/unexpected-package-fifo"
+mkdir "$TMP_ROOT/pkgroot/unexpected-empty-directory"
+set +e
+"$archive_dir/tests/test-package-boundary.sh" "$TMP_ROOT/pkgroot" >"$TMP_ROOT/rejected-package-directory.out" 2>&1
+package_directory_status=$?
+set -e
+[[ "$package_directory_status" -ne 0 ]]
+grep -Fq 'package directory inventory differs from the exact allowlist' "$TMP_ROOT/rejected-package-directory.out"
+rmdir "$TMP_ROOT/pkgroot/unexpected-empty-directory"
 [[ "$(sha256sum "$TMP_ROOT/pkgroot/usr/share/lfs-linux/arch-wine-peter-jung.pgp" | awk '{print $1}')" == 'c3186f2f7bdbe1cd02002dc84bce781580e4edc49fdc3ad848096af6768f3a89' ]]
 if command -v dpkg-deb >/dev/null 2>&1; then
   "$archive_dir/tests/test-debian-package.sh" >/dev/null
