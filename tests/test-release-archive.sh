@@ -34,6 +34,8 @@ archive_two="$(find "$TMP_ROOT/two" -type f -name '*.tar.gz' -print -quit)"
 [[ -n "$archive_one" && -n "$archive_two" ]]
 archive_hash="$(sha256sum "$archive_one" | awk '{print $1}')"
 [[ "$archive_hash" == "$(sha256sum "$archive_two" | awk '{print $1}')" ]]
+(( $(stat -c %s "$archive_one") < 2097152 ))
+(( $(gzip -cd "$archive_one" | wc -c) < 4194304 ))
 if git -C "$ROOT_DIR" rev-parse --git-dir >/dev/null 2>&1; then
   mode_source_one="$TMP_ROOT/mode-source-one"
   mode_source_two="$TMP_ROOT/mode-source-two"
@@ -61,6 +63,25 @@ if git -C "$ROOT_DIR" rev-parse --git-dir >/dev/null 2>&1; then
   mode_archive_two="$(find "$TMP_ROOT/mode-two" -type f -name '*.tar.gz' -print -quit)"
   [[ "$archive_hash" == "$(sha256sum "$mode_archive_one" | awk '{print $1}')" ]]
   [[ "$archive_hash" == "$(sha256sum "$mode_archive_two" | awk '{print $1}')" ]]
+
+  printf 'MZembedded-windows-payload' >"$mode_source_one/share/lfs-linux/embedded-runtime"
+  set +e
+  bash "$mode_source_one/scripts/build-release-archive.sh" "$TMP_ROOT/rejected-binary" \
+    >"$TMP_ROOT/rejected-binary.out" 2>&1
+  rejected_binary_status=$?
+  set -e
+  [[ "$rejected_binary_status" -ne 0 ]]
+  grep -Fq 'prohibited source payload' "$TMP_ROOT/rejected-binary.out"
+  rm -f "$mode_source_one/share/lfs-linux/embedded-runtime"
+
+  truncate -s 5242880 "$mode_source_one/share/lfs-linux/unexpected-large-source.txt"
+  set +e
+  bash "$mode_source_one/scripts/build-release-archive.sh" "$TMP_ROOT/rejected-large" \
+    >"$TMP_ROOT/rejected-large.out" 2>&1
+  rejected_large_status=$?
+  set -e
+  [[ "$rejected_large_status" -ne 0 ]]
+  grep -Fq 'source payload boundary exceeds' "$TMP_ROOT/rejected-large.out"
 fi
 if [[ -f "$ROOT_DIR/packaging/aur/PKGBUILD" && "$post_release" -eq 0 ]]; then
   pinned_hash="$(grep -Eo "sha256sums=\\('[0-9a-f]{64}'\\)" "$ROOT_DIR/packaging/aur/PKGBUILD" | grep -Eo '[0-9a-f]{64}')"
