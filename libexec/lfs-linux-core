@@ -252,6 +252,12 @@ load_active_game_baseline() {
   ACTIVE_LFS_STOCK_MANIFEST_ENTRIES="$manifest_entries"
 }
 
+local_game_update_requires_upgrade() {
+  [[ "$ACTIVE_BASELINE_KIND" == 'game-update' && \
+     "$ACTIVE_LFS_VERSION" == "$LFS_LOCAL_UPDATE_UPGRADE_FROM_VERSION" && \
+     "$ACTIVE_LFS_VERSION" != "$LFS_VERSION" ]]
+}
+
 active_game_marker_is_valid() {
   local manifest_name
   grep -Fqx "LFS_VERSION='$ACTIVE_LFS_VERSION'" "$INSTALL_MARKER" || return 1
@@ -1515,6 +1521,9 @@ validate_installation() {
   grep -Fq '#arch=win64' "$PREFIX/system.reg" || die 'prefix architecture drift; expected win64'
   [[ -f "$INSTALL_MARKER" ]] || die 'installation marker is missing; run lfs-linux install'
   load_active_game_baseline || die 'installed LFS baseline metadata is missing or changed; run lfs-linux install'
+  if local_game_update_requires_upgrade; then
+    die "verified local LFS $ACTIVE_LFS_VERSION requires audited $LFS_VERSION catch-up; run lfs-linux install"
+  fi
   active_game_marker_is_valid || die 'installation marker LFS baseline drift'
   grep -Fqx "DXVK_VERSION='$DXVK_VERSION'" "$INSTALL_MARKER" || die 'installed DXVK release differs from wrapper manifest'
   grep -Fqx "DXVK_D3D11_X32_SHA256='$DXVK_D3D11_X32_SHA256'" "$INSTALL_MARKER" || die 'installation marker DXVK d3d11 checksum drift'
@@ -1537,6 +1546,7 @@ ready_fast() {
   wine_runtime_layout_is_complete || return 1
   [[ -f "$STATE_SENTINEL" && -f "$PREFIX/system.reg" && -f "$INSTALL_MARKER" ]] || return 1
   load_active_game_baseline || return 1
+  local_game_update_requires_upgrade && return 1
   active_game_tree_layout_is_complete || return 1
   active_game_marker_is_valid || return 1
   [[ -f "$DXVK_D3D11" && -f "$DXVK_DXGI" ]] || return 1
