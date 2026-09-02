@@ -131,13 +131,14 @@ printf 'fake-signing-key' >"$data/fake-signing-key.gpg"
 fake_signing_key_size="$(stat -c %s "$data/fake-signing-key.gpg")"
 fake_signing_key_hash="$(sha256sum "$data/fake-signing-key.gpg" | awk '{print $1}')"
 
-mkdir -p "$old_stock/data/training" "$old_stock/data/knw"
+mkdir -p "$old_stock/data/training" "$old_stock/data/knw" "$old_stock/data/versions"
 printf 'old-executable' >"$old_stock/LFS.exe"
 printf 'old-shared-stock' >"$old_stock/shared.stock"
 printf 'obsolete-stock' >"$old_stock/obsolete.stock"
 printf 'old-official-training' >"$old_stock/data/training/old-official.lsn"
 printf 'old-training-seed' >"$old_stock/data/training/shared.lsn"
 printf 'old-ai-knowledge' >"$old_stock/data/knw/shared.knw"
+: >"$old_stock/data/versions/8C23.txt"
 "$ROOT_DIR/scripts/generate-payload-manifest.py" lfs "$old_stock" "$data/old-stock.manifest" >/dev/null
 "$ROOT_DIR/scripts/generate-payload-manifest.py" lfs-seed "$old_stock" "$data/old-seed.manifest" >/dev/null
 old_manifest_size="$(stat -c %s "$data/old-stock.manifest")"
@@ -165,6 +166,7 @@ printf 'new-ai-knowledge' >"$new_stock/data/knw/shared.knw"
 printf 'new-default-profile' >"$new_stock/data/misc/default.ply"
 printf 'second-archive-wins' >"$new_stock/data/dds/ORDERED.dds"
 : >"$new_stock/data/versions/8C20.txt"
+: >"$new_stock/data/versions/8C23.txt"
 printf 'first-archive-bytes' >"$TMP_ROOT/nested-dds-01/ORDERED.dds"
 printf 'second-archive-wins' >"$TMP_ROOT/nested-dds-02/ORDERED.dds"
 cp "$new_stock/data/training/"* "$TMP_ROOT/nested-training/"
@@ -405,6 +407,32 @@ Path(sys.argv[2]).write_text("\n".join(json.dumps(row, sort_keys=True) for row i
 PY
 }
 
+write_local_predecessor_marker() {
+  local local_manifest_name="game-update-$old_manifest_hash.manifest"
+  cp "$data/old-stock.manifest" "$state/$local_manifest_name"
+  chmod 0600 "$state/$local_manifest_name"
+  cat >"$state/install.env" <<EOF
+LFS_BASELINE_KIND='game-update'
+LFS_VERSION='test-local-old'
+LFS_CHANNEL='public-test'
+LFS_EXE_SIZE='14'
+LFS_EXE_SHA256='$old_exe_hash'
+LFS_STOCK_MANIFEST_NAME='$local_manifest_name'
+LFS_STOCK_MANIFEST_SIZE='$old_manifest_size'
+LFS_STOCK_MANIFEST_SHA256='$old_manifest_hash'
+LFS_STOCK_MANIFEST_ENTRIES='$old_manifest_entries'
+LFS_PACKAGE_VERSION='test-new'
+DXVK_VERSION='3.0.2'
+DXVK_D3D11_X32_SHA256='$d3d11_hash'
+DXVK_DXGI_X32_SHA256='$dxgi_hash'
+WINE_RUNTIME_VERSION='11.15-1'
+WINE_RUNTIME_MANIFEST_SHA256='$wine_manifest_hash'
+WINE_VERSION='wine-11.15'
+PREFIX_ARCH='win64'
+EOF
+  chmod 0600 "$state/install.env"
+}
+
 printf 'must-not-escape-staging' >"$TMP_ROOT/unsafe-member"
 (
   cd "$TMP_ROOT"
@@ -587,28 +615,7 @@ cp -a "$old_stock" "$game"
 mkdir -p "$game/data/mpr"
 printf 'local-predecessor-replay' >"$game/data/mpr/local-predecessor.mpr"
 local_manifest_name="game-update-$old_manifest_hash.manifest"
-cp "$data/old-stock.manifest" "$state/$local_manifest_name"
-chmod 0600 "$state/$local_manifest_name"
-cat >"$state/install.env" <<EOF
-LFS_BASELINE_KIND='game-update'
-LFS_VERSION='test-local-old'
-LFS_CHANNEL='public-test'
-LFS_EXE_SIZE='14'
-LFS_EXE_SHA256='$old_exe_hash'
-LFS_STOCK_MANIFEST_NAME='$local_manifest_name'
-LFS_STOCK_MANIFEST_SIZE='$old_manifest_size'
-LFS_STOCK_MANIFEST_SHA256='$old_manifest_hash'
-LFS_STOCK_MANIFEST_ENTRIES='$old_manifest_entries'
-LFS_PACKAGE_VERSION='test-new'
-DXVK_VERSION='3.0.2'
-DXVK_D3D11_X32_SHA256='$d3d11_hash'
-DXVK_DXGI_X32_SHA256='$dxgi_hash'
-WINE_RUNTIME_VERSION='11.15-1'
-WINE_RUNTIME_MANIFEST_SHA256='$wine_manifest_hash'
-WINE_VERSION='wine-11.15'
-PREFIX_ARCH='win64'
-EOF
-chmod 0600 "$state/install.env"
+write_local_predecessor_marker
 if run_lfs ready >"$TMP_ROOT/local-catchup-ready.out" 2>&1; then
   printf 'known local predecessor incorrectly reported ready\n' >&2
   exit 1
@@ -649,6 +656,79 @@ grep -Fqx "LFS_VERSION='test-new'" "$state/install.env"
 inventory_tree_metadata "$game/data/mpr" "$TMP_ROOT/local-player.after.jsonl"
 cmp "$TMP_ROOT/local-player.before.jsonl" "$TMP_ROOT/local-player.after.jsonl"
 [[ ! -e "$state/.lfs-game-backup" ]]
+
+cp "$old_stock/obsolete.stock" "$game/obsolete.stock"
+[[ -f "$game/data/versions/8C23.txt" ]]
+cp -a "$game" "$TMP_ROOT/same-marker-candidate"
+write_local_predecessor_marker
+inventory_tree_metadata "$game/data/mpr" "$TMP_ROOT/same-marker-player.before.jsonl"
+rm -f "$cached_installer"
+run_lfs install >"$TMP_ROOT/same-marker-adoption.out"
+grep -Fq 'Recognized exact audited test-new overlay on the verified test-local-old baseline' \
+  "$TMP_ROOT/same-marker-adoption.out"
+[[ ! -e "$cached_installer" && ! -e "$game/obsolete.stock" ]]
+[[ "$(sha256sum "$game/LFS.exe" | awk '{print $1}')" == "$new_exe_hash" ]]
+grep -Fqx "LFS_BASELINE_KIND='package'" "$state/install.env"
+grep -Fqx "LFS_VERSION='test-new'" "$state/install.env"
+inventory_tree_metadata "$game/data/mpr" "$TMP_ROOT/same-marker-player.after.jsonl"
+cmp "$TMP_ROOT/same-marker-player.before.jsonl" "$TMP_ROOT/same-marker-player.after.jsonl"
+
+rm -rf "$game"
+cp -a "$TMP_ROOT/same-marker-candidate" "$game"
+write_local_predecessor_marker
+printf 'unknown-protected-entry' >"$game/unexpected.stock"
+cp -a "$game" "$TMP_ROOT/before-rejected-overlay-addition"
+set +e
+run_lfs install >"$TMP_ROOT/rejected-overlay-addition.out" 2>&1
+overlay_addition_status=$?
+set -e
+[[ "$overlay_addition_status" -ne 0 && ! -e "$cached_installer" ]]
+grep -Fq 'recorded in-game update baseline drifted outside a trusted LFS session' \
+  "$TMP_ROOT/rejected-overlay-addition.out"
+diff -qr "$TMP_ROOT/before-rejected-overlay-addition" "$game" >/dev/null
+
+rm -rf "$game"
+cp -a "$TMP_ROOT/same-marker-candidate" "$game"
+write_local_predecessor_marker
+printf 'changed-predecessor-only-entry' >"$game/obsolete.stock"
+cp -a "$game" "$TMP_ROOT/before-rejected-overlay-stale-drift"
+set +e
+run_lfs install >"$TMP_ROOT/rejected-overlay-stale-drift.out" 2>&1
+overlay_stale_status=$?
+set -e
+[[ "$overlay_stale_status" -ne 0 && ! -e "$cached_installer" ]]
+grep -Fq 'recorded in-game update baseline drifted outside a trusted LFS session' \
+  "$TMP_ROOT/rejected-overlay-stale-drift.out"
+diff -qr "$TMP_ROOT/before-rejected-overlay-stale-drift" "$game" >/dev/null
+
+rm -rf "$game"
+cp -a "$TMP_ROOT/same-marker-candidate" "$game"
+write_local_predecessor_marker
+printf 'changed-target-entry' >"$game/shared.stock"
+cp -a "$game" "$TMP_ROOT/before-rejected-overlay-target-drift"
+set +e
+run_lfs install >"$TMP_ROOT/rejected-overlay-target-drift.out" 2>&1
+overlay_target_status=$?
+set -e
+[[ "$overlay_target_status" -ne 0 && ! -e "$cached_installer" ]]
+grep -Fq 'recorded in-game update baseline drifted outside a trusted LFS session' \
+  "$TMP_ROOT/rejected-overlay-target-drift.out"
+diff -qr "$TMP_ROOT/before-rejected-overlay-target-drift" "$game" >/dev/null
+
+rm -rf "$game"
+cp -a "$TMP_ROOT/same-marker-candidate" "$game"
+write_local_predecessor_marker
+rm "$game/new.stock"
+cp -a "$game" "$TMP_ROOT/before-rejected-overlay-missing-target"
+set +e
+run_lfs install >"$TMP_ROOT/rejected-overlay-missing-target.out" 2>&1
+overlay_missing_status=$?
+set -e
+[[ "$overlay_missing_status" -ne 0 && ! -e "$cached_installer" ]]
+grep -Fq 'recorded in-game update baseline drifted outside a trusted LFS session' \
+  "$TMP_ROOT/rejected-overlay-missing-target.out"
+diff -qr "$TMP_ROOT/before-rejected-overlay-missing-target" "$game" >/dev/null
+
 rm -rf "$game"
 cp -a "$TMP_ROOT/before-local-catchup" "$game"
 cp "$TMP_ROOT/before-local-catchup.env" "$state/install.env"
