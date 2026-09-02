@@ -135,6 +135,7 @@ mkdir -p "$old_stock/data/training" "$old_stock/data/knw" "$old_stock/data/versi
 printf 'old-executable' >"$old_stock/LFS.exe"
 printf 'old-shared-stock' >"$old_stock/shared.stock"
 printf 'obsolete-stock' >"$old_stock/obsolete.stock"
+printf 'second-obsolete-stock' >"$old_stock/zz-obsolete.stock"
 printf 'old-official-training' >"$old_stock/data/training/old-official.lsn"
 printf 'old-training-seed' >"$old_stock/data/training/shared.lsn"
 printf 'old-ai-knowledge' >"$old_stock/data/knw/shared.knw"
@@ -149,6 +150,7 @@ old_seed_hash="$(sha256sum "$data/old-seed.manifest" | awk '{print $1}')"
 old_seed_entries="$(awk -F '\t' '$1 == "f" || $1 == "l" { n++ } END { print n + 0 }' "$data/old-seed.manifest")"
 old_exe_hash="$(sha256sum "$old_stock/LFS.exe" | awk '{print $1}')"
 obsolete_hash="$(sha256sum "$old_stock/obsolete.stock" | awk '{print $1}')"
+second_obsolete_hash="$(sha256sum "$old_stock/zz-obsolete.stock" | awk '{print $1}')"
 
 mkdir -p "$new_stock/data/dds" "$new_stock/data/skins_dds" "$new_stock/data/wld" \
   "$new_stock/data/veh" "$new_stock/data/training" "$new_stock/data/knw" \
@@ -540,7 +542,7 @@ grep -Fq 'player file(s) that collide with new stock paths' "$TMP_ROOT/upgrade.o
 collision_backup="$state/migration-conflicts/from-test-old-to-test-new/new.stock.$collision_hash.pre-upgrade"
 [[ "$(sha256sum "$collision_backup" | awk '{print $1}')" == "$collision_hash" ]]
 [[ "$(sha256sum "$game/LFS.exe" | awk '{print $1}')" == "$new_exe_hash" ]]
-[[ ! -e "$game/obsolete.stock" ]]
+[[ ! -e "$game/obsolete.stock" && ! -e "$game/zz-obsolete.stock" ]]
 [[ ! -e "$game/data/training/old-official.lsn" ]]
 grep -Fqx 'new-official-training' "$game/data/training/new-official.lsn"
 grep -Fqx 'new-official-knowledge' "$game/data/knw/new-official.knw"
@@ -608,12 +610,49 @@ run_lfs install >"$TMP_ROOT/executable-repair.out"
   sha256sum --check --quiet "$player_hashes"
 )
 
+cp -a "$game" "$TMP_ROOT/before-invalid-recovery-tests"
+cp -a "$game" "$state/.lfs-game-backup"
+printf 'invalid-backup-protected-bytes' >"$state/.lfs-game-backup/shared.stock"
+rm "$game/new.stock"
+printf 'current-tree-player-data' >"$game/data/mpr/current-during-invalid-backup.mpr"
+cp -a "$game" "$TMP_ROOT/before-invalid-backup-current"
+cp -a "$state/.lfs-game-backup" "$TMP_ROOT/before-invalid-backup-tree"
+set +e
+run_lfs install >"$TMP_ROOT/rejected-invalid-game-backup.out" 2>&1
+invalid_game_backup_status=$?
+set -e
+[[ "$invalid_game_backup_status" -ne 0 ]]
+grep -Fq 'interrupted game backup is not an exact trusted baseline; no files changed' \
+  "$TMP_ROOT/rejected-invalid-game-backup.out"
+diff -qr "$TMP_ROOT/before-invalid-backup-current" "$game" >/dev/null
+diff -qr "$TMP_ROOT/before-invalid-backup-tree" "$state/.lfs-game-backup" >/dev/null
+rm -rf "$state/.lfs-game-backup" "$game"
+cp -a "$TMP_ROOT/before-invalid-recovery-tests" "$game"
+
+backup_symlink_target="$TMP_ROOT/game-backup-symlink-target"
+mkdir "$backup_symlink_target"
+printf 'backup-symlink-sentinel' >"$backup_symlink_target/sentinel"
+ln -s "$backup_symlink_target" "$state/.lfs-game-backup"
+set +e
+run_lfs install >"$TMP_ROOT/rejected-game-backup-symlink.out" 2>&1
+backup_symlink_status=$?
+set -e
+[[ "$backup_symlink_status" -ne 0 ]]
+grep -Fq 'interrupted game backup is not a private directory; no files changed' \
+  "$TMP_ROOT/rejected-game-backup-symlink.out"
+[[ -L "$state/.lfs-game-backup" ]]
+grep -Fqx 'backup-symlink-sentinel' "$backup_symlink_target/sentinel"
+rm "$state/.lfs-game-backup"
+
 cp -a "$game" "$state/.lfs-game-backup"
 rm "$game/new.stock"
 run_lfs install >"$TMP_ROOT/recovery-both.out"
 grep -Fq 'Restored previous game tree after an interrupted upgrade' "$TMP_ROOT/recovery-both.out"
 grep -Fqx 'new-stock-file' "$game/new.stock"
 [[ ! -e "$state/.lfs-game-backup" ]]
+recovery_conflict="$state/migration-conflicts/interrupted-current-game-tree"
+[[ -f "$recovery_conflict/LFS.exe" && ! -e "$recovery_conflict/new.stock" ]]
+rm -rf "$recovery_conflict"
 
 cp -a "$game" "$state/.lfs-game-backup"
 run_lfs install >"$TMP_ROOT/recovery-complete.out"
@@ -694,7 +733,7 @@ grep -Fq 'Verified locally recorded LFS test-local-old as the approved catch-up 
 grep -Fq 'Preserved complete player-owned paths from the verified local update' \
   "$TMP_ROOT/local-catchup-install.out"
 [[ "$(sha256sum "$game/LFS.exe" | awk '{print $1}')" == "$new_exe_hash" ]]
-[[ ! -e "$game/obsolete.stock" ]]
+[[ ! -e "$game/obsolete.stock" && ! -e "$game/zz-obsolete.stock" ]]
 [[ -f "$cached_installer" && ! -e "$state/$local_manifest_name" ]]
 grep -Fqx "LFS_BASELINE_KIND='package'" "$state/install.env"
 grep -Fqx "LFS_VERSION='test-new'" "$state/install.env"
@@ -705,6 +744,7 @@ cmp "$TMP_ROOT/local-player-dds.before.jsonl" "$TMP_ROOT/local-player-dds.after.
 [[ ! -e "$state/.lfs-game-backup" ]]
 
 cp "$old_stock/obsolete.stock" "$game/obsolete.stock"
+cp "$old_stock/zz-obsolete.stock" "$game/zz-obsolete.stock"
 [[ -f "$game/data/versions/8C23.txt" ]]
 cp -a "$game" "$TMP_ROOT/same-marker-candidate"
 write_local_predecessor_marker
@@ -721,9 +761,11 @@ rm -f "$cached_installer"
 run_lfs install >"$TMP_ROOT/same-marker-adoption.out"
 grep -Fq 'Recognized exact audited test-new overlay on the verified test-local-old baseline' \
   "$TMP_ROOT/same-marker-adoption.out"
-[[ ! -e "$cached_installer" && ! -e "$game/obsolete.stock" ]]
+[[ ! -e "$cached_installer" && ! -e "$game/obsolete.stock" && ! -e "$game/zz-obsolete.stock" ]]
 quarantined_obsolete="$state/migration-conflicts/from-test-local-old-to-test-new/obsolete.stock.$obsolete_hash.pre-upgrade"
+quarantined_second_obsolete="$state/migration-conflicts/from-test-local-old-to-test-new/zz-obsolete.stock.$second_obsolete_hash.pre-upgrade"
 [[ "$(sha256sum "$quarantined_obsolete" | awk '{print $1}')" == "$obsolete_hash" ]]
+[[ "$(sha256sum "$quarantined_second_obsolete" | awk '{print $1}')" == "$second_obsolete_hash" ]]
 [[ "$(sha256sum "$game/LFS.exe" | awk '{print $1}')" == "$new_exe_hash" ]]
 grep -Fqx "LFS_BASELINE_KIND='package'" "$state/install.env"
 grep -Fqx "LFS_VERSION='test-new'" "$state/install.env"
@@ -735,9 +777,9 @@ cmp "$TMP_ROOT/local-player-dds.before.jsonl" "$TMP_ROOT/same-marker-player-dds.
 rm -rf "$game"
 cp -a "$TMP_ROOT/same-marker-candidate" "$game"
 write_local_predecessor_marker
-overlay_race_ready="$TMP_ROOT/overlay-quarantine-ready"
-LFS_LINUX_TEST_OVERLAY_QUARANTINE_READY_FILE="$overlay_race_ready" \
-LFS_LINUX_TEST_OVERLAY_QUARANTINE_DELAY_SECONDS=2 \
+overlay_race_ready="$TMP_ROOT/overlay-quarantine-after-first-ready"
+LFS_LINUX_TEST_OVERLAY_QUARANTINE_AFTER_FIRST_READY_FILE="$overlay_race_ready" \
+LFS_LINUX_TEST_OVERLAY_QUARANTINE_AFTER_FIRST_DELAY_SECONDS=2 \
   run_lfs install >"$TMP_ROOT/rejected-overlay-quarantine-race.out" 2>&1 &
 overlay_race_pid=$!
 for ((attempt = 0; attempt < 100; attempt++)); do
@@ -746,8 +788,8 @@ for ((attempt = 0; attempt < 100; attempt++)); do
   sleep 0.05
 done
 [[ -e "$overlay_race_ready" ]]
-printf 'replacement-created-after-overlay-snapshot' >"$game/obsolete.stock"
-overlay_race_hash="$(sha256sum "$game/obsolete.stock" | awk '{print $1}')"
+printf 'replacement-created-after-first-quarantine-move' >"$game/zz-obsolete.stock"
+overlay_race_hash="$(sha256sum "$game/zz-obsolete.stock" | awk '{print $1}')"
 set +e
 wait "$overlay_race_pid"
 overlay_race_status=$?
@@ -755,7 +797,9 @@ set -e
 [[ "$overlay_race_status" -ne 0 && ! -e "$cached_installer" ]]
 grep -Fq 'predecessor-only protected path changed before quarantine' \
   "$TMP_ROOT/rejected-overlay-quarantine-race.out"
-[[ "$(sha256sum "$game/obsolete.stock" | awk '{print $1}')" == "$overlay_race_hash" ]]
+[[ "$(sha256sum "$game/obsolete.stock" | awk '{print $1}')" == "$obsolete_hash" ]]
+[[ "$(sha256sum "$game/zz-obsolete.stock" | awk '{print $1}')" == "$overlay_race_hash" ]]
+[[ ! -e "$state/.lfs-predecessor-quarantine" ]]
 grep -Fqx "LFS_BASELINE_KIND='game-update'" "$state/install.env"
 
 rm -rf "$game"
