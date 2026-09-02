@@ -144,21 +144,6 @@ printf 'old-ai-knowledge' >"$old_stock/data/knw/shared.knw"
 old_manifest_size="$(stat -c %s "$data/old-stock.manifest")"
 old_manifest_hash="$(sha256sum "$data/old-stock.manifest" | awk '{print $1}')"
 old_manifest_entries="$(awk -F '\t' '$1 == "f" || $1 == "l" { n++ } END { print n + 0 }' "$data/old-stock.manifest")"
-{
-  head -n 2 "$data/old-stock.manifest"
-  while IFS= read -r -d '' old_path; do
-    old_relative="${old_path#"$old_stock/"}"
-    case "$old_relative" in
-      data/knw/*|data/training/*) continue ;;
-    esac
-    awk -F '\t' -v relative="$old_relative" \
-      '($1 == "f" || $1 == "l") && $4 == relative { print; found = 1 } END { exit !found }' \
-      "$data/old-stock.manifest"
-  done < <(find "$old_stock" \( -type f -o -type l \) -print0 | sort -z)
-} >"$data/old-local.manifest"
-old_local_manifest_size="$(stat -c %s "$data/old-local.manifest")"
-old_local_manifest_hash="$(sha256sum "$data/old-local.manifest" | awk '{print $1}')"
-old_local_manifest_entries="$(awk -F '\t' '$1 == "f" || $1 == "l" { n++ } END { print n + 0 }' "$data/old-local.manifest")"
 old_seed_size="$(stat -c %s "$data/old-seed.manifest")"
 old_seed_hash="$(sha256sum "$data/old-seed.manifest" | awk '{print $1}')"
 old_seed_entries="$(awk -F '\t' '$1 == "f" || $1 == "l" { n++ } END { print n + 0 }' "$data/old-seed.manifest")"
@@ -422,6 +407,22 @@ Path(sys.argv[2]).write_text("\n".join(json.dumps(row, sort_keys=True) for row i
 PY
 }
 
+write_runtime_game_manifest() {
+  local root="$1" output="$2" generated path relative line
+  generated="$(mktemp "$TMP_ROOT/runtime-manifest.XXXXXX")"
+  "$ROOT_DIR/scripts/generate-payload-manifest.py" lfs "$root" "$generated" >/dev/null
+  {
+    head -n 2 "$generated"
+    while IFS= read -r -d '' path; do
+      relative="${path#"$root/"}"
+      line="$(awk -F '\t' -v wanted="$relative" \
+        '($1 == "f" || $1 == "l") && $4 == wanted { print; exit }' "$generated")"
+      [[ -z "$line" ]] || printf '%s\n' "$line"
+    done < <(find "$root" \( -type f -o -type l \) -print0 | sort -z)
+  } >"$output"
+  rm -f "$generated"
+}
+
 write_local_predecessor_marker() {
   local local_manifest_name="game-update-$old_local_manifest_hash.manifest"
   cp "$data/old-local.manifest" "$state/$local_manifest_name"
@@ -627,8 +628,13 @@ cp -a "$game" "$TMP_ROOT/before-local-catchup"
 cp "$state/install.env" "$TMP_ROOT/before-local-catchup.env"
 rm -rf "$game"
 cp -a "$old_stock" "$game"
-mkdir -p "$game/data/mpr"
+mkdir -p "$game/data/mpr" "$game/data/skins_dds"
 printf 'local-predecessor-replay' >"$game/data/mpr/local-predecessor.mpr"
+printf 'downloaded-player-dds' >"$game/data/skins_dds/PLAYER.dds"
+write_runtime_game_manifest "$game" "$data/old-local.manifest"
+old_local_manifest_size="$(stat -c %s "$data/old-local.manifest")"
+old_local_manifest_hash="$(sha256sum "$data/old-local.manifest" | awk '{print $1}')"
+old_local_manifest_entries="$(awk -F '\t' '$1 == "f" || $1 == "l" { n++ } END { print n + 0 }' "$data/old-local.manifest")"
 local_manifest_name="game-update-$old_local_manifest_hash.manifest"
 write_local_predecessor_marker
 set +e
@@ -665,6 +671,7 @@ except OSError:
     pass
 PY
 inventory_tree_metadata "$game/data/mpr" "$TMP_ROOT/local-player.before.jsonl"
+inventory_tree_metadata "$game/data/skins_dds/PLAYER.dds" "$TMP_ROOT/local-player-dds.before.jsonl"
 rm -f "$cached_installer"
 run_lfs install >"$TMP_ROOT/local-catchup-install.out"
 grep -Fq 'Verified locally recorded LFS test-local-old as the approved catch-up predecessor' \
@@ -677,7 +684,9 @@ grep -Fq 'Preserved complete player-owned paths from the verified local update' 
 grep -Fqx "LFS_BASELINE_KIND='package'" "$state/install.env"
 grep -Fqx "LFS_VERSION='test-new'" "$state/install.env"
 inventory_tree_metadata "$game/data/mpr" "$TMP_ROOT/local-player.after.jsonl"
+inventory_tree_metadata "$game/data/skins_dds/PLAYER.dds" "$TMP_ROOT/local-player-dds.after.jsonl"
 cmp "$TMP_ROOT/local-player.before.jsonl" "$TMP_ROOT/local-player.after.jsonl"
+cmp "$TMP_ROOT/local-player-dds.before.jsonl" "$TMP_ROOT/local-player-dds.after.jsonl"
 [[ ! -e "$state/.lfs-game-backup" ]]
 
 cp "$old_stock/obsolete.stock" "$game/obsolete.stock"
@@ -702,7 +711,9 @@ grep -Fq 'Recognized exact audited test-new overlay on the verified test-local-o
 grep -Fqx "LFS_BASELINE_KIND='package'" "$state/install.env"
 grep -Fqx "LFS_VERSION='test-new'" "$state/install.env"
 inventory_tree_metadata "$game/data/mpr" "$TMP_ROOT/same-marker-player.after.jsonl"
+inventory_tree_metadata "$game/data/skins_dds/PLAYER.dds" "$TMP_ROOT/same-marker-player-dds.after.jsonl"
 cmp "$TMP_ROOT/same-marker-player.before.jsonl" "$TMP_ROOT/same-marker-player.after.jsonl"
+cmp "$TMP_ROOT/local-player-dds.before.jsonl" "$TMP_ROOT/same-marker-player-dds.after.jsonl"
 
 rm -rf "$game"
 cp -a "$TMP_ROOT/same-marker-candidate" "$game"

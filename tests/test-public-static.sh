@@ -180,6 +180,12 @@ for subset_path, seed_path in ((sys.argv[1], sys.argv[2]), (sys.argv[3], sys.arg
     subset = entries(subset_path)
     seed = entries(seed_path)
     assert all(seed.get(path) == value for path, value in subset.items())
+
+target = entries(sys.argv[1])
+predecessor = entries(sys.argv[3])
+target_dds = {path: value for path, value in target.items() if path.startswith("data/skins_dds/")}
+predecessor_dds = {path: value for path, value in predecessor.items() if path.startswith("data/skins_dds/")}
+assert target_dds and target_dds == predecessor_dds
 PY
 if grep -Eq $'\tdata/(knw|training)/' "$ROOT_DIR/share/lfs-linux/$LFS_UPGRADE_MANIFEST_NAME"; then
   printf 'mutable predecessor cache entered the migration manifest\n' >&2
