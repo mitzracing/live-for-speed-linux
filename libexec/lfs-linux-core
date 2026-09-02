@@ -960,6 +960,12 @@ extract_lfs_payload() {
 
 validate_existing_game_source() {
   local actual_size actual_checksum baseline_kind
+  if [[ -e "$GAME_BACKUP" || -L "$GAME_BACKUP" ]]; then
+    [[ -d "$GAME_BACKUP" && ! -L "$GAME_BACKUP" ]] ||
+      die 'interrupted game backup is not a private directory; no files changed'
+    trusted_game_backup_is_complete "$GAME_BACKUP" ||
+      die 'interrupted game backup is not an exact trusted baseline; no files changed'
+  fi
   baseline_kind="$(marker_value LFS_BASELINE_KIND 2>/dev/null || true)"
   if [[ "$baseline_kind" == 'game-update' ]]; then
     load_active_game_baseline || die 'recorded in-game update metadata is missing or changed; no files changed'
