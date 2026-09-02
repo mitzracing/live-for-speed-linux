@@ -1122,11 +1122,36 @@ manifest_is_audited_target_overlay() {
   ' "$previous_manifest" "$target_manifest" "$candidate_manifest"
 }
 
+game_tree_structure_matches_audited_target_overlay() {
+  local manifest type expected expected_size relative path directory
+  local -A allowed_directories=()
+  for manifest in "$ACTIVE_LFS_STOCK_MANIFEST" "$LFS_STOCK_MANIFEST"; do
+    while IFS=$'\t' read -r type expected expected_size relative; do
+      [[ "$type" == 'f' || "$type" == 'l' ]] || continue
+      directory="$relative"
+      while [[ "$directory" == */* ]]; do
+        directory="${directory%/*}"
+        allowed_directories["$directory"]=1
+      done
+    done <"$manifest"
+  done
+  while IFS= read -r -d '' path; do
+    relative="${path#"$GAME_DIR/"}"
+    if [[ -L "$path" || -f "$path" ]]; then
+      continue
+    fi
+    [[ -d "$path" ]] || return 1
+    upgrade_game_path_is_player_owned "$relative" && continue
+    [[ -n "${allowed_directories[$relative]+present}" ]] || return 1
+  done < <(find -P "$GAME_DIR" -mindepth 1 -print0)
+}
+
 game_tree_matches_audited_target_overlay() {
   local candidate status=0
   local_game_update_requires_upgrade || return 1
   manifest_metadata_is_valid "$LFS_STOCK_MANIFEST" "$LFS_STOCK_MANIFEST_SIZE" \
     "$LFS_STOCK_MANIFEST_SHA256" "$LFS_STOCK_MANIFEST_ENTRIES" || return 1
+  game_tree_structure_matches_audited_target_overlay || return 1
   candidate="$(mktemp "${TMPDIR:-/tmp}/lfs-linux-target-overlay.XXXXXX")" || return 1
   snapshot_game_manifest "$GAME_DIR" "$candidate" || status=1
   (( status != 0 )) || manifest_is_audited_target_overlay \
