@@ -1704,7 +1704,13 @@ setup_interactive() {
     setup_heading='verified setup / repair'
   fi
   if [[ "$ACTIVE_BASELINE_KIND" == 'game-update' ]]; then
-    lfs_step="Keep the verified local LFS $ACTIVE_LFS_VERSION in-game update; no older game payload replaces it."
+    if local_game_update_requires_upgrade && active_game_tree_is_complete; then
+      lfs_step="Upgrade the verified local LFS $ACTIVE_LFS_VERSION baseline to audited $LFS_VERSION. Download the official $lfs_mib MiB installer, then preserve complete player-owned paths and metadata."
+    elif local_game_update_requires_upgrade && game_tree_matches_audited_target_overlay; then
+      lfs_step="Adopt the exact audited $LFS_VERSION files already produced over the verified $ACTIVE_LFS_VERSION baseline; no game installer download is needed."
+    else
+      lfs_step="Keep the verified local LFS $ACTIVE_LFS_VERSION in-game update; no older game payload replaces it."
+    fi
   elif file_matches "$GAME_EXE" "$LFS_EXE_SIZE" "$LFS_EXE_SHA256" 2>/dev/null; then
     lfs_step="Verify existing official LFS $LFS_VERSION; download its $lfs_mib MiB installer only if repair is needed."
   fi
