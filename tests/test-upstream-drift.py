@@ -74,7 +74,7 @@ class UpstreamDriftTest(unittest.TestCase):
             report = root / "report.txt"
             issues = root / "issues.json"
             report.write_text(
-                "Audited target: 0.8C20\nWebsite test:   0.8C24\n",
+                "Audited target: 0.8C24\nWebsite test:   0.8C25\n",
                 encoding="utf-8",
             )
             issues.write_text("[]\n", encoding="utf-8")
@@ -100,19 +100,19 @@ class UpstreamDriftTest(unittest.TestCase):
         plan = json.loads(result.stdout)
         self.assertEqual(plan["action"], "create")
         self.assertEqual(plan["labels"], ["status:needs-maintainer", "upstream-drift"])
-        self.assertIn("0.8C20", plan["body"])
         self.assertIn("0.8C24", plan["body"])
+        self.assertIn("0.8C25", plan["body"])
         self.assertIn("Pinned bootstrap remains available", plan["body"])
 
     def test_repeated_identical_drift_is_noop(self) -> None:
-        report = "Audited target: 0.8C20\nWebsite test:   0.8C24"
+        report = "Audited target: 0.8C24\nWebsite test:   0.8C25"
         body = DRIFT.build_body(report, "available")
         plan = DRIFT.build_plan("drift", report, "available", [managed_issue(body)])
         self.assertEqual(plan, {"action": "noop"})
 
     def test_changed_drift_updates_existing_issue_once(self) -> None:
-        old_report = "Audited target: 0.8C20\nWebsite test:   0.8C24"
-        new_report = "Audited target: 0.8C20\nWebsite test:   0.8C25"
+        old_report = "Audited target: 0.8C24\nWebsite test:   0.8C25"
+        new_report = "Audited target: 0.8C24\nWebsite test:   0.8C26"
         old_body = DRIFT.build_body(old_report, "available")
         plan = DRIFT.build_plan(
             "drift",
@@ -129,7 +129,7 @@ class UpstreamDriftTest(unittest.TestCase):
     def test_current_pin_closes_open_managed_issue(self) -> None:
         report = "Audited target: 0.8C24\nWebsite test:   0.8C24"
         body = DRIFT.build_body(
-            "Audited target: 0.8C20\nWebsite test:   0.8C24",
+            "Audited target: 0.8C24\nWebsite test:   0.8C25",
             "available",
         )
         plan = DRIFT.build_plan(
@@ -171,7 +171,7 @@ class UpstreamDriftTest(unittest.TestCase):
         thread.start()
         try:
             with tempfile.NamedTemporaryFile("w", encoding="utf-8") as report:
-                report.write("Audited target: 0.8C20\nWebsite test:   0.8C24\n")
+                report.write("Audited target: 0.8C24\nWebsite test:   0.8C25\n")
                 report.flush()
                 environment = os.environ.copy()
                 environment.update(

@@ -10,11 +10,11 @@ for path in \
   usr/lib/lfs-linux/lfs-linux-core \
   usr/share/lfs-linux/release.env \
   usr/share/lfs-linux/arch-wine-peter-jung.pgp \
+  usr/share/lfs-linux/lfs-0.8C24-stock.manifest \
+  usr/share/lfs-linux/lfs-0.8C24-seed.manifest \
+  usr/share/lfs-linux/lfs-0.8C24-nested.manifest \
   usr/share/lfs-linux/lfs-0.8C20-stock.manifest \
   usr/share/lfs-linux/lfs-0.8C20-seed.manifest \
-  usr/share/lfs-linux/lfs-0.8C20-nested.manifest \
-  usr/share/lfs-linux/lfs-0.8C19-stock.manifest \
-  usr/share/lfs-linux/lfs-0.8C19-seed.manifest \
   usr/share/lfs-linux/wine-11.15-1-runtime.manifest \
   usr/share/applications/io.github.mitzracing.live_for_speed_linux.desktop \
   usr/share/metainfo/io.github.mitzracing.live_for_speed_linux.metainfo.xml \

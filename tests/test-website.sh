@@ -60,7 +60,8 @@ assert text.count(f"<strong>{version}</strong>") == 2
 assert f"v{version}/live-for-speed-linux_{version}-0github1_amd64.deb" in text
 assert "0.3.0" not in text
 assert "Debian 13" in text and "Ubuntu 24.04" in text
-assert "0.8C20" in text
+assert "0.8C24" in text
+assert "same 8C23 marker" in text
 assert "updates itself" in text
 assert "No game binaries" in text
 assert "GitHub sign-in is required" in text

@@ -21,6 +21,10 @@ categories = {node.text for node in component.findall("./categories/category")}
 keywords = {node.text.casefold() for node in component.findall("./keywords/keyword")}
 assert {"Game", "Simulation", "SportsGame"} <= categories
 assert {"game", "games", "racing", "simulator"} <= keywords
+releases = component.findall("./releases/release")
+assert releases[0].attrib == {"version": "0.3.3", "date": "2026-09-02"}
+assert "0.8C24" in " ".join(releases[0].itertext())
+assert "0.8C24" in " ".join(component.find("./description").itertext())
 
 desktop = configparser.ConfigParser(interpolation=None, strict=True)
 desktop.optionxform = str
@@ -289,6 +293,15 @@ if grep -Eq 'wine32|wine64|:i386' "$ROOT_DIR/packaging/debian/build-deb.sh"; the
   exit 1
 fi
 grep -Fq 'does not contain Live for Speed, Wine, DXVK' "$ROOT_DIR/packaging/debian/README.md"
+grep -Fq 'live-for-speed-linux_0.3.3-0github1_amd64.deb' "$ROOT_DIR/packaging/debian/README.md"
+grep -Fq 'Live for Speed 0.8C24 is a public test' "$ROOT_DIR/packaging/debian/build-deb.sh"
+grep -Fq '**Status:** v0.3.3 public-test wrapper candidate.' "$ROOT_DIR/README.md"
+grep -Fq '**LFS 0.8C24 new graphics**' "$ROOT_DIR/README.md"
+grep -Fq 'same 8C23 marker' "$ROOT_DIR/README.md"
+grep -Fq '"lfs-linux 0.3.3"' "$ROOT_DIR/docs/lfs-linux.1"
+grep -Fq 'Live for Speed 0.8C24 is a public test' "$ROOT_DIR/docs/lfs-linux.1"
+grep -Fq 'all 4,848 extracted official 0.8C24 files' "$ROOT_DIR/docs/ARCHITECTURE.md"
+grep -Fq 'unchanged `8C23.txt` marker' "$ROOT_DIR/docs/TROUBLESHOOTING.md"
 grep -Fq $'deb-check:\n\t./tests/test-debian-package.sh' "$ROOT_DIR/Makefile"
 grep -Fq 'LFS_LINUX_DISPOSABLE_CONTAINER=1' "$ROOT_DIR/.github/workflows/ci.yml"
 grep -Eq 'image: ubuntu@sha256:[0-9a-f]{64}$' "$ROOT_DIR/.github/workflows/ci.yml"
