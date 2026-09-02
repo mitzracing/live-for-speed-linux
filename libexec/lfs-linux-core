@@ -2532,10 +2532,11 @@ verify_sources() {
   verify_payload_manifest "verified-source Wine $WINE_RUNTIME_VERSION runtime" "$unpack/wine" "$WINE_RUNTIME_MANIFEST" \
     "$WINE_RUNTIME_MANIFEST_SIZE" "$WINE_RUNTIME_MANIFEST_SHA256" "$WINE_RUNTIME_MANIFEST_ENTRIES"
   rm -rf --one-file-system "$unpack/wine"
-  extract_bsdtar_archive "$DXVK_ARCHIVE" "$unpack" 'DXVK archive'
-  verify_file 'DXVK d3d11 x32 DLL' "$unpack/dxvk-$DXVK_VERSION/x32/d3d11.dll" \
+  mkdir "$unpack/dxvk"
+  extract_bsdtar_archive "$DXVK_ARCHIVE" "$unpack/dxvk" 'DXVK archive'
+  verify_file 'DXVK d3d11 x32 DLL' "$unpack/dxvk/dxvk-$DXVK_VERSION/x32/d3d11.dll" \
     "$DXVK_D3D11_X32_SIZE" "$DXVK_D3D11_X32_SHA256"
-  verify_file 'DXVK dxgi x32 DLL' "$unpack/dxvk-$DXVK_VERSION/x32/dxgi.dll" \
+  verify_file 'DXVK dxgi x32 DLL' "$unpack/dxvk/dxvk-$DXVK_VERSION/x32/dxgi.dll" \
     "$DXVK_DXGI_X32_SIZE" "$DXVK_DXGI_X32_SHA256"
   rm -rf --one-file-system "$unpack"
   ACTIVE_UNPACK=''
