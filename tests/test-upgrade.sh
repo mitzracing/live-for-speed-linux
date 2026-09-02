@@ -673,7 +673,21 @@ PY
 inventory_tree_metadata "$game/data/mpr" "$TMP_ROOT/local-player.before.jsonl"
 inventory_tree_metadata "$game/data/skins_dds/PLAYER.dds" "$TMP_ROOT/local-player-dds.before.jsonl"
 rm -f "$cached_installer"
+set +e
+LFS_LINUX_TEST_FAIL_AFTER_GAME_BACKUP=1 run_lfs install >"$TMP_ROOT/local-catchup-interrupted-swap.out" 2>&1
+local_catchup_interrupted_status=$?
+set -e
+[[ "$local_catchup_interrupted_status" -ne 0 ]]
+grep -Fq 'test fault after previous game tree moved to recovery backup' \
+  "$TMP_ROOT/local-catchup-interrupted-swap.out"
+[[ ! -e "$game" && -d "$state/.lfs-game-backup" && -f "$state/$local_manifest_name" ]]
+inventory_tree_metadata "$state/.lfs-game-backup/data/mpr" "$TMP_ROOT/local-player.in-backup.jsonl"
+inventory_tree_metadata "$state/.lfs-game-backup/data/skins_dds/PLAYER.dds" \
+  "$TMP_ROOT/local-player-dds.in-backup.jsonl"
+cmp "$TMP_ROOT/local-player.before.jsonl" "$TMP_ROOT/local-player.in-backup.jsonl"
+cmp "$TMP_ROOT/local-player-dds.before.jsonl" "$TMP_ROOT/local-player-dds.in-backup.jsonl"
 run_lfs install >"$TMP_ROOT/local-catchup-install.out"
+grep -Fq 'Recovered player data after an interrupted game-tree swap' "$TMP_ROOT/local-catchup-install.out"
 grep -Fq 'Verified locally recorded LFS test-local-old as the approved catch-up predecessor' \
   "$TMP_ROOT/local-catchup-install.out"
 grep -Fq 'Preserved complete player-owned paths from the verified local update' \
