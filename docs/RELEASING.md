@@ -3,7 +3,7 @@
 ## Wrapper release
 
 1. Run `make test`.
-2. Run `make package-check`; its exact direct-package file, symlink, and directory allowlists must reject every unexpected path or special filesystem entry.
+2. Run `make package-check`; its exact direct-package regular-file, symlink-target, and directory allowlists must reject every unexpected path, type change, wrong link target, or special filesystem entry.
 3. Build a staged filesystem with `make DESTDIR="$PWD/pkgroot" install`.
 4. Run `make deb-check` in clean Ubuntu 24.04 and Debian 13 containers.
 5. Validate the desktop file and AppStream metadata.
