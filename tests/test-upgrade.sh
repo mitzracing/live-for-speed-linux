@@ -361,6 +361,50 @@ run_lfs() {
     "$ROOT_DIR/bin/lfs-linux" "$@"
 }
 
+inventory_tree_metadata() {
+  python3 - "$1" "$2" <<'PY'
+import hashlib
+import json
+import os
+from pathlib import Path
+import stat
+import sys
+
+root = Path(sys.argv[1])
+rows = []
+for path in [root, *sorted(root.rglob("*"), key=lambda item: os.fsencode(item.relative_to(root)))]:
+    info = path.lstat()
+    relative = "." if path == root else os.fsdecode(os.fsencode(path.relative_to(root)))
+    if stat.S_ISREG(info.st_mode):
+        kind = "file"
+        value = hashlib.sha256(path.read_bytes()).hexdigest()
+    elif stat.S_ISDIR(info.st_mode):
+        kind = "directory"
+        value = None
+    elif stat.S_ISLNK(info.st_mode):
+        kind = "symlink"
+        value = os.readlink(path)
+    else:
+        raise SystemExit(f"unsupported player entry: {path}")
+    xattrs = {
+        os.fsdecode(name): os.getxattr(path, name, follow_symlinks=False).hex()
+        for name in sorted(os.listxattr(path, follow_symlinks=False), key=os.fsencode)
+    }
+    rows.append({
+        "path": relative,
+        "type": kind,
+        "value": value,
+        "uid": info.st_uid,
+        "gid": info.st_gid,
+        "mode": stat.S_IMODE(info.st_mode),
+        "mtime_ns": info.st_mtime_ns,
+        "size": info.st_size,
+        "xattrs": xattrs,
+    })
+Path(sys.argv[2]).write_text("\n".join(json.dumps(row, sort_keys=True) for row in rows) + "\n")
+PY
+}
+
 printf 'must-not-escape-staging' >"$TMP_ROOT/unsafe-member"
 (
   cd "$TMP_ROOT"
@@ -576,10 +620,39 @@ set -e
 [[ "$local_catchup_launch_status" -ne 0 ]]
 grep -Fq 'verified local LFS test-local-old requires audited test-new catch-up; run lfs-linux install' \
   "$TMP_ROOT/local-catchup-launch.out"
+mkdir -p "$game/data/mpr/empty-player-directory"
+ln -s local-predecessor.mpr "$game/data/mpr/replay-link"
+chmod 0710 "$game/data/mpr" "$game/data/mpr/empty-player-directory"
+chmod 0640 "$game/data/mpr/local-predecessor.mpr"
+touch -d '2026-08-31 21:12:13.123456789 UTC' "$game/data/mpr" \
+  "$game/data/mpr/empty-player-directory" "$game/data/mpr/local-predecessor.mpr"
+python3 - "$game/data/mpr" <<'PY'
+import os
+import sys
+try:
+    os.setxattr(sys.argv[1], b"user.lfs-linux-test", b"preserve-player-xattr")
+except OSError:
+    pass
+PY
+inventory_tree_metadata "$game/data/mpr" "$TMP_ROOT/local-player.before.jsonl"
+rm -f "$cached_installer"
+run_lfs install >"$TMP_ROOT/local-catchup-install.out"
+grep -Fq 'Verified locally recorded LFS test-local-old as the approved catch-up predecessor' \
+  "$TMP_ROOT/local-catchup-install.out"
+grep -Fq 'Preserved complete player-owned paths from the verified local update' \
+  "$TMP_ROOT/local-catchup-install.out"
+[[ "$(sha256sum "$game/LFS.exe" | awk '{print $1}')" == "$new_exe_hash" ]]
+[[ ! -e "$game/obsolete.stock" ]]
+[[ -f "$cached_installer" && ! -e "$state/$local_manifest_name" ]]
+grep -Fqx "LFS_BASELINE_KIND='package'" "$state/install.env"
+grep -Fqx "LFS_VERSION='test-new'" "$state/install.env"
+inventory_tree_metadata "$game/data/mpr" "$TMP_ROOT/local-player.after.jsonl"
+cmp "$TMP_ROOT/local-player.before.jsonl" "$TMP_ROOT/local-player.after.jsonl"
+[[ ! -e "$state/.lfs-game-backup" ]]
 rm -rf "$game"
 cp -a "$TMP_ROOT/before-local-catchup" "$game"
 cp "$TMP_ROOT/before-local-catchup.env" "$state/install.env"
-rm -f "$state/$local_manifest_name"
+rm -f "$state"/game-update-*.manifest "$state/game-update.manifest"
 
 cp -a "$game" "$TMP_ROOT/before-trusted-game-update"
 cp "$state/install.env" "$TMP_ROOT/before-trusted-game-update.env"
