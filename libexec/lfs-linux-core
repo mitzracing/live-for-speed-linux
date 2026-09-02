@@ -937,9 +937,13 @@ validate_existing_game_source() {
   baseline_kind="$(marker_value LFS_BASELINE_KIND 2>/dev/null || true)"
   if [[ "$baseline_kind" == 'game-update' ]]; then
     load_active_game_baseline || die 'recorded in-game update metadata is missing or changed; no files changed'
-    active_game_tree_is_complete ||
-      die 'recorded in-game update baseline drifted outside a trusted LFS session; no files changed—restore that game update or install a reviewed wrapper release'
-    return
+    if active_game_tree_is_complete; then
+      return
+    fi
+    if local_game_update_requires_upgrade && game_tree_matches_audited_target_overlay; then
+      return
+    fi
+    die 'recorded in-game update baseline drifted outside a trusted LFS session; no files changed—restore that game update or install a reviewed wrapper release'
   fi
   use_packaged_game_baseline
   if [[ ! -f "$GAME_EXE" ]]; then
@@ -1064,6 +1068,78 @@ manifest_metadata_is_valid() {
   entry_count="$(awk -F '\t' '$1 == "f" || $1 == "l" { count++ } END { print count + 0 }' "$manifest")"
   [[ "$entry_count" == "$expected_entries" ]] || return 1
   awk -F '\t' '($1 == "f" || $1 == "l") && ($4 == "" || $4 ~ /^\// || $4 ~ /(^|\/)\.\.(\/|$)/) { exit 1 }' "$manifest"
+}
+
+manifest_is_audited_target_overlay() {
+  local previous_manifest="$1" target_manifest="$2" candidate_manifest="$3"
+  awk -F '\t' '
+    FNR == 1 { file_number++ }
+    $1 != "f" && $1 != "l" { next }
+    file_number == 1 {
+      if (previous_seen[$4]++) bad = 1
+      previous[$4] = $0
+      next
+    }
+    file_number == 2 {
+      if (target_seen[$4]++) bad = 1
+      target[$4] = $0
+      next
+    }
+    file_number == 3 {
+      if (candidate_seen[$4]++) bad = 1
+      if ($4 in target) {
+        if ($0 != target[$4]) bad = 1
+        candidate_target[$4] = 1
+      } else if ($4 in previous) {
+        if ($0 != previous[$4]) bad = 1
+      } else {
+        bad = 1
+      }
+    }
+    END {
+      for (path in target) {
+        if (!(path in candidate_target)) bad = 1
+      }
+      exit bad
+    }
+  ' "$previous_manifest" "$target_manifest" "$candidate_manifest"
+}
+
+game_tree_matches_audited_target_overlay() {
+  local candidate status=0
+  local_game_update_requires_upgrade || return 1
+  manifest_metadata_is_valid "$LFS_STOCK_MANIFEST" "$LFS_STOCK_MANIFEST_SIZE" \
+    "$LFS_STOCK_MANIFEST_SHA256" "$LFS_STOCK_MANIFEST_ENTRIES" || return 1
+  candidate="$(mktemp "${TMPDIR:-/tmp}/lfs-linux-target-overlay.XXXXXX")" || return 1
+  snapshot_game_manifest "$GAME_DIR" "$candidate" || status=1
+  (( status != 0 )) || manifest_is_audited_target_overlay \
+    "$ACTIVE_LFS_STOCK_MANIFEST" "$LFS_STOCK_MANIFEST" "$candidate" || status=1
+  rm -f -- "$candidate"
+  return "$status"
+}
+
+remove_audited_predecessor_only_entries() {
+  local relative path
+  while IFS= read -r relative; do
+    [[ -n "$relative" && "$relative" != /* && "$relative" != *$'\t'* && \
+       "$relative" != *$'\n'* && "$relative" != '..' && "$relative" != ../* && \
+       "$relative" != */../* && "$relative" != */.. ]] ||
+      die 'approved predecessor manifest contains an unsafe removable path'
+    path="$GAME_DIR/$relative"
+    if [[ -f "$path" || -L "$path" ]]; then
+      rm -f -- "$path" || die "could not remove predecessor-only protected path: $relative"
+    elif [[ -e "$path" ]]; then
+      die "predecessor-only protected path changed type: $relative"
+    fi
+  done < <(
+    awk -F '\t' '
+      NR == FNR {
+        if ($1 == "f" || $1 == "l") target[$4] = 1
+        next
+      }
+      ($1 == "f" || $1 == "l") && !($4 in target) { print $4 }
+    ' "$LFS_STOCK_MANIFEST" "$ACTIVE_LFS_STOCK_MANIFEST"
+  )
 }
 
 merge_preserved_game_files() {
@@ -1203,13 +1279,23 @@ install_game() {
   recover_interrupted_game_swap
   if [[ "$(marker_value LFS_BASELINE_KIND 2>/dev/null || true)" == 'game-update' ]]; then
     load_active_game_baseline || die 'recorded in-game update metadata is missing or changed'
-    active_game_tree_is_complete || die 'recorded in-game update baseline drifted; no files changed'
-    if local_game_update_requires_upgrade; then
-      preservation_mode='complete-player-paths'
-      note "Verified locally recorded LFS $ACTIVE_LFS_VERSION as the approved catch-up predecessor"
-    else
-      note "Verified locally recorded LFS $ACTIVE_LFS_VERSION in-game update; preserving game-owned data"
+    if active_game_tree_is_complete; then
+      if local_game_update_requires_upgrade; then
+        preservation_mode='complete-player-paths'
+        note "Verified locally recorded LFS $ACTIVE_LFS_VERSION as the approved catch-up predecessor"
+      else
+        note "Verified locally recorded LFS $ACTIVE_LFS_VERSION in-game update; preserving game-owned data"
+        return
+      fi
+    elif local_game_update_requires_upgrade && game_tree_matches_audited_target_overlay; then
+      note "Recognized exact audited $LFS_VERSION overlay on the verified $ACTIVE_LFS_VERSION baseline"
+      remove_audited_predecessor_only_entries
+      game_tree_matches_audited_target_overlay || die 'audited target overlay changed during normalization; no player-owned files changed'
+      game_tree_is_complete || die 'normalized audited target overlay failed complete target verification; no player-owned files changed'
+      use_packaged_game_baseline
       return
+    else
+      die 'recorded in-game update baseline drifted; no files changed'
     fi
   fi
   use_packaged_game_baseline
@@ -1220,7 +1306,6 @@ install_game() {
     actual_checksum="$(sha256_of "$GAME_EXE")" || die 'existing LFS.exe hashing failed or exceeded 1800 seconds'
     if [[ "$actual_size" == "$LFS_EXE_SIZE" && "$actual_checksum" == "$LFS_EXE_SHA256" ]]; then
       if game_tree_is_complete; then
-        remove_local_game_manifests_except
         use_packaged_game_baseline
         note 'Verified complete stock LFS installation; preserving game-owned data'
         return
@@ -1259,7 +1344,6 @@ install_game() {
   ACTIVE_UNPACK=''
   trap - EXIT
   verify_game_tree "$GAME_DIR" 'installed LFS'
-  remove_local_game_manifests_except
   use_packaged_game_baseline
 }
 
@@ -1683,6 +1767,13 @@ install_all() {
   install_game
   install_dxvk
   write_marker
+  if [[ "$ACTIVE_BASELINE_KIND" == 'game-update' ]]; then
+    remove_local_game_manifests_except "$ACTIVE_LFS_STOCK_MANIFEST" ||
+      warn 'kept an obsolete local game-update manifest after marker commit'
+  else
+    remove_local_game_manifests_except ||
+      warn 'kept an obsolete local game-update manifest after package marker commit'
+  fi
   rm -f "$LAUNCH_SESSION"
   note 'Installation complete. Run: lfs-linux launch'
 }
