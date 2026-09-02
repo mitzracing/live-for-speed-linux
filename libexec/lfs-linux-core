@@ -1503,7 +1503,7 @@ merge_local_upgrade_player_directories() {
     done < <(find -P "$source_root" \( -type f -o -type l \) -print0)
     destination_root="$staging/$relative"
     mkdir -p "$destination_root"
-    cp -a --no-clobber -- "$source_root/." "$destination_root/" ||
+    cp -a --update=none -- "$source_root/." "$destination_root/" ||
       die "could not merge player-owned game path: $relative"
     merged=$((merged + 1))
   done
