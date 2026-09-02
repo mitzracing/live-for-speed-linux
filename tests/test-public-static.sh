@@ -33,29 +33,30 @@ PY
 # shellcheck source=/dev/null
 source "$ROOT_DIR/share/lfs-linux/release.env"
 [[ "$LFS_LINUX_VERSION" == "$(<"$ROOT_DIR/VERSION")" ]]
-[[ "$LFS_VERSION" == '0.8C20' ]]
+[[ "$LFS_LINUX_VERSION" == '0.3.3' ]]
+[[ "$LFS_VERSION" == '0.8C24' ]]
 [[ "$LFS_CHANNEL" == 'public-test' ]]
 [[ "$LFS_CHANNEL_LABEL" == *'PUBLIC TEST'* && "$LFS_CHANNEL_LABEL" == *'not stable'* ]]
 [[ "$LFS_PUBLIC_TEST_FAMILY" == '0.8C' ]]
 [[ "$LFS_FALLBACK_WRAPPER" == 'v0.1.6' ]]
 [[ "$LFS_FALLBACK_VERSION" == '0.7G' ]]
 [[ "$LFS_INSTALLER_URL" == https://www.lfs.net/* ]]
-[[ "$LFS_INSTALLER_SIZE" == '1744256786' ]]
-[[ "$LFS_INSTALLER_SHA256" == 'c06d3d9055f40e8e70994280a52b23f8c3c59b24ad726380547f0ed8899b9b76' ]]
-[[ "$LFS_EXE_SIZE" == '2743808' ]]
-[[ "$LFS_EXE_SHA256" == 'a8a41b1cb8763f6bfe51bead18c735ea9f7d4fbb21566f1d635283676ecc04dd' ]]
-[[ "$LFS_STOCK_MANIFEST_NAME" == 'lfs-0.8C20-stock.manifest' ]]
-[[ "$LFS_STOCK_MANIFEST_SIZE" == '197387' ]]
-[[ "$LFS_STOCK_MANIFEST_SHA256" == 'be0868a84e9447a60e3b75f831563d551fc132c345cc3e8caa00dbcaf7d8a581' ]]
+[[ "$LFS_INSTALLER_SIZE" == '1744514064' ]]
+[[ "$LFS_INSTALLER_SHA256" == '9aa925840f9a8f9a4c3b60ad476ba5b6baa28fa78d584b057a1d2c0cf3d5ec47' ]]
+[[ "$LFS_EXE_SIZE" == '2744320' ]]
+[[ "$LFS_EXE_SHA256" == 'f76daf499d8a27a51889f1c169c2d986f865690ab378fdca8dbedbc0a3b9defb' ]]
+[[ "$LFS_STOCK_MANIFEST_NAME" == 'lfs-0.8C24-stock.manifest' ]]
+[[ "$LFS_STOCK_MANIFEST_SIZE" == '197380' ]]
+[[ "$LFS_STOCK_MANIFEST_SHA256" == '212d77485e2e9a5d926b2aa925ae4e2df7fa413a0ec7b052b93892676ae8dad0' ]]
 [[ "$LFS_STOCK_MANIFEST_ENTRIES" == '1963' ]]
 lfs_stock_manifest="$ROOT_DIR/share/lfs-linux/$LFS_STOCK_MANIFEST_NAME"
 [[ "$(stat -c %s "$lfs_stock_manifest")" == "$LFS_STOCK_MANIFEST_SIZE" ]]
 [[ "$(sha256sum "$lfs_stock_manifest" | awk '{print $1}')" == "$LFS_STOCK_MANIFEST_SHA256" ]]
 [[ "$(awk -F '\t' '$1 == "f" || $1 == "l" { count++ } END { print count + 0 }' "$lfs_stock_manifest")" == "$LFS_STOCK_MANIFEST_ENTRIES" ]]
-[[ "$LFS_STOCK_SEED_MANIFEST_NAME" == 'lfs-0.8C20-seed.manifest' ]]
-[[ "$LFS_STOCK_SEED_MANIFEST_SIZE" == '494758' ]]
-[[ "$LFS_STOCK_SEED_MANIFEST_SHA256" == 'f4cf02b8c7b2488dfe45644e3669af84200488f6bcfcd2a78b7240b450b1bffb' ]]
-[[ "$LFS_STOCK_SEED_MANIFEST_ENTRIES" == '4847' ]]
+[[ "$LFS_STOCK_SEED_MANIFEST_NAME" == 'lfs-0.8C24-seed.manifest' ]]
+[[ "$LFS_STOCK_SEED_MANIFEST_SIZE" == '494850' ]]
+[[ "$LFS_STOCK_SEED_MANIFEST_SHA256" == '06ea20e01162c6f13fd291da6453a94790f9e93e986ac2e456e0b1f89aaf6d52' ]]
+[[ "$LFS_STOCK_SEED_MANIFEST_ENTRIES" == '4848' ]]
 lfs_seed_manifest="$ROOT_DIR/share/lfs-linux/$LFS_STOCK_SEED_MANIFEST_NAME"
 [[ "$(stat -c %s "$lfs_seed_manifest")" == "$LFS_STOCK_SEED_MANIFEST_SIZE" ]]
 [[ "$(sha256sum "$lfs_seed_manifest" | awk '{print $1}')" == "$LFS_STOCK_SEED_MANIFEST_SHA256" ]]
@@ -65,6 +66,15 @@ grep -Fq $'\tdata/training/Acceleration - GTI.lsn' "$lfs_seed_manifest"
 grep -Fq $'\tdata/veh/FO8.vob' "$lfs_stock_manifest"
 grep -Fq $'\tbin/shaders11/ps_1.cso' "$lfs_stock_manifest"
 grep -Fq $'\tdata/versions/8C20.txt' "$lfs_stock_manifest"
+grep -Fq $'\tdata/versions/8C23.txt' "$lfs_stock_manifest"
+if grep -Fq $'\tdata/versions/8C24.txt' "$lfs_stock_manifest"; then
+  printf 'C24 manifest unexpectedly gained an unaudited 8C24 marker\n' >&2
+  exit 1
+fi
+if grep -Fq $'\tUninstallLFS.exe' "$lfs_stock_manifest"; then
+  printf 'removed C23 uninstaller entered the C24 target manifest\n' >&2
+  exit 1
+fi
 if grep -Eq $'\tdata/(knw|training)/' "$lfs_stock_manifest"; then
   printf 'mutable AI knowledge or training content entered the immutable stock manifest\n' >&2
   exit 1
@@ -106,9 +116,9 @@ immutable_bytes="$(awk -F '\t' '$1 == "f" { total += $3 } END { printf "%.0f", t
 [[ "$LFS_NESTED_ARCHIVE_COUNT" == '52' ]]
 [[ "$LFS_NESTED_DDS_ARCHIVE_COUNT" == '41' ]]
 [[ "$LFS_NESTED_WLD_ARCHIVE_COUNT" == '9' ]]
-[[ "$LFS_NESTED_MANIFEST_NAME" == 'lfs-0.8C20-nested.manifest' ]]
+[[ "$LFS_NESTED_MANIFEST_NAME" == 'lfs-0.8C24-nested.manifest' ]]
 [[ "$LFS_NESTED_MANIFEST_SIZE" == '5030' ]]
-[[ "$LFS_NESTED_MANIFEST_SHA256" == '70ebd0402f33b82e83cc50c4f5f458b8fecfe32facbd6486105f227a3399237f' ]]
+[[ "$LFS_NESTED_MANIFEST_SHA256" == '82d735bc73ab9ecb09ae4bfc4b951344d1c81dc56c0f4df63952edff59195eed' ]]
 [[ "$LFS_NESTED_MANIFEST_ENTRIES" == '52' ]]
 nested_manifest="$ROOT_DIR/share/lfs-linux/$LFS_NESTED_MANIFEST_NAME"
 [[ "$(stat -c %s "$nested_manifest")" == "$LFS_NESTED_MANIFEST_SIZE" ]]
@@ -127,21 +137,23 @@ done
 [[ "$LFS_REQUIRED_TRACK_SHA256" =~ ^[0-9a-f]{64}$ ]]
 [[ "$LFS_REQUIRED_VEHICLE_SIZE" =~ ^[0-9]+$ ]]
 [[ "$LFS_REQUIRED_VEHICLE_SHA256" =~ ^[0-9a-f]{64}$ ]]
-[[ "$LFS_UPGRADE_FROM_VERSION" == '0.8C19' ]]
+[[ "$LFS_UPGRADE_FROM_VERSION" == '0.8C20' ]]
+[[ "$LFS_LOCAL_UPDATE_UPGRADE_FROM_VERSION" == '0.8C23' ]]
 read -r -a previous_lfs_hashes <<<"$LFS_UPGRADE_FROM_SHA256S"
 for previous_hash in "${previous_lfs_hashes[@]}"; do
   [[ "$previous_hash" =~ ^[0-9a-f]{64}$ ]]
 done
-[[ "$LFS_UPGRADE_MANIFEST_NAME" == 'lfs-0.8C19-stock.manifest' ]]
-[[ "$LFS_UPGRADE_MANIFEST_SIZE" == '196775' ]]
-[[ "$LFS_UPGRADE_MANIFEST_SHA256" == '4b3516ccbb7c3afe0d00c7c26c044035ec236a389d054ee2f05935bacec2c3a8' ]]
-[[ "$LFS_UPGRADE_MANIFEST_ENTRIES" == '1957' ]]
+[[ " $LFS_UPGRADE_FROM_SHA256S " == *' a8a41b1cb8763f6bfe51bead18c735ea9f7d4fbb21566f1d635283676ecc04dd '* ]]
+[[ "$LFS_UPGRADE_MANIFEST_NAME" == 'lfs-0.8C20-stock.manifest' ]]
+[[ "$LFS_UPGRADE_MANIFEST_SIZE" == '197387' ]]
+[[ "$LFS_UPGRADE_MANIFEST_SHA256" == 'be0868a84e9447a60e3b75f831563d551fc132c345cc3e8caa00dbcaf7d8a581' ]]
+[[ "$LFS_UPGRADE_MANIFEST_ENTRIES" == '1963' ]]
 [[ "$(stat -c %s "$ROOT_DIR/share/lfs-linux/$LFS_UPGRADE_MANIFEST_NAME")" == "$LFS_UPGRADE_MANIFEST_SIZE" ]]
 [[ "$(sha256sum "$ROOT_DIR/share/lfs-linux/$LFS_UPGRADE_MANIFEST_NAME" | awk '{print $1}')" == "$LFS_UPGRADE_MANIFEST_SHA256" ]]
-[[ "$LFS_UPGRADE_SEED_MANIFEST_NAME" == 'lfs-0.8C19-seed.manifest' ]]
-[[ "$LFS_UPGRADE_SEED_MANIFEST_SIZE" == '494146' ]]
-[[ "$LFS_UPGRADE_SEED_MANIFEST_SHA256" == 'f80039d4dcb415d69caa0802fea9aa4b8ab51c9596cc1ee94a6ec92192c4c9b8' ]]
-[[ "$LFS_UPGRADE_SEED_MANIFEST_ENTRIES" == '4841' ]]
+[[ "$LFS_UPGRADE_SEED_MANIFEST_NAME" == 'lfs-0.8C20-seed.manifest' ]]
+[[ "$LFS_UPGRADE_SEED_MANIFEST_SIZE" == '494758' ]]
+[[ "$LFS_UPGRADE_SEED_MANIFEST_SHA256" == 'f4cf02b8c7b2488dfe45644e3669af84200488f6bcfcd2a78b7240b450b1bffb' ]]
+[[ "$LFS_UPGRADE_SEED_MANIFEST_ENTRIES" == '4847' ]]
 upgrade_seed_manifest="$ROOT_DIR/share/lfs-linux/$LFS_UPGRADE_SEED_MANIFEST_NAME"
 [[ "$(stat -c %s "$upgrade_seed_manifest")" == "$LFS_UPGRADE_SEED_MANIFEST_SIZE" ]]
 [[ "$(sha256sum "$upgrade_seed_manifest" | awk '{print $1}')" == "$LFS_UPGRADE_SEED_MANIFEST_SHA256" ]]
