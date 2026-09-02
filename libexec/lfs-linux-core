@@ -82,8 +82,12 @@ cleanup_active_unpack() {
 cleanup_install_transaction() {
   cleanup_active_unpack
   if [[ "$ACTIVE_PREDECESSOR_QUARANTINE" == 'prepared' ]]; then
-    rollback_predecessor_quarantine ||
-      warn "could not fully restore predecessor quarantine; retained at $GAME_PREDECESSOR_QUARANTINE"
+    if current_package_marker_is_committed; then
+      ACTIVE_PREDECESSOR_QUARANTINE='committed'
+    else
+      rollback_predecessor_quarantine ||
+        warn "could not fully restore predecessor quarantine; retained at $GAME_PREDECESSOR_QUARANTINE"
+    fi
   fi
 }
 
@@ -233,6 +237,19 @@ metadata_value() {
 
 marker_value() {
   metadata_value "$INSTALL_MARKER" "$1"
+}
+
+current_package_marker_is_committed() {
+  [[ "$(marker_value LFS_BASELINE_KIND 2>/dev/null || true)" == 'package' &&
+     "$(marker_value LFS_VERSION 2>/dev/null || true)" == "$LFS_VERSION" &&
+     "$(marker_value LFS_CHANNEL 2>/dev/null || true)" == "$LFS_CHANNEL" &&
+     "$(marker_value LFS_EXE_SIZE 2>/dev/null || true)" == "$LFS_EXE_SIZE" &&
+     "$(marker_value LFS_EXE_SHA256 2>/dev/null || true)" == "$LFS_EXE_SHA256" &&
+     "$(marker_value LFS_STOCK_MANIFEST_NAME 2>/dev/null || true)" == "$(basename "$LFS_STOCK_MANIFEST")" &&
+     "$(marker_value LFS_STOCK_MANIFEST_SIZE 2>/dev/null || true)" == "$LFS_STOCK_MANIFEST_SIZE" &&
+     "$(marker_value LFS_STOCK_MANIFEST_SHA256 2>/dev/null || true)" == "$LFS_STOCK_MANIFEST_SHA256" &&
+     "$(marker_value LFS_STOCK_MANIFEST_ENTRIES 2>/dev/null || true)" == "$LFS_STOCK_MANIFEST_ENTRIES" &&
+     "$(marker_value LFS_PACKAGE_VERSION 2>/dev/null || true)" == "$LFS_VERSION" ]]
 }
 
 load_active_game_baseline() {
@@ -1298,9 +1315,7 @@ finalize_predecessor_quarantine() {
 recover_committed_predecessor_quarantine() {
   local destination
   [[ -e "$GAME_PREDECESSOR_QUARANTINE" || -L "$GAME_PREDECESSOR_QUARANTINE" ]] || return 0
-  [[ "$(marker_value LFS_BASELINE_KIND 2>/dev/null || true)" == 'package' &&
-     "$(marker_value LFS_VERSION 2>/dev/null || true)" == "$LFS_VERSION" &&
-     "$(marker_value LFS_EXE_SHA256 2>/dev/null || true)" == "$LFS_EXE_SHA256" ]] || return 0
+  current_package_marker_is_committed || return 0
   [[ -d "$GAME_PREDECESSOR_QUARANTINE" && ! -L "$GAME_PREDECESSOR_QUARANTINE" ]] ||
     die "unsafe committed predecessor quarantine retained at $GAME_PREDECESSOR_QUARANTINE"
   destination="$STATE_ROOT/migration-conflicts/recovered-predecessor-quarantine"
@@ -2115,11 +2130,12 @@ install_all() {
   install_game
   install_dxvk
   write_marker
+  if [[ "$ACTIVE_PREDECESSOR_QUARANTINE" == 'prepared' &&
+        "${LFS_LINUX_TEST_FAIL_AFTER_OVERLAY_MARKER_BEFORE_PHASE:-0}" == '1' ]]; then
+    die 'test fault after package marker commit before quarantine phase persisted'
+  fi
   if [[ "$ACTIVE_PREDECESSOR_QUARANTINE" == 'prepared' ]]; then
     ACTIVE_PREDECESSOR_QUARANTINE='committed'
-    if [[ "${LFS_LINUX_TEST_FAIL_AFTER_OVERLAY_MARKER:-0}" == '1' ]]; then
-      die 'test fault after package marker committed with predecessor quarantine'
-    fi
     finalize_predecessor_quarantine
   fi
   if [[ "$ACTIVE_BASELINE_KIND" == 'game-update' ]]; then
