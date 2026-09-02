@@ -746,6 +746,35 @@ diff -qr "$TMP_ROOT/before-rejected-overlay-addition" "$game" >/dev/null
 rm -rf "$game"
 cp -a "$TMP_ROOT/same-marker-candidate" "$game"
 write_local_predecessor_marker
+mkdir "$game/unexpected-empty-directory"
+cp -a "$game" "$TMP_ROOT/before-rejected-overlay-directory"
+set +e
+run_lfs install >"$TMP_ROOT/rejected-overlay-directory.out" 2>&1
+overlay_directory_status=$?
+set -e
+[[ "$overlay_directory_status" -ne 0 && ! -e "$cached_installer" ]]
+grep -Fq 'recorded in-game update baseline drifted outside a trusted LFS session' \
+  "$TMP_ROOT/rejected-overlay-directory.out"
+diff -qr "$TMP_ROOT/before-rejected-overlay-directory" "$game" >/dev/null
+
+rm -rf "$game"
+cp -a "$TMP_ROOT/same-marker-candidate" "$game"
+write_local_predecessor_marker
+mkfifo "$game/data/mpr/unsupported-player-fifo"
+cp -a "$game" "$TMP_ROOT/before-rejected-overlay-special"
+set +e
+run_lfs install >"$TMP_ROOT/rejected-overlay-special.out" 2>&1
+overlay_special_status=$?
+set -e
+[[ "$overlay_special_status" -ne 0 && ! -e "$cached_installer" ]]
+grep -Fq 'recorded in-game update baseline drifted outside a trusted LFS session' \
+  "$TMP_ROOT/rejected-overlay-special.out"
+[[ -p "$game/data/mpr/unsupported-player-fifo" ]]
+grep -Fqx 'obsolete-stock' "$game/obsolete.stock"
+
+rm -rf "$game"
+cp -a "$TMP_ROOT/same-marker-candidate" "$game"
+write_local_predecessor_marker
 printf 'changed-predecessor-only-entry' >"$game/obsolete.stock"
 cp -a "$game" "$TMP_ROOT/before-rejected-overlay-stale-drift"
 set +e
