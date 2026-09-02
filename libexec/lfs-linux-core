@@ -49,6 +49,10 @@ readonly -a PLAYER_OWNED_GAME_DIRS=(
   data/mpr data/raf data/script data/setups data/settings data/shots data/skins
   data/skins_x data/skins_y data/spr data/training data/views
 )
+readonly -a LOCAL_UPGRADE_PLAYER_DIRS=(
+  "${PLAYER_OWNED_GAME_DIRS[@]}"
+)
+readonly -a LOCAL_UPGRADE_MERGED_PLAYER_DIRS=(data/skins_dds)
 
 WINE_BIN=''
 WINE_SERVER=''
@@ -291,6 +295,15 @@ game_path_is_player_owned() {
   done
   for owned in "${PLAYER_OWNED_GAME_DIRS[@]}"; do
     [[ "$relative" == "$owned/"* ]] && return 0
+  done
+  return 1
+}
+
+upgrade_game_path_is_player_owned() {
+  local relative="$1" owned
+  game_path_is_player_owned "$relative" && return 0
+  for owned in "${LOCAL_UPGRADE_PLAYER_DIRS[@]}" "${LOCAL_UPGRADE_MERGED_PLAYER_DIRS[@]}"; do
+    [[ "$relative" == "$owned" || "$relative" == "$owned/"* ]] && return 0
   done
   return 1
 }
@@ -1121,6 +1134,7 @@ game_tree_matches_audited_target_overlay() {
 remove_audited_predecessor_only_entries() {
   local relative path
   while IFS= read -r relative; do
+    upgrade_game_path_is_player_owned "$relative" && continue
     [[ -n "$relative" && "$relative" != /* && "$relative" != *$'\t'* && \
        "$relative" != *$'\n'* && "$relative" != '..' && "$relative" != ../* && \
        "$relative" != */../* && "$relative" != */.. ]] ||
@@ -1202,9 +1216,68 @@ merge_preserved_game_files() {
   fi
 }
 
+merge_local_upgrade_player_directories() {
+  local existing="$1" staging="$2" relative source_root destination_root source source_relative type expected expected_size
+  local source_hash fingerprint conflict_destination unsupported merged=0 conflicts=0
+  local conflict_dir="$STATE_ROOT/migration-conflicts/from-$LFS_LOCAL_UPDATE_UPGRADE_FROM_VERSION-to-$LFS_VERSION"
+  local -A target_types=() target_values=() target_sizes=()
+  while IFS=$'\t' read -r type expected expected_size relative; do
+    if [[ "$type" == 'f' || "$type" == 'l' ]]; then
+      target_types["$relative"]="$type"
+      target_values["$relative"]="$expected"
+      target_sizes["$relative"]="$expected_size"
+    fi
+  done <"$LFS_STOCK_MANIFEST"
+
+  for relative in "${LOCAL_UPGRADE_MERGED_PLAYER_DIRS[@]}"; do
+    source_root="$existing/$relative"
+    [[ -e "$source_root" || -L "$source_root" ]] || continue
+    [[ -d "$source_root" && ! -L "$source_root" ]] ||
+      die "player-owned merge root changed type during migration: $relative"
+    unsupported="$(find -P "$source_root" ! -type d ! -type f ! -type l -print -quit)"
+    [[ -z "$unsupported" ]] || die "unsupported player-owned game entry during migration: ${unsupported#"$existing/"}"
+    while IFS= read -r -d '' source; do
+      source_relative="${source#"$existing/"}"
+      [[ -n "${target_types[$source_relative]+present}" ]] || continue
+      source_hash=''
+      if [[ "${target_types[$source_relative]}" == 'l' && -L "$source" && \
+            "$(readlink -- "$source")" == "${target_values[$source_relative]}" ]]; then
+        continue
+      fi
+      if [[ "${target_types[$source_relative]}" == 'f' && -f "$source" && ! -L "$source" && \
+            "$(stat -c %s "$source")" == "${target_sizes[$source_relative]}" ]]; then
+        source_hash="$(sha256_of "$source")" || die "player-file hashing failed during migration: $source_relative"
+        [[ "$source_hash" == "${target_values[$source_relative]}" ]] && continue
+      fi
+      if [[ -L "$source" ]]; then
+        fingerprint="$(printf 'link:%s' "$(readlink -- "$source")" | sha256sum | awk '{print $1}')"
+      elif [[ -n "$source_hash" ]]; then
+        fingerprint="$source_hash"
+      else
+        fingerprint="$(sha256_of "$source")" || die "player-file hashing failed during migration: $source_relative"
+      fi
+      conflict_destination="$conflict_dir/$source_relative.$fingerprint.pre-upgrade"
+      mkdir -p "$(dirname "$conflict_destination")"
+      if [[ ! -e "$conflict_destination" && ! -L "$conflict_destination" ]]; then
+        cp -a -- "$source" "$conflict_destination"
+      fi
+      conflicts=$((conflicts + 1))
+    done < <(find -P "$source_root" \( -type f -o -type l \) -print0)
+    destination_root="$staging/$relative"
+    mkdir -p "$destination_root"
+    cp -a --no-clobber -- "$source_root/." "$destination_root/" ||
+      die "could not merge player-owned game path: $relative"
+    merged=$((merged + 1))
+  done
+  note "Merged player-owned paths that share stock directories ($merged roots)"
+  if (( conflicts > 0 )); then
+    note "Preserved $conflicts player file(s) that collide with C24 stock under $conflict_dir"
+  fi
+}
+
 copy_complete_player_owned_game_paths() {
   local existing="$1" staging="$2" relative source destination unsupported preserved=0
-  for relative in "${PLAYER_OWNED_GAME_FILES[@]}" "${PLAYER_OWNED_GAME_DIRS[@]}"; do
+  for relative in "${PLAYER_OWNED_GAME_FILES[@]}" "${LOCAL_UPGRADE_PLAYER_DIRS[@]}"; do
     source="$existing/$relative"
     [[ -e "$source" || -L "$source" ]] || continue
     if [[ ! -f "$source" && ! -d "$source" && ! -L "$source" ]]; then
@@ -1220,6 +1293,7 @@ copy_complete_player_owned_game_paths() {
     cp -a -- "$source" "$destination" || die "could not preserve player-owned game path: $relative"
     preserved=$((preserved + 1))
   done
+  merge_local_upgrade_player_directories "$existing" "$staging"
   note "Preserved complete player-owned paths from the verified local update ($preserved roots)"
 }
 
