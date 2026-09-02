@@ -52,6 +52,7 @@ rm -f "$OUTPUT_DIR/$ARCHIVE_NAME"
     --owner=0 \
     --group=0 \
     --numeric-owner \
+    --mode='u+rwX,go+rX,go-w,a-s,a-t' \
     --exclude='__pycache__' \
     --exclude='*/__pycache__' \
     --exclude='*.py[co]' \

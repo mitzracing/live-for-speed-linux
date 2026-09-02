@@ -37,7 +37,7 @@ optdepends=(
 install=live-for-speed-linux.install
 _source_name='live-for-speed-linux'
 source=("$_source_name-$pkgver.tar.gz::$url/releases/download/v$pkgver/$_source_name-$pkgver.tar.gz")
-sha256sums=('fa5a333fb18bf2c96753341dc66c47e121bd27f709cb84905fdca4db6e504608')
+sha256sums=('7984e41b57b9dd8794226fff531c4bed3dc7d5a7ec9a300147e07de89f052280')
 
 package() {
   cd "$srcdir/$_source_name-$pkgver"
