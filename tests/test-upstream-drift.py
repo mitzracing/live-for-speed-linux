@@ -122,8 +122,8 @@ class UpstreamDriftTest(unittest.TestCase):
         )
         self.assertEqual(plan["action"], "update")
         self.assertEqual(plan["issue_number"], 29)
-        self.assertIn("0.8C25", plan["body"])
-        self.assertNotIn("0.8C24", plan["body"])
+        self.assertIn("0.8C26", plan["body"])
+        self.assertNotIn("0.8C25", plan["body"])
         self.assertIn("changed", plan["comment"].casefold())
 
     def test_current_pin_closes_open_managed_issue(self) -> None:

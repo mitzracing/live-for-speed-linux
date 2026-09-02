@@ -79,6 +79,6 @@ GitHub release publication and AUR submission require explicit owner approval.
 
 ## Rollback
 
-Revert the wrapper package to the last verified tag. For the 0.8C20 public-test release, v0.2.2 is the audited 0.8C19 predecessor and immutable v0.1.6 remains the old-graphics 0.7G fallback. Do not downgrade or overwrite a packaged or locally recorded game baseline automatically; back up the XDG state tree and use a separate state directory for fallback validation.
+Revert the wrapper package to the last verified tag. For the 0.8C24 public-test candidate, v0.3.2 is the audited 0.8C20 predecessor and immutable v0.1.6 remains the old-graphics 0.7G fallback. Do not downgrade or overwrite a packaged or locally recorded game baseline automatically; back up the XDG state tree and use a separate state directory for fallback validation.
 
 If an upstream public-test update is incompatible, keep the prior pin only while its official URL and terms remain valid. Clearly report that status and never call a public test stable.

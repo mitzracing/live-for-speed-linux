@@ -59,7 +59,7 @@ The wrapper verifies the private DXVK archive plus its D3D11 and DXGI prefix cop
 
 ## Wine package signature failure
 
-Version 0.3.2 verifies the pinned Arch Wine package size, SHA-256 digest, detached signature, exact public certificate, and signer fingerprint before extraction. Delete the cached Wine archive and signature with `lfs-linux purge-cache`, then retry `lfs-linux install`. If verification still fails, do not bypass it; report the exact wrapper error. The Arch signature authenticates the archived package and its packager, not reproducible correspondence to Wine source.
+Version 0.3.3 verifies the pinned Arch Wine package size, SHA-256 digest, detached signature, exact public certificate, and signer fingerprint before extraction. Delete the cached Wine archive and signature with `lfs-linux purge-cache`, then retry `lfs-linux install`. If verification still fails, do not bypass it; report the exact wrapper error. The Arch signature authenticates the archived package and its packager, not reproducible correspondence to Wine source.
 
 ## Missing audio
 
@@ -77,7 +77,7 @@ Every wrapper launch passes `/windowed=yes`. This gives a recoverable default wi
 
 ## Setup reports an incomplete stock tree
 
-The wrapper does not execute the NSIS installer under Wine. It extracts the verified official archive and its pinned nested payloads with 7-Zip, then verifies every protected stock file against the shipped 0.8C20 manifest. Player-owned account/configuration state, debug logs, caches, downloaded mods and skins, settings, setups, layouts, replays, AI knowledge, training content, and similar mutable paths are excluded from local update inventories and preserved during repair. If packaged stock is absent or changed, diagnostics fail and `lfs-linux install` restores it from the verified archive before writing a new marker.
+The wrapper does not execute the NSIS installer under Wine. It extracts the verified official archive and its pinned nested payloads with 7-Zip, then verifies every protected stock file against the shipped 0.8C24 manifest. Player-owned account/configuration state, debug logs, caches, downloaded mods and skins, settings, setups, layouts, replays, AI knowledge, training content, and similar mutable paths are excluded from local update inventories and preserved during repair. If packaged stock is absent or changed, diagnostics fail and `lfs-linux install` restores it from the verified archive before writing a new marker.
 
 ## Upstream update detected
 
@@ -108,11 +108,13 @@ lfs-linux doctor
 
 Recovery validates exact-schema pending evidence, prior baseline hashes, matching launch-log session/epoch, ownership, and newer version marker. It acquires an owner-private, non-symlink launch lock and requires a stopped prefix. Before asking, it snapshots and validates current protected files and shows that snapshot digest. After confirmation it rechecks evidence, marker, log, version, process state, and a second protected-file inventory; the two inventory digests must match. Missing, changed, or raced evidence or content fails without modifying the previous marker/manifest pair. Do not create recovery metadata manually, bypass confirmation, or use recovery for arbitrary out-of-session drift.
 
-If no recovery evidence exists, or protected files changed after LFS closed, diagnostics reject that drift. Restore the recorded files or install a reviewed wrapper containing the newer bootstrap. Do not delete player data. Version 0.2.x did not record updates after exit. Wrapper 0.3.0 directly recognizes exact official 0.8C20, so an existing C19-to-C20 in-game update can be adopted with `lfs-linux install` without redownloading the game when its protected tree matches.
+If no recovery evidence exists, or protected files changed after LFS closed, diagnostics reject that drift. Restore the recorded files or install a reviewed wrapper containing the newer bootstrap. Do not delete player data. Version 0.2.x did not record updates after exit. Wrapper 0.3.0 directly recognizes exact official 0.8C20, so an existing C19-to-C20 in-game update can be adopted with its matching wrapper when the protected tree matches.
+
+LFS 0.8C24 is a special audited case because its executable identifies C24 but the protected tree retains the unchanged `8C23.txt` marker. Do not create a marker manually. Install wrapper 0.3.3 and run `lfs-linux install`. An exact recorded C23 baseline downloads and stages the pinned C24 installer while preserving complete player-owned roots and metadata. If the official updater already produced C24, setup skips the second game download only when every protected entry matches the audited C24 target or an unchanged, previously trusted C23-only entry. Any unknown addition or changed target/predecessor entry still fails closed.
 
 ## Upgrade stops before changing the game
 
-Wrapper 0.3.x upgrades only a complete, exact LFS 0.8C19 protected payload to its packaged 0.8C20 bootstrap. It preserves files outside both protected manifests and swaps a needed verified tree atomically. A player file that collides with a newly added stock path is retained by content hash under `~/.local/share/lfs-linux/migration-conflicts/`. A valid locally recorded newer game is preserved instead of replaced. Unknown or unrecorded protected-file drift stops before mutation.
+Wrapper 0.3.3 upgrades a complete packaged LFS 0.8C20 payload or a complete content-addressed local LFS 0.8C23 baseline to packaged 0.8C24. Packaged migration uses the C20 stock and seed manifests to preserve changed player files. Local C23 migration preserves complete player-owned paths with their directory, file, link, ownership, mode, timestamp, xattr, and ACL-backed metadata before the atomic swap. A player file that collides with a newly added stock path is retained by content hash under `~/.local/share/lfs-linux/migration-conflicts/`. A valid locally recorded newer game is preserved instead of replaced. Unknown or unrecorded protected-file drift stops before mutation.
 
 ## Wine runtime problem
 
