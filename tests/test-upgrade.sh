@@ -716,6 +716,8 @@ cp -a "$old_stock" "$game"
 mkdir -p "$game/data/mpr" "$game/data/skins_dds"
 printf 'local-predecessor-replay' >"$game/data/mpr/local-predecessor.mpr"
 printf 'downloaded-player-dds' >"$game/data/skins_dds/PLAYER.dds"
+printf 'player-modified-stock-dds' >"$game/data/skins_dds/HEL_DEFAULT.dds"
+local_helmet_collision_hash="$(sha256sum "$game/data/skins_dds/HEL_DEFAULT.dds" | awk '{print $1}')"
 write_runtime_game_manifest "$game" "$data/old-local.manifest"
 old_local_manifest_size="$(stat -c %s "$data/old-local.manifest")"
 old_local_manifest_hash="$(sha256sum "$data/old-local.manifest" | awk '{print $1}')"
@@ -781,7 +783,12 @@ grep -Fq 'Verified locally recorded LFS test-local-old as the approved catch-up 
   "$TMP_ROOT/local-catchup-install.out"
 grep -Fq 'Preserved complete player-owned paths from the verified local update' \
   "$TMP_ROOT/local-catchup-install.out"
+grep -Fq 'Preserved 1 player file(s) that collide with C24 stock' \
+  "$TMP_ROOT/local-catchup-install.out"
 [[ "$(sha256sum "$game/LFS.exe" | awk '{print $1}')" == "$new_exe_hash" ]]
+[[ "$(sha256sum "$game/data/skins_dds/HEL_DEFAULT.dds" | awk '{print $1}')" == "$helmet_hash" ]]
+local_helmet_conflict="$state/migration-conflicts/from-test-local-old-to-test-new/data/skins_dds/HEL_DEFAULT.dds.$local_helmet_collision_hash.pre-upgrade"
+[[ "$(sha256sum "$local_helmet_conflict" | awk '{print $1}')" == "$local_helmet_collision_hash" ]]
 [[ ! -e "$game/obsolete.stock" && ! -e "$game/zz-obsolete.stock" ]]
 [[ -f "$cached_installer" && ! -e "$state/$local_manifest_name" ]]
 grep -Fqx "LFS_BASELINE_KIND='package'" "$state/install.env"
