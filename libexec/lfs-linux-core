@@ -2117,6 +2117,9 @@ install_all() {
   write_marker
   if [[ "$ACTIVE_PREDECESSOR_QUARANTINE" == 'prepared' ]]; then
     ACTIVE_PREDECESSOR_QUARANTINE='committed'
+    if [[ "${LFS_LINUX_TEST_FAIL_AFTER_OVERLAY_MARKER:-0}" == '1' ]]; then
+      die 'test fault after package marker committed with predecessor quarantine'
+    fi
     finalize_predecessor_quarantine
   fi
   if [[ "$ACTIVE_BASELINE_KIND" == 'game-update' ]]; then
