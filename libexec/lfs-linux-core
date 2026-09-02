@@ -953,6 +953,9 @@ validate_existing_game_source() {
     if active_game_tree_is_complete; then
       return
     fi
+    if [[ ! -e "$GAME_DIR" && -d "$GAME_BACKUP" ]] && active_game_tree_is_complete "$GAME_BACKUP"; then
+      return
+    fi
     if local_game_update_requires_upgrade && game_tree_matches_audited_target_overlay; then
       return
     fi
@@ -988,7 +991,7 @@ validate_existing_game_source() {
 }
 
 game_tree_is_complete() {
-  local root="$GAME_DIR" file_count tree_bytes
+  local root="${1:-$GAME_DIR}" file_count tree_bytes
   payload_manifest_check "$root" "$LFS_STOCK_MANIFEST" \
     "$LFS_STOCK_MANIFEST_SIZE" "$LFS_STOCK_MANIFEST_SHA256" "$LFS_STOCK_MANIFEST_ENTRIES" >/dev/null || return 1
   file_matches "$root/LFS.exe" "$LFS_EXE_SIZE" "$LFS_EXE_SHA256" || return 1
@@ -1014,15 +1017,16 @@ game_tree_layout_is_complete() {
 }
 
 active_game_tree_is_complete() {
+  local root="${1:-$GAME_DIR}"
   if [[ "$ACTIVE_BASELINE_KIND" == 'package' ]]; then
-    game_tree_is_complete
+    game_tree_is_complete "$root"
     return
   fi
-  payload_manifest_check "$GAME_DIR" "$ACTIVE_LFS_STOCK_MANIFEST" \
+  payload_manifest_check "$root" "$ACTIVE_LFS_STOCK_MANIFEST" \
     "$ACTIVE_LFS_STOCK_MANIFEST_SIZE" "$ACTIVE_LFS_STOCK_MANIFEST_SHA256" \
     "$ACTIVE_LFS_STOCK_MANIFEST_ENTRIES" >/dev/null || return 1
-  file_matches "$GAME_EXE" "$ACTIVE_LFS_EXE_SIZE" "$ACTIVE_LFS_EXE_SHA256" || return 1
-  game_inventory_matches_manifest "$GAME_DIR" "$ACTIVE_LFS_STOCK_MANIFEST"
+  file_matches "$root/LFS.exe" "$ACTIVE_LFS_EXE_SIZE" "$ACTIVE_LFS_EXE_SHA256" || return 1
+  game_inventory_matches_manifest "$root" "$ACTIVE_LFS_STOCK_MANIFEST"
 }
 
 active_game_tree_layout_is_complete() {
@@ -1323,6 +1327,9 @@ replace_game_tree() {
   fi
   rm -rf --one-file-system "$GAME_BACKUP"
   mv "$GAME_DIR" "$GAME_BACKUP"
+  if [[ "${LFS_LINUX_TEST_FAIL_AFTER_GAME_BACKUP:-0}" == '1' ]]; then
+    die 'test fault after previous game tree moved to recovery backup'
+  fi
   if ! mv "$staging" "$GAME_DIR"; then
     mv "$GAME_BACKUP" "$GAME_DIR"
     die 'could not activate verified LFS staging tree; previous game restored'
@@ -1350,7 +1357,6 @@ remove_local_game_manifests_except() {
 install_game() {
   local unpack="$STATE_ROOT/.lfs-unpack.$$" actual_size actual_checksum source_manifest source_seed_manifest extract_log="$LOG_DIR/lfs-extract.log"
   local preservation_mode='seed-diff'
-  recover_interrupted_game_swap
   if [[ "$(marker_value LFS_BASELINE_KIND 2>/dev/null || true)" == 'game-update' ]]; then
     load_active_game_baseline || die 'recorded in-game update metadata is missing or changed'
     if active_game_tree_is_complete; then
@@ -1778,7 +1784,9 @@ setup_interactive() {
     setup_heading='verified setup / repair'
   fi
   if [[ "$ACTIVE_BASELINE_KIND" == 'game-update' ]]; then
-    if local_game_update_requires_upgrade && active_game_tree_is_complete; then
+    if local_game_update_requires_upgrade && [[ ! -e "$GAME_DIR" && -d "$GAME_BACKUP" ]]; then
+      lfs_step="Recover the verified local LFS $ACTIVE_LFS_VERSION backup, then upgrade it to audited $LFS_VERSION while preserving complete player-owned paths and metadata."
+    elif local_game_update_requires_upgrade && active_game_tree_is_complete; then
       lfs_step="Upgrade the verified local LFS $ACTIVE_LFS_VERSION baseline to audited $LFS_VERSION. Download the official $lfs_mib MiB installer, then preserve complete player-owned paths and metadata."
     elif local_game_update_requires_upgrade && game_tree_matches_audited_target_overlay; then
       lfs_step="Adopt the exact audited $LFS_VERSION files already produced over the verified $ACTIVE_LFS_VERSION baseline; no game installer download is needed."
@@ -1840,6 +1848,7 @@ install_all() {
   if prefix_is_running; then
     die 'private Wine processes are running; run lfs-linux stop before install'
   fi
+  recover_interrupted_game_swap
   validate_existing_game_source
   ensure_wine_runtime
   require_wine
