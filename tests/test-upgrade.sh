@@ -618,6 +618,19 @@ printf 'current-tree-player-data' >"$game/data/mpr/current-during-invalid-backup
 cp -a "$game" "$TMP_ROOT/before-invalid-backup-current"
 cp -a "$state/.lfs-game-backup" "$TMP_ROOT/before-invalid-backup-tree"
 set +e
+printf 'n\n' | run_lfs setup >"$TMP_ROOT/rejected-invalid-game-backup-setup.out" 2>&1
+invalid_game_backup_setup_status=$?
+set -e
+[[ "$invalid_game_backup_setup_status" -ne 0 ]]
+grep -Fq 'interrupted game backup is not an exact trusted baseline; no files changed' \
+  "$TMP_ROOT/rejected-invalid-game-backup-setup.out"
+if grep -Fq 'Continue with verified setup?' "$TMP_ROOT/rejected-invalid-game-backup-setup.out"; then
+  printf 'invalid game backup reached setup consent\n' >&2
+  exit 1
+fi
+diff -qr "$TMP_ROOT/before-invalid-backup-current" "$game" >/dev/null
+diff -qr "$TMP_ROOT/before-invalid-backup-tree" "$state/.lfs-game-backup" >/dev/null
+set +e
 run_lfs install >"$TMP_ROOT/rejected-invalid-game-backup.out" 2>&1
 invalid_game_backup_status=$?
 set -e
