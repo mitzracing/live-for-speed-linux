@@ -631,6 +631,14 @@ mkdir -p "$game/data/mpr"
 printf 'local-predecessor-replay' >"$game/data/mpr/local-predecessor.mpr"
 local_manifest_name="game-update-$old_local_manifest_hash.manifest"
 write_local_predecessor_marker
+set +e
+printf 'n\n' | run_lfs setup >"$TMP_ROOT/local-catchup-setup.out" 2>&1
+local_catchup_setup_status=$?
+set -e
+[[ "$local_catchup_setup_status" -eq 3 ]]
+grep -Fq 'Upgrade the verified local LFS test-local-old baseline to audited test-new' \
+  "$TMP_ROOT/local-catchup-setup.out"
+grep -Fq 'preserve complete player-owned paths and metadata' "$TMP_ROOT/local-catchup-setup.out"
 if run_lfs ready >"$TMP_ROOT/local-catchup-ready.out" 2>&1; then
   printf 'known local predecessor incorrectly reported ready\n' >&2
   exit 1
@@ -676,6 +684,14 @@ cp "$old_stock/obsolete.stock" "$game/obsolete.stock"
 [[ -f "$game/data/versions/8C23.txt" ]]
 cp -a "$game" "$TMP_ROOT/same-marker-candidate"
 write_local_predecessor_marker
+set +e
+printf 'n\n' | run_lfs setup >"$TMP_ROOT/same-marker-setup.out" 2>&1
+same_marker_setup_status=$?
+set -e
+[[ "$same_marker_setup_status" -eq 3 ]]
+grep -Fq 'Adopt the exact audited test-new files already produced over the verified test-local-old baseline' \
+  "$TMP_ROOT/same-marker-setup.out"
+grep -Fq 'no game installer download is needed' "$TMP_ROOT/same-marker-setup.out"
 inventory_tree_metadata "$game/data/mpr" "$TMP_ROOT/same-marker-player.before.jsonl"
 rm -f "$cached_installer"
 run_lfs install >"$TMP_ROOT/same-marker-adoption.out"
