@@ -271,6 +271,7 @@ LFS_UPGRADE_SEED_MANIFEST_NAME='old-seed.manifest'
 LFS_UPGRADE_SEED_MANIFEST_SIZE='$old_seed_size'
 LFS_UPGRADE_SEED_MANIFEST_SHA256='$old_seed_hash'
 LFS_UPGRADE_SEED_MANIFEST_ENTRIES='$old_seed_entries'
+LFS_LOCAL_UPDATE_UPGRADE_FROM_VERSION='test-local-old'
 DXVK_ARCHIVE_NAME='fake-dxvk.tar.gz'
 DXVK_ARCHIVE_URL='file://$cache/fake-dxvk.tar.gz'
 DXVK_ARCHIVE_SIZE='$dxvk_size'
@@ -534,6 +535,51 @@ mv "$game" "$state/.lfs-game-backup"
 run_lfs install >"$TMP_ROOT/recovery.out"
 grep -Fq 'Recovered player data after an interrupted game-tree swap' "$TMP_ROOT/recovery.out"
 [[ -f "$game/LFS.exe" && ! -e "$state/.lfs-game-backup" ]]
+
+cp -a "$game" "$TMP_ROOT/before-local-catchup"
+cp "$state/install.env" "$TMP_ROOT/before-local-catchup.env"
+rm -rf "$game"
+cp -a "$old_stock" "$game"
+mkdir -p "$game/data/mpr"
+printf 'local-predecessor-replay' >"$game/data/mpr/local-predecessor.mpr"
+local_manifest_name="game-update-$old_manifest_hash.manifest"
+cp "$data/old-stock.manifest" "$state/$local_manifest_name"
+chmod 0600 "$state/$local_manifest_name"
+cat >"$state/install.env" <<EOF
+LFS_BASELINE_KIND='game-update'
+LFS_VERSION='test-local-old'
+LFS_CHANNEL='public-test'
+LFS_EXE_SIZE='14'
+LFS_EXE_SHA256='$old_exe_hash'
+LFS_STOCK_MANIFEST_NAME='$local_manifest_name'
+LFS_STOCK_MANIFEST_SIZE='$old_manifest_size'
+LFS_STOCK_MANIFEST_SHA256='$old_manifest_hash'
+LFS_STOCK_MANIFEST_ENTRIES='$old_manifest_entries'
+LFS_PACKAGE_VERSION='test-new'
+DXVK_VERSION='3.0.2'
+DXVK_D3D11_X32_SHA256='$d3d11_hash'
+DXVK_DXGI_X32_SHA256='$dxgi_hash'
+WINE_RUNTIME_VERSION='11.15-1'
+WINE_RUNTIME_MANIFEST_SHA256='$wine_manifest_hash'
+WINE_VERSION='wine-11.15'
+PREFIX_ARCH='win64'
+EOF
+chmod 0600 "$state/install.env"
+if run_lfs ready >"$TMP_ROOT/local-catchup-ready.out" 2>&1; then
+  printf 'known local predecessor incorrectly reported ready\n' >&2
+  exit 1
+fi
+set +e
+run_lfs launch >"$TMP_ROOT/local-catchup-launch.out" 2>&1
+local_catchup_launch_status=$?
+set -e
+[[ "$local_catchup_launch_status" -ne 0 ]]
+grep -Fq 'verified local LFS test-local-old requires audited test-new catch-up; run lfs-linux install' \
+  "$TMP_ROOT/local-catchup-launch.out"
+rm -rf "$game"
+cp -a "$TMP_ROOT/before-local-catchup" "$game"
+cp "$TMP_ROOT/before-local-catchup.env" "$state/install.env"
+rm -f "$state/$local_manifest_name"
 
 cp -a "$game" "$TMP_ROOT/before-trusted-game-update"
 cp "$state/install.env" "$TMP_ROOT/before-trusted-game-update.env"
