@@ -40,6 +40,7 @@ readonly LAUNCH_SESSION="$STATE_ROOT/launch-session.env"
 readonly STATE_SENTINEL="$STATE_ROOT/.managed-by-lfs-linux"
 readonly GAME_BACKUP="$STATE_ROOT/.lfs-game-backup"
 readonly GAME_PREDECESSOR_QUARANTINE="$STATE_ROOT/.lfs-predecessor-quarantine"
+readonly GAME_RECOVERY_CONFLICT="$STATE_ROOT/migration-conflicts/interrupted-current-game-tree"
 readonly DXVK_OVERRIDE='native,builtin'
 readonly WINE_DLL_OVERRIDES="mscoree,mshtml=;d3d11=$DXVK_OVERRIDE;dxgi=$DXVK_OVERRIDE"
 readonly -a PLAYER_OWNED_GAME_FILES=(
@@ -1401,10 +1402,40 @@ copy_complete_player_owned_game_paths() {
   note "Preserved complete player-owned paths from the verified local update ($preserved roots)"
 }
 
+approved_predecessor_game_tree_is_complete() {
+  local root="$1" actual_checksum
+  [[ -f "$root/LFS.exe" && ! -L "$root/LFS.exe" ]] || return 1
+  actual_checksum="$(sha256_of "$root/LFS.exe")" || return 1
+  [[ " $LFS_UPGRADE_FROM_SHA256S " == *" $actual_checksum "* ]] || return 1
+  manifest_metadata_is_valid "$LFS_UPGRADE_MANIFEST" "$LFS_UPGRADE_MANIFEST_SIZE" \
+    "$LFS_UPGRADE_MANIFEST_SHA256" "$LFS_UPGRADE_MANIFEST_ENTRIES" || return 1
+  payload_manifest_check "$root" "$LFS_UPGRADE_MANIFEST" \
+    "$LFS_UPGRADE_MANIFEST_SIZE" "$LFS_UPGRADE_MANIFEST_SHA256" \
+    "$LFS_UPGRADE_MANIFEST_ENTRIES" >/dev/null
+}
+
+trusted_game_backup_is_complete() {
+  local root="$1" baseline_kind
+  baseline_kind="$(marker_value LFS_BASELINE_KIND 2>/dev/null || true)"
+  if [[ "$baseline_kind" == 'game-update' ]]; then
+    load_active_game_baseline || return 1
+    active_game_tree_is_complete "$root"
+    return
+  fi
+  use_packaged_game_baseline
+  game_tree_is_complete "$root" || approved_predecessor_game_tree_is_complete "$root"
+}
+
 recover_interrupted_game_swap() {
-  [[ -d "$GAME_BACKUP" ]] || return 0
-  if [[ ! -e "$GAME_DIR" ]]; then
-    mv "$GAME_BACKUP" "$GAME_DIR"
+  if [[ ! -e "$GAME_BACKUP" && ! -L "$GAME_BACKUP" ]]; then
+    return 0
+  fi
+  [[ -d "$GAME_BACKUP" && ! -L "$GAME_BACKUP" ]] ||
+    die 'interrupted game backup is not a private directory; no files changed'
+  trusted_game_backup_is_complete "$GAME_BACKUP" ||
+    die 'interrupted game backup is not an exact trusted baseline; no files changed'
+  if [[ ! -e "$GAME_DIR" && ! -L "$GAME_DIR" ]]; then
+    mv -- "$GAME_BACKUP" "$GAME_DIR" || die 'could not restore the trusted interrupted game backup'
     note 'Recovered player data after an interrupted game-tree swap'
     return
   fi
@@ -1413,9 +1444,17 @@ recover_interrupted_game_swap() {
     note 'Removed completed game-tree swap backup'
     return
   fi
-  rm -rf --one-file-system "$GAME_DIR"
-  mv "$GAME_BACKUP" "$GAME_DIR"
+  [[ ! -e "$GAME_RECOVERY_CONFLICT" && ! -L "$GAME_RECOVERY_CONFLICT" ]] ||
+    die "interrupted current game tree retained; recovery destination already exists: $GAME_RECOVERY_CONFLICT"
+  mkdir -p "$(dirname "$GAME_RECOVERY_CONFLICT")"
+  mv -- "$GAME_DIR" "$GAME_RECOVERY_CONFLICT" ||
+    die 'could not retain the interrupted current game tree; no files changed'
+  if ! mv -- "$GAME_BACKUP" "$GAME_DIR"; then
+    mv -- "$GAME_RECOVERY_CONFLICT" "$GAME_DIR" || true
+    die 'could not restore the trusted game backup; interrupted current tree was retained'
+  fi
   note 'Restored previous game tree after an interrupted upgrade'
+  note "Retained the interrupted current tree at $GAME_RECOVERY_CONFLICT"
 }
 
 replace_game_tree() {
