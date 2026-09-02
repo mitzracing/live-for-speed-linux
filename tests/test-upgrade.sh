@@ -144,6 +144,21 @@ printf 'old-ai-knowledge' >"$old_stock/data/knw/shared.knw"
 old_manifest_size="$(stat -c %s "$data/old-stock.manifest")"
 old_manifest_hash="$(sha256sum "$data/old-stock.manifest" | awk '{print $1}')"
 old_manifest_entries="$(awk -F '\t' '$1 == "f" || $1 == "l" { n++ } END { print n + 0 }' "$data/old-stock.manifest")"
+{
+  head -n 2 "$data/old-stock.manifest"
+  while IFS= read -r -d '' old_path; do
+    old_relative="${old_path#"$old_stock/"}"
+    case "$old_relative" in
+      data/knw/*|data/training/*) continue ;;
+    esac
+    awk -F '\t' -v relative="$old_relative" \
+      '($1 == "f" || $1 == "l") && $4 == relative { print; found = 1 } END { exit !found }' \
+      "$data/old-stock.manifest"
+  done < <(find "$old_stock" \( -type f -o -type l \) -print0 | sort -z)
+} >"$data/old-local.manifest"
+old_local_manifest_size="$(stat -c %s "$data/old-local.manifest")"
+old_local_manifest_hash="$(sha256sum "$data/old-local.manifest" | awk '{print $1}')"
+old_local_manifest_entries="$(awk -F '\t' '$1 == "f" || $1 == "l" { n++ } END { print n + 0 }' "$data/old-local.manifest")"
 old_seed_size="$(stat -c %s "$data/old-seed.manifest")"
 old_seed_hash="$(sha256sum "$data/old-seed.manifest" | awk '{print $1}')"
 old_seed_entries="$(awk -F '\t' '$1 == "f" || $1 == "l" { n++ } END { print n + 0 }' "$data/old-seed.manifest")"
@@ -408,8 +423,8 @@ PY
 }
 
 write_local_predecessor_marker() {
-  local local_manifest_name="game-update-$old_manifest_hash.manifest"
-  cp "$data/old-stock.manifest" "$state/$local_manifest_name"
+  local local_manifest_name="game-update-$old_local_manifest_hash.manifest"
+  cp "$data/old-local.manifest" "$state/$local_manifest_name"
   chmod 0600 "$state/$local_manifest_name"
   cat >"$state/install.env" <<EOF
 LFS_BASELINE_KIND='game-update'
@@ -418,9 +433,9 @@ LFS_CHANNEL='public-test'
 LFS_EXE_SIZE='14'
 LFS_EXE_SHA256='$old_exe_hash'
 LFS_STOCK_MANIFEST_NAME='$local_manifest_name'
-LFS_STOCK_MANIFEST_SIZE='$old_manifest_size'
-LFS_STOCK_MANIFEST_SHA256='$old_manifest_hash'
-LFS_STOCK_MANIFEST_ENTRIES='$old_manifest_entries'
+LFS_STOCK_MANIFEST_SIZE='$old_local_manifest_size'
+LFS_STOCK_MANIFEST_SHA256='$old_local_manifest_hash'
+LFS_STOCK_MANIFEST_ENTRIES='$old_local_manifest_entries'
 LFS_PACKAGE_VERSION='test-new'
 DXVK_VERSION='3.0.2'
 DXVK_D3D11_X32_SHA256='$d3d11_hash'
@@ -614,7 +629,7 @@ rm -rf "$game"
 cp -a "$old_stock" "$game"
 mkdir -p "$game/data/mpr"
 printf 'local-predecessor-replay' >"$game/data/mpr/local-predecessor.mpr"
-local_manifest_name="game-update-$old_manifest_hash.manifest"
+local_manifest_name="game-update-$old_local_manifest_hash.manifest"
 write_local_predecessor_marker
 if run_lfs ready >"$TMP_ROOT/local-catchup-ready.out" 2>&1; then
   printf 'known local predecessor incorrectly reported ready\n' >&2
