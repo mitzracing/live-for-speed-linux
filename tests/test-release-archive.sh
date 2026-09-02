@@ -47,6 +47,8 @@ if git -C "$ROOT_DIR" rev-parse --git-dir >/dev/null 2>&1; then
   cp -a "$mode_source_one/." "$mode_source_two/"
   find "$mode_source_one" -type d -exec chmod 0700 {} +
   find "$mode_source_one" -type f -exec chmod go-rwx {} +
+  chmod u+x "$mode_source_one/README.md"
+  chmod a-x "$mode_source_one/bin/lfs-linux"
   find "$mode_source_two" -type d -exec chmod 0777 {} +
   find "$mode_source_two" -type f -exec chmod a+rw {} +
   (
