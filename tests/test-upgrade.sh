@@ -818,6 +818,29 @@ grep -Fqx "LFS_BASELINE_KIND='game-update'" "$state/install.env"
 rm -rf "$game"
 cp -a "$TMP_ROOT/same-marker-candidate" "$game"
 write_local_predecessor_marker
+set +e
+LFS_LINUX_TEST_FAIL_AFTER_OVERLAY_MARKER=1 \
+  run_lfs install >"$TMP_ROOT/interrupted-committed-quarantine.out" 2>&1
+committed_quarantine_status=$?
+set -e
+[[ "$committed_quarantine_status" -ne 0 ]]
+grep -Fq 'test fault after package marker committed with predecessor quarantine' \
+  "$TMP_ROOT/interrupted-committed-quarantine.out"
+grep -Fqx "LFS_BASELINE_KIND='package'" "$state/install.env"
+[[ ! -e "$game/obsolete.stock" && ! -e "$game/zz-obsolete.stock" ]]
+[[ -f "$state/.lfs-predecessor-quarantine/obsolete.stock" ]]
+[[ -f "$state/.lfs-predecessor-quarantine/zz-obsolete.stock" ]]
+run_lfs install >"$TMP_ROOT/recovered-committed-quarantine.out"
+grep -Fq 'Retained committed predecessor quarantine after interrupted cleanup' \
+  "$TMP_ROOT/recovered-committed-quarantine.out"
+recovered_quarantine="$state/migration-conflicts/recovered-predecessor-quarantine"
+[[ "$(sha256sum "$recovered_quarantine/obsolete.stock" | awk '{print $1}')" == "$obsolete_hash" ]]
+[[ "$(sha256sum "$recovered_quarantine/zz-obsolete.stock" | awk '{print $1}')" == "$second_obsolete_hash" ]]
+[[ ! -e "$state/.lfs-predecessor-quarantine" && ! -e "$cached_installer" ]]
+
+rm -rf "$game"
+cp -a "$TMP_ROOT/same-marker-candidate" "$game"
+write_local_predecessor_marker
 printf 'unknown-protected-entry' >"$game/unexpected.stock"
 cp -a "$game" "$TMP_ROOT/before-rejected-overlay-addition"
 set +e
