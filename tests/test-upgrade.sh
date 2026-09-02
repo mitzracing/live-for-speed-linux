@@ -148,6 +148,7 @@ old_seed_size="$(stat -c %s "$data/old-seed.manifest")"
 old_seed_hash="$(sha256sum "$data/old-seed.manifest" | awk '{print $1}')"
 old_seed_entries="$(awk -F '\t' '$1 == "f" || $1 == "l" { n++ } END { print n + 0 }' "$data/old-seed.manifest")"
 old_exe_hash="$(sha256sum "$old_stock/LFS.exe" | awk '{print $1}')"
+obsolete_hash="$(sha256sum "$old_stock/obsolete.stock" | awk '{print $1}')"
 
 mkdir -p "$new_stock/data/dds" "$new_stock/data/skins_dds" "$new_stock/data/wld" \
   "$new_stock/data/veh" "$new_stock/data/training" "$new_stock/data/knw" \
@@ -721,6 +722,8 @@ run_lfs install >"$TMP_ROOT/same-marker-adoption.out"
 grep -Fq 'Recognized exact audited test-new overlay on the verified test-local-old baseline' \
   "$TMP_ROOT/same-marker-adoption.out"
 [[ ! -e "$cached_installer" && ! -e "$game/obsolete.stock" ]]
+quarantined_obsolete="$state/migration-conflicts/from-test-local-old-to-test-new/obsolete.stock.$obsolete_hash.pre-upgrade"
+[[ "$(sha256sum "$quarantined_obsolete" | awk '{print $1}')" == "$obsolete_hash" ]]
 [[ "$(sha256sum "$game/LFS.exe" | awk '{print $1}')" == "$new_exe_hash" ]]
 grep -Fqx "LFS_BASELINE_KIND='package'" "$state/install.env"
 grep -Fqx "LFS_VERSION='test-new'" "$state/install.env"
@@ -728,6 +731,32 @@ inventory_tree_metadata "$game/data/mpr" "$TMP_ROOT/same-marker-player.after.jso
 inventory_tree_metadata "$game/data/skins_dds/PLAYER.dds" "$TMP_ROOT/same-marker-player-dds.after.jsonl"
 cmp "$TMP_ROOT/same-marker-player.before.jsonl" "$TMP_ROOT/same-marker-player.after.jsonl"
 cmp "$TMP_ROOT/local-player-dds.before.jsonl" "$TMP_ROOT/same-marker-player-dds.after.jsonl"
+
+rm -rf "$game"
+cp -a "$TMP_ROOT/same-marker-candidate" "$game"
+write_local_predecessor_marker
+overlay_race_ready="$TMP_ROOT/overlay-quarantine-ready"
+LFS_LINUX_TEST_OVERLAY_QUARANTINE_READY_FILE="$overlay_race_ready" \
+LFS_LINUX_TEST_OVERLAY_QUARANTINE_DELAY_SECONDS=2 \
+  run_lfs install >"$TMP_ROOT/rejected-overlay-quarantine-race.out" 2>&1 &
+overlay_race_pid=$!
+for ((attempt = 0; attempt < 100; attempt++)); do
+  [[ -e "$overlay_race_ready" ]] && break
+  kill -0 "$overlay_race_pid" 2>/dev/null || break
+  sleep 0.05
+done
+[[ -e "$overlay_race_ready" ]]
+printf 'replacement-created-after-overlay-snapshot' >"$game/obsolete.stock"
+overlay_race_hash="$(sha256sum "$game/obsolete.stock" | awk '{print $1}')"
+set +e
+wait "$overlay_race_pid"
+overlay_race_status=$?
+set -e
+[[ "$overlay_race_status" -ne 0 && ! -e "$cached_installer" ]]
+grep -Fq 'predecessor-only protected path changed before quarantine' \
+  "$TMP_ROOT/rejected-overlay-quarantine-race.out"
+[[ "$(sha256sum "$game/obsolete.stock" | awk '{print $1}')" == "$overlay_race_hash" ]]
+grep -Fqx "LFS_BASELINE_KIND='game-update'" "$state/install.env"
 
 rm -rf "$game"
 cp -a "$TMP_ROOT/same-marker-candidate" "$game"
