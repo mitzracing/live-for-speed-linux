@@ -34,6 +34,34 @@ archive_two="$(find "$TMP_ROOT/two" -type f -name '*.tar.gz' -print -quit)"
 [[ -n "$archive_one" && -n "$archive_two" ]]
 archive_hash="$(sha256sum "$archive_one" | awk '{print $1}')"
 [[ "$archive_hash" == "$(sha256sum "$archive_two" | awk '{print $1}')" ]]
+if git -C "$ROOT_DIR" rev-parse --git-dir >/dev/null 2>&1; then
+  mode_source_one="$TMP_ROOT/mode-source-one"
+  mode_source_two="$TMP_ROOT/mode-source-two"
+  mkdir -p "$mode_source_one" "$mode_source_two" "$TMP_ROOT/mode-one" "$TMP_ROOT/mode-two"
+  (
+    cd "$ROOT_DIR"
+    git ls-files -z | tar --null --files-from=- -cf -
+  ) | tar -xf - -C "$mode_source_one"
+  cp -a "$mode_source_one/." "$mode_source_two/"
+  find "$mode_source_one" -type d -exec chmod 0700 {} +
+  find "$mode_source_one" -type f -exec chmod go-rwx {} +
+  find "$mode_source_two" -type d -exec chmod 0777 {} +
+  find "$mode_source_two" -type f -exec chmod a+rw {} +
+  (
+    export TZ=UTC
+    umask 077
+    bash "$mode_source_one/scripts/build-release-archive.sh" "$TMP_ROOT/mode-one" >/dev/null
+  )
+  (
+    export TZ=Pacific/Kiritimati
+    umask 002
+    bash "$mode_source_two/scripts/build-release-archive.sh" "$TMP_ROOT/mode-two" >/dev/null
+  )
+  mode_archive_one="$(find "$TMP_ROOT/mode-one" -type f -name '*.tar.gz' -print -quit)"
+  mode_archive_two="$(find "$TMP_ROOT/mode-two" -type f -name '*.tar.gz' -print -quit)"
+  [[ "$archive_hash" == "$(sha256sum "$mode_archive_one" | awk '{print $1}')" ]]
+  [[ "$archive_hash" == "$(sha256sum "$mode_archive_two" | awk '{print $1}')" ]]
+fi
 if [[ -f "$ROOT_DIR/packaging/aur/PKGBUILD" && "$post_release" -eq 0 ]]; then
   pinned_hash="$(grep -Eo "sha256sums=\\('[0-9a-f]{64}'\\)" "$ROOT_DIR/packaging/aur/PKGBUILD" | grep -Eo '[0-9a-f]{64}')"
   [[ "$archive_hash" == "$pinned_hash" ]]
