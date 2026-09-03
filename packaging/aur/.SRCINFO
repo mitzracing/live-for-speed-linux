@@ -1,6 +1,6 @@
 pkgbase = live-for-speed-linux
 	pkgdesc = Unofficial launcher for Live for Speed, a racing simulator game
-	pkgver = 0.3.2
+	pkgver = 0.3.3
 	pkgrel = 1
 	url = https://github.com/mitzracing/live-for-speed-linux
 	install = live-for-speed-linux.install
@@ -35,7 +35,7 @@ pkgbase = live-for-speed-linux
 	conflicts = live-for-speed-launcher
 	replaces = lfs-linux
 	replaces = live-for-speed-launcher
-	source = live-for-speed-linux-0.3.2.tar.gz::https://github.com/mitzracing/live-for-speed-linux/releases/download/v0.3.2/live-for-speed-linux-0.3.2.tar.gz
-	sha256sums = a36b63ed70a652bca8987917e9bc26769a2f23930523292c764544d4e0faaa1a
+	source = live-for-speed-linux-0.3.3.tar.gz::https://github.com/mitzracing/live-for-speed-linux/releases/download/v0.3.3/live-for-speed-linux-0.3.3.tar.gz
+	sha256sums = 24837836a335602774912f8257d047471d934b8b4d23d37bab5c3ad9c42006ea
 
 pkgname = live-for-speed-linux

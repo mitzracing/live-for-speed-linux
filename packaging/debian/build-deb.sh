@@ -75,7 +75,7 @@ Description: unofficial launcher for the Live for Speed racing simulator
  Verifies and installs untouched official Live for Speed racing simulator
  downloads into a private Wine prefix. The game, Wine, and DXVK payloads are
  not included.
- Live for Speed 0.8C20 is a public test and is not represented as stable.
+ Live for Speed 0.8C24 is a public test and is not represented as stable.
 CONTROL
 
 (

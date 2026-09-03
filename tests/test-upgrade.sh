@@ -123,21 +123,35 @@ if [[ "${*: -1}" == '--wait' ]]; then
 fi
 exec /usr/bin/timeout "${args[@]}"
 EOF
-chmod +x "$fake_wine" "$fake_wine_root/usr/bin/wineserver" "$fake_bin/restart-delay" "$fake_bin/timeout"
+cat >"$fake_bin/gpgv" <<'EOF'
+#!/usr/bin/env bash
+printf '%s\n' '[GNUPG:] VALIDSIG AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA 2026-01-01 0 0 0 0 0 0 0 AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
+EOF
+chmod +x "$fake_wine" "$fake_wine_root/usr/bin/wineserver" "$fake_bin/restart-delay" \
+  "$fake_bin/timeout" "$fake_bin/gpgv"
 "$ROOT_DIR/scripts/generate-payload-manifest.py" wine "$fake_wine_root" "$data/fake-wine.manifest" >/dev/null
 wine_manifest_size="$(stat -c %s "$data/fake-wine.manifest")"
 wine_manifest_hash="$(sha256sum "$data/fake-wine.manifest" | awk '{print $1}')"
 printf 'fake-signing-key' >"$data/fake-signing-key.gpg"
 fake_signing_key_size="$(stat -c %s "$data/fake-signing-key.gpg")"
 fake_signing_key_hash="$(sha256sum "$data/fake-signing-key.gpg" | awk '{print $1}')"
+fake_wine_package="$TMP_ROOT/upstream/fake-wine.pkg.tar.gz"
+tar -czf "$fake_wine_package" -C "$fake_wine_root" usr
+fake_wine_package_size="$(stat -c %s "$fake_wine_package")"
+fake_wine_package_hash="$(sha256sum "$fake_wine_package" | awk '{print $1}')"
+printf 'fake-detached-signature' >"$TMP_ROOT/upstream/fake-wine.pkg.tar.gz.sig"
+fake_wine_signature_size="$(stat -c %s "$TMP_ROOT/upstream/fake-wine.pkg.tar.gz.sig")"
+fake_wine_signature_hash="$(sha256sum "$TMP_ROOT/upstream/fake-wine.pkg.tar.gz.sig" | awk '{print $1}')"
 
-mkdir -p "$old_stock/data/training" "$old_stock/data/knw"
+mkdir -p "$old_stock/data/training" "$old_stock/data/knw" "$old_stock/data/versions"
 printf 'old-executable' >"$old_stock/LFS.exe"
 printf 'old-shared-stock' >"$old_stock/shared.stock"
 printf 'obsolete-stock' >"$old_stock/obsolete.stock"
+printf 'second-obsolete-stock' >"$old_stock/zz-obsolete.stock"
 printf 'old-official-training' >"$old_stock/data/training/old-official.lsn"
 printf 'old-training-seed' >"$old_stock/data/training/shared.lsn"
 printf 'old-ai-knowledge' >"$old_stock/data/knw/shared.knw"
+: >"$old_stock/data/versions/8C23.txt"
 "$ROOT_DIR/scripts/generate-payload-manifest.py" lfs "$old_stock" "$data/old-stock.manifest" >/dev/null
 "$ROOT_DIR/scripts/generate-payload-manifest.py" lfs-seed "$old_stock" "$data/old-seed.manifest" >/dev/null
 old_manifest_size="$(stat -c %s "$data/old-stock.manifest")"
@@ -147,6 +161,8 @@ old_seed_size="$(stat -c %s "$data/old-seed.manifest")"
 old_seed_hash="$(sha256sum "$data/old-seed.manifest" | awk '{print $1}')"
 old_seed_entries="$(awk -F '\t' '$1 == "f" || $1 == "l" { n++ } END { print n + 0 }' "$data/old-seed.manifest")"
 old_exe_hash="$(sha256sum "$old_stock/LFS.exe" | awk '{print $1}')"
+obsolete_hash="$(sha256sum "$old_stock/obsolete.stock" | awk '{print $1}')"
+second_obsolete_hash="$(sha256sum "$old_stock/zz-obsolete.stock" | awk '{print $1}')"
 
 mkdir -p "$new_stock/data/dds" "$new_stock/data/skins_dds" "$new_stock/data/wld" \
   "$new_stock/data/veh" "$new_stock/data/training" "$new_stock/data/knw" \
@@ -165,6 +181,7 @@ printf 'new-ai-knowledge' >"$new_stock/data/knw/shared.knw"
 printf 'new-default-profile' >"$new_stock/data/misc/default.ply"
 printf 'second-archive-wins' >"$new_stock/data/dds/ORDERED.dds"
 : >"$new_stock/data/versions/8C20.txt"
+: >"$new_stock/data/versions/8C23.txt"
 printf 'first-archive-bytes' >"$TMP_ROOT/nested-dds-01/ORDERED.dds"
 printf 'second-archive-wins' >"$TMP_ROOT/nested-dds-02/ORDERED.dds"
 cp "$new_stock/data/training/"* "$TMP_ROOT/nested-training/"
@@ -271,6 +288,7 @@ LFS_UPGRADE_SEED_MANIFEST_NAME='old-seed.manifest'
 LFS_UPGRADE_SEED_MANIFEST_SIZE='$old_seed_size'
 LFS_UPGRADE_SEED_MANIFEST_SHA256='$old_seed_hash'
 LFS_UPGRADE_SEED_MANIFEST_ENTRIES='$old_seed_entries'
+LFS_LOCAL_UPDATE_UPGRADE_FROM_VERSION='test-local-old'
 DXVK_ARCHIVE_NAME='fake-dxvk.tar.gz'
 DXVK_ARCHIVE_URL='file://$cache/fake-dxvk.tar.gz'
 DXVK_ARCHIVE_SIZE='$dxvk_size'
@@ -286,6 +304,15 @@ WINE_RUNTIME_MANIFEST_ENTRIES='2'
 WINE_SIGNING_KEY_NAME='fake-signing-key.gpg'
 WINE_SIGNING_KEY_SIZE='$fake_signing_key_size'
 WINE_SIGNING_KEY_SHA256='$fake_signing_key_hash'
+WINE_SIGNING_KEY_FINGERPRINT='AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
+WINE_PACKAGE_NAME='fake-wine.pkg.tar.gz'
+WINE_PACKAGE_URL='file://$fake_wine_package'
+WINE_PACKAGE_SIZE='$fake_wine_package_size'
+WINE_PACKAGE_SHA256='$fake_wine_package_hash'
+WINE_PACKAGE_SIGNATURE_NAME='fake-wine.pkg.tar.gz.sig'
+WINE_PACKAGE_SIGNATURE_URL='file://$TMP_ROOT/upstream/fake-wine.pkg.tar.gz.sig'
+WINE_PACKAGE_SIGNATURE_SIZE='$fake_wine_signature_size'
+WINE_PACKAGE_SIGNATURE_SHA256='$fake_wine_signature_hash'
 EOF
 
 cp -a "$old_stock" "$game"
@@ -359,6 +386,103 @@ run_lfs() {
   PATH="$fake_bin:$PATH" \
     "$ROOT_DIR/bin/lfs-linux" "$@"
 }
+
+inventory_tree_metadata() {
+  python3 - "$1" "$2" <<'PY'
+import hashlib
+import json
+import os
+from pathlib import Path
+import stat
+import sys
+
+root = Path(sys.argv[1])
+rows = []
+for path in [root, *sorted(root.rglob("*"), key=lambda item: os.fsencode(item.relative_to(root)))]:
+    info = path.lstat()
+    relative = "." if path == root else os.fsdecode(os.fsencode(path.relative_to(root)))
+    if stat.S_ISREG(info.st_mode):
+        kind = "file"
+        value = hashlib.sha256(path.read_bytes()).hexdigest()
+    elif stat.S_ISDIR(info.st_mode):
+        kind = "directory"
+        value = None
+    elif stat.S_ISLNK(info.st_mode):
+        kind = "symlink"
+        value = os.readlink(path)
+    else:
+        raise SystemExit(f"unsupported player entry: {path}")
+    xattrs = {
+        os.fsdecode(name): os.getxattr(path, name, follow_symlinks=False).hex()
+        for name in sorted(os.listxattr(path, follow_symlinks=False), key=os.fsencode)
+    }
+    rows.append({
+        "path": relative,
+        "type": kind,
+        "value": value,
+        "uid": info.st_uid,
+        "gid": info.st_gid,
+        "mode": stat.S_IMODE(info.st_mode),
+        "mtime_ns": info.st_mtime_ns,
+        "size": info.st_size,
+        "xattrs": xattrs,
+    })
+Path(sys.argv[2]).write_text("\n".join(json.dumps(row, sort_keys=True) for row in rows) + "\n")
+PY
+}
+
+write_runtime_game_manifest() {
+  local root="$1" output="$2" generated path relative line
+  generated="$(mktemp "$TMP_ROOT/runtime-manifest.XXXXXX")"
+  "$ROOT_DIR/scripts/generate-payload-manifest.py" lfs "$root" "$generated" >/dev/null
+  {
+    head -n 2 "$generated"
+    while IFS= read -r -d '' path; do
+      relative="${path#"$root/"}"
+      line="$(awk -F '\t' -v wanted="$relative" \
+        '($1 == "f" || $1 == "l") && $4 == wanted { print; exit }' "$generated")"
+      [[ -z "$line" ]] || printf '%s\n' "$line"
+    done < <(find "$root" \( -type f -o -type l \) -print0 | sort -z)
+  } >"$output"
+  rm -f "$generated"
+}
+
+write_local_predecessor_marker() {
+  local local_manifest_name="game-update-$old_local_manifest_hash.manifest"
+  cp "$data/old-local.manifest" "$state/$local_manifest_name"
+  chmod 0600 "$state/$local_manifest_name"
+  cat >"$state/install.env" <<EOF
+LFS_BASELINE_KIND='game-update'
+LFS_VERSION='test-local-old'
+LFS_CHANNEL='public-test'
+LFS_EXE_SIZE='14'
+LFS_EXE_SHA256='$old_exe_hash'
+LFS_STOCK_MANIFEST_NAME='$local_manifest_name'
+LFS_STOCK_MANIFEST_SIZE='$old_local_manifest_size'
+LFS_STOCK_MANIFEST_SHA256='$old_local_manifest_hash'
+LFS_STOCK_MANIFEST_ENTRIES='$old_local_manifest_entries'
+LFS_PACKAGE_VERSION='test-new'
+DXVK_VERSION='3.0.2'
+DXVK_D3D11_X32_SHA256='$d3d11_hash'
+DXVK_DXGI_X32_SHA256='$dxgi_hash'
+WINE_RUNTIME_VERSION='11.15-1'
+WINE_RUNTIME_MANIFEST_SHA256='$wine_manifest_hash'
+WINE_VERSION='wine-11.15'
+PREFIX_ARCH='win64'
+EOF
+  chmod 0600 "$state/install.env"
+}
+
+rm -f "$cached_installer" "$cached_installer.part" "$cache/fake-wine.pkg.tar.gz" \
+  "$cache/fake-wine.pkg.tar.gz.part" "$cache/fake-wine.pkg.tar.gz.sig" \
+  "$cache/fake-wine.pkg.tar.gz.sig.part"
+run_lfs verify-sources >"$TMP_ROOT/verify-sources.out"
+grep -Fq 'All pinned upstream archive bytes, signatures, complete official seed files, and extracted runtime manifests are verified' \
+  "$TMP_ROOT/verify-sources.out"
+if compgen -G "$cache/.verify-payloads.*" >/dev/null; then
+  printf 'verify-sources left an extraction staging tree\n' >&2
+  exit 1
+fi
 
 printf 'must-not-escape-staging' >"$TMP_ROOT/unsafe-member"
 (
@@ -450,7 +574,7 @@ grep -Fq 'player file(s) that collide with new stock paths' "$TMP_ROOT/upgrade.o
 collision_backup="$state/migration-conflicts/from-test-old-to-test-new/new.stock.$collision_hash.pre-upgrade"
 [[ "$(sha256sum "$collision_backup" | awk '{print $1}')" == "$collision_hash" ]]
 [[ "$(sha256sum "$game/LFS.exe" | awk '{print $1}')" == "$new_exe_hash" ]]
-[[ ! -e "$game/obsolete.stock" ]]
+[[ ! -e "$game/obsolete.stock" && ! -e "$game/zz-obsolete.stock" ]]
 [[ ! -e "$game/data/training/old-official.lsn" ]]
 grep -Fqx 'new-official-training' "$game/data/training/new-official.lsn"
 grep -Fqx 'new-official-knowledge' "$game/data/knw/new-official.knw"
@@ -518,12 +642,62 @@ run_lfs install >"$TMP_ROOT/executable-repair.out"
   sha256sum --check --quiet "$player_hashes"
 )
 
+cp -a "$game" "$TMP_ROOT/before-invalid-recovery-tests"
+cp -a "$game" "$state/.lfs-game-backup"
+printf 'invalid-backup-protected-bytes' >"$state/.lfs-game-backup/shared.stock"
+rm "$game/new.stock"
+printf 'current-tree-player-data' >"$game/data/mpr/current-during-invalid-backup.mpr"
+cp -a "$game" "$TMP_ROOT/before-invalid-backup-current"
+cp -a "$state/.lfs-game-backup" "$TMP_ROOT/before-invalid-backup-tree"
+set +e
+printf 'n\n' | run_lfs setup >"$TMP_ROOT/rejected-invalid-game-backup-setup.out" 2>&1
+invalid_game_backup_setup_status=$?
+set -e
+[[ "$invalid_game_backup_setup_status" -ne 0 ]]
+grep -Fq 'interrupted game backup is not an exact trusted baseline; no files changed' \
+  "$TMP_ROOT/rejected-invalid-game-backup-setup.out"
+if grep -Fq 'Continue with verified setup?' "$TMP_ROOT/rejected-invalid-game-backup-setup.out"; then
+  printf 'invalid game backup reached setup consent\n' >&2
+  exit 1
+fi
+diff -qr "$TMP_ROOT/before-invalid-backup-current" "$game" >/dev/null
+diff -qr "$TMP_ROOT/before-invalid-backup-tree" "$state/.lfs-game-backup" >/dev/null
+set +e
+run_lfs install >"$TMP_ROOT/rejected-invalid-game-backup.out" 2>&1
+invalid_game_backup_status=$?
+set -e
+[[ "$invalid_game_backup_status" -ne 0 ]]
+grep -Fq 'interrupted game backup is not an exact trusted baseline; no files changed' \
+  "$TMP_ROOT/rejected-invalid-game-backup.out"
+diff -qr "$TMP_ROOT/before-invalid-backup-current" "$game" >/dev/null
+diff -qr "$TMP_ROOT/before-invalid-backup-tree" "$state/.lfs-game-backup" >/dev/null
+rm -rf "$state/.lfs-game-backup" "$game"
+cp -a "$TMP_ROOT/before-invalid-recovery-tests" "$game"
+
+backup_symlink_target="$TMP_ROOT/game-backup-symlink-target"
+mkdir "$backup_symlink_target"
+printf 'backup-symlink-sentinel' >"$backup_symlink_target/sentinel"
+ln -s "$backup_symlink_target" "$state/.lfs-game-backup"
+set +e
+run_lfs install >"$TMP_ROOT/rejected-game-backup-symlink.out" 2>&1
+backup_symlink_status=$?
+set -e
+[[ "$backup_symlink_status" -ne 0 ]]
+grep -Fq 'interrupted game backup is not a private directory; no files changed' \
+  "$TMP_ROOT/rejected-game-backup-symlink.out"
+[[ -L "$state/.lfs-game-backup" ]]
+grep -Fqx 'backup-symlink-sentinel' "$backup_symlink_target/sentinel"
+rm "$state/.lfs-game-backup"
+
 cp -a "$game" "$state/.lfs-game-backup"
 rm "$game/new.stock"
 run_lfs install >"$TMP_ROOT/recovery-both.out"
 grep -Fq 'Restored previous game tree after an interrupted upgrade' "$TMP_ROOT/recovery-both.out"
 grep -Fqx 'new-stock-file' "$game/new.stock"
 [[ ! -e "$state/.lfs-game-backup" ]]
+recovery_conflict="$state/migration-conflicts/interrupted-current-game-tree"
+[[ -f "$recovery_conflict/LFS.exe" && ! -e "$recovery_conflict/new.stock" ]]
+rm -rf "$recovery_conflict"
 
 cp -a "$game" "$state/.lfs-game-backup"
 run_lfs install >"$TMP_ROOT/recovery-complete.out"
@@ -534,6 +708,268 @@ mv "$game" "$state/.lfs-game-backup"
 run_lfs install >"$TMP_ROOT/recovery.out"
 grep -Fq 'Recovered player data after an interrupted game-tree swap' "$TMP_ROOT/recovery.out"
 [[ -f "$game/LFS.exe" && ! -e "$state/.lfs-game-backup" ]]
+
+cp -a "$game" "$TMP_ROOT/before-local-catchup"
+cp "$state/install.env" "$TMP_ROOT/before-local-catchup.env"
+rm -rf "$game"
+cp -a "$old_stock" "$game"
+mkdir -p "$game/data/mpr" "$game/data/skins_dds"
+printf 'local-predecessor-replay' >"$game/data/mpr/local-predecessor.mpr"
+printf 'downloaded-player-dds' >"$game/data/skins_dds/PLAYER.dds"
+printf 'player-modified-stock-dds' >"$game/data/skins_dds/HEL_DEFAULT.dds"
+local_helmet_collision_hash="$(sha256sum "$game/data/skins_dds/HEL_DEFAULT.dds" | awk '{print $1}')"
+write_runtime_game_manifest "$game" "$data/old-local.manifest"
+old_local_manifest_size="$(stat -c %s "$data/old-local.manifest")"
+old_local_manifest_hash="$(sha256sum "$data/old-local.manifest" | awk '{print $1}')"
+old_local_manifest_entries="$(awk -F '\t' '$1 == "f" || $1 == "l" { n++ } END { print n + 0 }' "$data/old-local.manifest")"
+local_manifest_name="game-update-$old_local_manifest_hash.manifest"
+write_local_predecessor_marker
+set +e
+printf 'n\n' | run_lfs setup >"$TMP_ROOT/local-catchup-setup.out" 2>&1
+local_catchup_setup_status=$?
+set -e
+[[ "$local_catchup_setup_status" -eq 3 ]]
+grep -Fq 'Upgrade the verified local LFS test-local-old baseline to audited test-new' \
+  "$TMP_ROOT/local-catchup-setup.out"
+grep -Fq 'preserve complete player-owned paths and metadata' "$TMP_ROOT/local-catchup-setup.out"
+if run_lfs ready >"$TMP_ROOT/local-catchup-ready.out" 2>&1; then
+  printf 'known local predecessor incorrectly reported ready\n' >&2
+  exit 1
+fi
+set +e
+run_lfs launch >"$TMP_ROOT/local-catchup-launch.out" 2>&1
+local_catchup_launch_status=$?
+set -e
+[[ "$local_catchup_launch_status" -ne 0 ]]
+grep -Fq 'verified local LFS test-local-old requires audited test-new catch-up; run lfs-linux install' \
+  "$TMP_ROOT/local-catchup-launch.out"
+mkdir -p "$game/data/mpr/empty-player-directory"
+ln -s local-predecessor.mpr "$game/data/mpr/replay-link"
+chmod 0710 "$game/data/mpr" "$game/data/mpr/empty-player-directory"
+chmod 0640 "$game/data/mpr/local-predecessor.mpr"
+touch -d '2026-08-31 21:12:13.123456789 UTC' "$game/data/mpr" \
+  "$game/data/mpr/empty-player-directory" "$game/data/mpr/local-predecessor.mpr"
+python3 - "$game/data/mpr" <<'PY'
+import os
+import sys
+try:
+    os.setxattr(sys.argv[1], b"user.lfs-linux-test", b"preserve-player-xattr")
+except OSError:
+    pass
+PY
+inventory_tree_metadata "$game/data/mpr" "$TMP_ROOT/local-player.before.jsonl"
+inventory_tree_metadata "$game/data/skins_dds/PLAYER.dds" "$TMP_ROOT/local-player-dds.before.jsonl"
+rm -f "$cached_installer"
+set +e
+LFS_LINUX_TEST_FAIL_AFTER_GAME_BACKUP=1 run_lfs install >"$TMP_ROOT/local-catchup-interrupted-swap.out" 2>&1
+local_catchup_interrupted_status=$?
+set -e
+[[ "$local_catchup_interrupted_status" -ne 0 ]]
+grep -Fq 'test fault after previous game tree moved to recovery backup' \
+  "$TMP_ROOT/local-catchup-interrupted-swap.out"
+[[ ! -e "$game" && -d "$state/.lfs-game-backup" && -f "$state/$local_manifest_name" ]]
+inventory_tree_metadata "$state/.lfs-game-backup/data/mpr" "$TMP_ROOT/local-player.in-backup.jsonl"
+inventory_tree_metadata "$state/.lfs-game-backup/data/skins_dds/PLAYER.dds" \
+  "$TMP_ROOT/local-player-dds.in-backup.jsonl"
+cmp "$TMP_ROOT/local-player.before.jsonl" "$TMP_ROOT/local-player.in-backup.jsonl"
+cmp "$TMP_ROOT/local-player-dds.before.jsonl" "$TMP_ROOT/local-player-dds.in-backup.jsonl"
+run_lfs install >"$TMP_ROOT/local-catchup-install.out" 2>&1
+if grep -Fq 'behavior of -n is non-portable' "$TMP_ROOT/local-catchup-install.out"; then
+  printf 'local catch-up used deprecated ambiguous no-clobber semantics\n' >&2
+  exit 1
+fi
+grep -Fq 'Recovered player data after an interrupted game-tree swap' "$TMP_ROOT/local-catchup-install.out"
+grep -Fq 'Verified locally recorded LFS test-local-old as the approved catch-up predecessor' \
+  "$TMP_ROOT/local-catchup-install.out"
+grep -Fq 'Preserved complete player-owned paths from the verified local update' \
+  "$TMP_ROOT/local-catchup-install.out"
+grep -Fq 'Preserved 1 player file(s) that collide with C24 stock' \
+  "$TMP_ROOT/local-catchup-install.out"
+[[ "$(sha256sum "$game/LFS.exe" | awk '{print $1}')" == "$new_exe_hash" ]]
+[[ "$(sha256sum "$game/data/skins_dds/HEL_DEFAULT.dds" | awk '{print $1}')" == "$helmet_hash" ]]
+local_helmet_conflict="$state/migration-conflicts/from-test-local-old-to-test-new/data/skins_dds/HEL_DEFAULT.dds.$local_helmet_collision_hash.pre-upgrade"
+[[ "$(sha256sum "$local_helmet_conflict" | awk '{print $1}')" == "$local_helmet_collision_hash" ]]
+[[ ! -e "$game/obsolete.stock" && ! -e "$game/zz-obsolete.stock" ]]
+[[ -f "$cached_installer" && ! -e "$state/$local_manifest_name" ]]
+grep -Fqx "LFS_BASELINE_KIND='package'" "$state/install.env"
+grep -Fqx "LFS_VERSION='test-new'" "$state/install.env"
+inventory_tree_metadata "$game/data/mpr" "$TMP_ROOT/local-player.after.jsonl"
+inventory_tree_metadata "$game/data/skins_dds/PLAYER.dds" "$TMP_ROOT/local-player-dds.after.jsonl"
+cmp "$TMP_ROOT/local-player.before.jsonl" "$TMP_ROOT/local-player.after.jsonl"
+cmp "$TMP_ROOT/local-player-dds.before.jsonl" "$TMP_ROOT/local-player-dds.after.jsonl"
+[[ ! -e "$state/.lfs-game-backup" ]]
+
+cp "$old_stock/obsolete.stock" "$game/obsolete.stock"
+cp "$old_stock/zz-obsolete.stock" "$game/zz-obsolete.stock"
+[[ -f "$game/data/versions/8C23.txt" ]]
+cp -a "$game" "$TMP_ROOT/same-marker-candidate"
+write_local_predecessor_marker
+set +e
+printf 'n\n' | run_lfs setup >"$TMP_ROOT/same-marker-setup.out" 2>&1
+same_marker_setup_status=$?
+set -e
+[[ "$same_marker_setup_status" -eq 3 ]]
+grep -Fq 'Adopt the exact audited test-new files already produced over the verified test-local-old baseline' \
+  "$TMP_ROOT/same-marker-setup.out"
+grep -Fq 'no game installer download is needed' "$TMP_ROOT/same-marker-setup.out"
+inventory_tree_metadata "$game/data/mpr" "$TMP_ROOT/same-marker-player.before.jsonl"
+rm -f "$cached_installer"
+run_lfs install >"$TMP_ROOT/same-marker-adoption.out"
+grep -Fq 'Recognized exact audited test-new overlay on the verified test-local-old baseline' \
+  "$TMP_ROOT/same-marker-adoption.out"
+[[ ! -e "$cached_installer" && ! -e "$game/obsolete.stock" && ! -e "$game/zz-obsolete.stock" ]]
+quarantined_obsolete="$state/migration-conflicts/from-test-local-old-to-test-new/obsolete.stock.$obsolete_hash.pre-upgrade"
+quarantined_second_obsolete="$state/migration-conflicts/from-test-local-old-to-test-new/zz-obsolete.stock.$second_obsolete_hash.pre-upgrade"
+[[ "$(sha256sum "$quarantined_obsolete" | awk '{print $1}')" == "$obsolete_hash" ]]
+[[ "$(sha256sum "$quarantined_second_obsolete" | awk '{print $1}')" == "$second_obsolete_hash" ]]
+[[ "$(sha256sum "$game/LFS.exe" | awk '{print $1}')" == "$new_exe_hash" ]]
+grep -Fqx "LFS_BASELINE_KIND='package'" "$state/install.env"
+grep -Fqx "LFS_VERSION='test-new'" "$state/install.env"
+inventory_tree_metadata "$game/data/mpr" "$TMP_ROOT/same-marker-player.after.jsonl"
+inventory_tree_metadata "$game/data/skins_dds/PLAYER.dds" "$TMP_ROOT/same-marker-player-dds.after.jsonl"
+cmp "$TMP_ROOT/same-marker-player.before.jsonl" "$TMP_ROOT/same-marker-player.after.jsonl"
+cmp "$TMP_ROOT/local-player-dds.before.jsonl" "$TMP_ROOT/same-marker-player-dds.after.jsonl"
+
+rm -rf "$game"
+cp -a "$TMP_ROOT/same-marker-candidate" "$game"
+write_local_predecessor_marker
+overlay_race_ready="$TMP_ROOT/overlay-quarantine-after-first-ready"
+LFS_LINUX_TEST_OVERLAY_QUARANTINE_AFTER_FIRST_READY_FILE="$overlay_race_ready" \
+LFS_LINUX_TEST_OVERLAY_QUARANTINE_AFTER_FIRST_DELAY_SECONDS=2 \
+  run_lfs install >"$TMP_ROOT/rejected-overlay-quarantine-race.out" 2>&1 &
+overlay_race_pid=$!
+for ((attempt = 0; attempt < 100; attempt++)); do
+  [[ -e "$overlay_race_ready" ]] && break
+  kill -0 "$overlay_race_pid" 2>/dev/null || break
+  sleep 0.05
+done
+[[ -e "$overlay_race_ready" ]]
+printf 'replacement-created-after-first-quarantine-move' >"$game/zz-obsolete.stock"
+overlay_race_hash="$(sha256sum "$game/zz-obsolete.stock" | awk '{print $1}')"
+set +e
+wait "$overlay_race_pid"
+overlay_race_status=$?
+set -e
+[[ "$overlay_race_status" -ne 0 && ! -e "$cached_installer" ]]
+grep -Fq 'predecessor-only protected path changed before quarantine' \
+  "$TMP_ROOT/rejected-overlay-quarantine-race.out"
+[[ "$(sha256sum "$game/obsolete.stock" | awk '{print $1}')" == "$obsolete_hash" ]]
+[[ "$(sha256sum "$game/zz-obsolete.stock" | awk '{print $1}')" == "$overlay_race_hash" ]]
+[[ ! -e "$state/.lfs-predecessor-quarantine" ]]
+grep -Fqx "LFS_BASELINE_KIND='game-update'" "$state/install.env"
+
+rm -rf "$game"
+cp -a "$TMP_ROOT/same-marker-candidate" "$game"
+write_local_predecessor_marker
+set +e
+LFS_LINUX_TEST_FAIL_AFTER_OVERLAY_MARKER_BEFORE_PHASE=1 \
+  run_lfs install >"$TMP_ROOT/interrupted-committed-quarantine.out" 2>&1
+committed_quarantine_status=$?
+set -e
+[[ "$committed_quarantine_status" -ne 0 ]]
+grep -Fq 'test fault after package marker commit before quarantine phase persisted' \
+  "$TMP_ROOT/interrupted-committed-quarantine.out"
+grep -Fqx "LFS_BASELINE_KIND='package'" "$state/install.env"
+[[ ! -e "$game/obsolete.stock" && ! -e "$game/zz-obsolete.stock" ]]
+[[ -f "$state/.lfs-predecessor-quarantine/obsolete.stock" ]]
+[[ -f "$state/.lfs-predecessor-quarantine/zz-obsolete.stock" ]]
+run_lfs install >"$TMP_ROOT/recovered-committed-quarantine.out"
+grep -Fq 'Retained committed predecessor quarantine after interrupted cleanup' \
+  "$TMP_ROOT/recovered-committed-quarantine.out"
+recovered_quarantine="$state/migration-conflicts/recovered-predecessor-quarantine"
+[[ "$(sha256sum "$recovered_quarantine/obsolete.stock" | awk '{print $1}')" == "$obsolete_hash" ]]
+[[ "$(sha256sum "$recovered_quarantine/zz-obsolete.stock" | awk '{print $1}')" == "$second_obsolete_hash" ]]
+[[ ! -e "$state/.lfs-predecessor-quarantine" && ! -e "$cached_installer" ]]
+
+rm -rf "$game"
+cp -a "$TMP_ROOT/same-marker-candidate" "$game"
+write_local_predecessor_marker
+printf 'unknown-protected-entry' >"$game/unexpected.stock"
+cp -a "$game" "$TMP_ROOT/before-rejected-overlay-addition"
+set +e
+run_lfs install >"$TMP_ROOT/rejected-overlay-addition.out" 2>&1
+overlay_addition_status=$?
+set -e
+[[ "$overlay_addition_status" -ne 0 && ! -e "$cached_installer" ]]
+grep -Fq 'recorded in-game update baseline drifted outside a trusted LFS session' \
+  "$TMP_ROOT/rejected-overlay-addition.out"
+diff -qr "$TMP_ROOT/before-rejected-overlay-addition" "$game" >/dev/null
+
+rm -rf "$game"
+cp -a "$TMP_ROOT/same-marker-candidate" "$game"
+write_local_predecessor_marker
+mkdir "$game/unexpected-empty-directory"
+cp -a "$game" "$TMP_ROOT/before-rejected-overlay-directory"
+set +e
+run_lfs install >"$TMP_ROOT/rejected-overlay-directory.out" 2>&1
+overlay_directory_status=$?
+set -e
+[[ "$overlay_directory_status" -ne 0 && ! -e "$cached_installer" ]]
+grep -Fq 'recorded in-game update baseline drifted outside a trusted LFS session' \
+  "$TMP_ROOT/rejected-overlay-directory.out"
+diff -qr "$TMP_ROOT/before-rejected-overlay-directory" "$game" >/dev/null
+
+rm -rf "$game"
+cp -a "$TMP_ROOT/same-marker-candidate" "$game"
+write_local_predecessor_marker
+mkfifo "$game/data/mpr/unsupported-player-fifo"
+cp -a "$game" "$TMP_ROOT/before-rejected-overlay-special"
+set +e
+run_lfs install >"$TMP_ROOT/rejected-overlay-special.out" 2>&1
+overlay_special_status=$?
+set -e
+[[ "$overlay_special_status" -ne 0 && ! -e "$cached_installer" ]]
+grep -Fq 'recorded in-game update baseline drifted outside a trusted LFS session' \
+  "$TMP_ROOT/rejected-overlay-special.out"
+[[ -p "$game/data/mpr/unsupported-player-fifo" ]]
+grep -Fqx 'obsolete-stock' "$game/obsolete.stock"
+
+rm -rf "$game"
+cp -a "$TMP_ROOT/same-marker-candidate" "$game"
+write_local_predecessor_marker
+printf 'changed-predecessor-only-entry' >"$game/obsolete.stock"
+cp -a "$game" "$TMP_ROOT/before-rejected-overlay-stale-drift"
+set +e
+run_lfs install >"$TMP_ROOT/rejected-overlay-stale-drift.out" 2>&1
+overlay_stale_status=$?
+set -e
+[[ "$overlay_stale_status" -ne 0 && ! -e "$cached_installer" ]]
+grep -Fq 'recorded in-game update baseline drifted outside a trusted LFS session' \
+  "$TMP_ROOT/rejected-overlay-stale-drift.out"
+diff -qr "$TMP_ROOT/before-rejected-overlay-stale-drift" "$game" >/dev/null
+
+rm -rf "$game"
+cp -a "$TMP_ROOT/same-marker-candidate" "$game"
+write_local_predecessor_marker
+printf 'changed-target-entry' >"$game/shared.stock"
+cp -a "$game" "$TMP_ROOT/before-rejected-overlay-target-drift"
+set +e
+run_lfs install >"$TMP_ROOT/rejected-overlay-target-drift.out" 2>&1
+overlay_target_status=$?
+set -e
+[[ "$overlay_target_status" -ne 0 && ! -e "$cached_installer" ]]
+grep -Fq 'recorded in-game update baseline drifted outside a trusted LFS session' \
+  "$TMP_ROOT/rejected-overlay-target-drift.out"
+diff -qr "$TMP_ROOT/before-rejected-overlay-target-drift" "$game" >/dev/null
+
+rm -rf "$game"
+cp -a "$TMP_ROOT/same-marker-candidate" "$game"
+write_local_predecessor_marker
+rm "$game/new.stock"
+cp -a "$game" "$TMP_ROOT/before-rejected-overlay-missing-target"
+set +e
+run_lfs install >"$TMP_ROOT/rejected-overlay-missing-target.out" 2>&1
+overlay_missing_status=$?
+set -e
+[[ "$overlay_missing_status" -ne 0 && ! -e "$cached_installer" ]]
+grep -Fq 'recorded in-game update baseline drifted outside a trusted LFS session' \
+  "$TMP_ROOT/rejected-overlay-missing-target.out"
+diff -qr "$TMP_ROOT/before-rejected-overlay-missing-target" "$game" >/dev/null
+
+rm -rf "$game"
+cp -a "$TMP_ROOT/before-local-catchup" "$game"
+cp "$TMP_ROOT/before-local-catchup.env" "$state/install.env"
+rm -f "$state"/game-update-*.manifest "$state/game-update.manifest"
 
 cp -a "$game" "$TMP_ROOT/before-trusted-game-update"
 cp "$state/install.env" "$TMP_ROOT/before-trusted-game-update.env"

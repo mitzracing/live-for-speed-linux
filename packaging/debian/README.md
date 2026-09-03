@@ -17,7 +17,7 @@ Install the local release asset with APT so its audited amd64 host-library and V
 
 ```bash
 sudo apt update
-sudo apt install ./live-for-speed-linux_0.3.2-0github1_amd64.deb
+sudo apt install ./live-for-speed-linux_0.3.3-0github1_amd64.deb
 ```
 
 Then open **Live for Speed Linux** from the application menu or run:

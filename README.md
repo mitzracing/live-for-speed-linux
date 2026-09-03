@@ -2,9 +2,9 @@
 
 Unofficial community Linux launcher for the untouched official [Live for Speed](https://www.lfs.net/) Windows build.
 
-**Status:** v0.3.2 public-test wrapper release. The validated AUR recipe awaits maintainer SSH access. The core works without Steam, Bottles, Lutris, or a background launcher.
+**Status:** v0.3.3 public-test wrapper candidate. The validated AUR recipe awaits maintainer SSH access. The core works without Steam, Bottles, Lutris, or a background launcher.
 
-This release bootstraps exact official **LFS 0.8C20 new graphics**, which lfs.net still labels **PUBLIC TEST**. It is not represented as a stable LFS release. Use immutable [v0.1.6](https://github.com/mitzracing/live-for-speed-linux/releases/tag/v0.1.6) for the audited old-graphics 0.7G fallback.
+This candidate bootstraps exact official **LFS 0.8C24 new graphics**, which lfs.net still labels **PUBLIC TEST**. It is not represented as a stable LFS release. Use immutable [v0.1.6](https://github.com/mitzracing/live-for-speed-linux/releases/tag/v0.1.6) for the audited old-graphics 0.7G fallback.
 
 This project is not affiliated with or endorsed by the Live for Speed developers.
 
@@ -17,7 +17,7 @@ The public package is `live-for-speed-linux`. The stable command and player-stat
 - Downloads LFS directly from `lfs.net` after an explicit user command.
 - Verifies the official archive and all 52 nested archives, extracts without executing the installer, checks every official seed file, then tracks protected stock separately from mutable player data.
 - Authenticates the pinned Wine package with its detached Arch packager signature, then creates one private Wine prefix under the XDG data directory.
-- Deploys only DXVK's audited 32-bit D3D11 and DXGI DLLs required by LFS 0.8C20.
+- Deploys only DXVK's audited 32-bit D3D11 and DXGI DLLs required by LFS 0.8C24.
 - Starts Wine directly with no wrapper daemon or container.
 - Records a versioned in-game update after the trusted LFS session exits, then verifies that local baseline on later launches.
 - Keeps an updater-restarted LFS process alive, records durable launch events, and retains bounded recovery evidence if the wrapper is interrupted.
@@ -36,9 +36,11 @@ The public package is `live-for-speed-linux`. The stable command and player-stat
 
 ## One-click setup
 
-After installing the wrapper package, open **Live for Speed Linux** from the application menu. First launch explains that LFS 0.8C20 is a public test, shows the approximately 1.7 GB official download, verifies the LFS, Wine, and DXVK inputs, configures the private prefix, and starts LFS. Later launches go directly to the game.
+After installing the wrapper package, open **Live for Speed Linux** from the application menu. First launch explains that LFS 0.8C24 is a public test, shows the approximately 1.7 GB official download, verifies the LFS, Wine, and DXVK inputs, configures the private prefix, and starts LFS. Later launches go directly to the game.
 
 If LFS updates itself during a validated session, the foreground wrapper waits for all private-prefix processes to exit without any automatic prefix-wide kill. An updater-restarted game remains active; unsettled non-game services are left for explicit `lfs-linux stop` and no update is recorded on that failure path. A newer game version marker allows it to record the resulting protected-file inventory as a local baseline. Next-day desktop launch verifies and starts that updated game without an old-version setup prompt, downgrade, full redownload, or matching wrapper release. Protected-file changes made outside that trusted session still fail closed. If the wrapper itself is interrupted after a verified launch, `lfs-linux recover-update` requires unchanged session evidence, a newer marker, a stopped private prefix, and explicit confirmation before recording anything.
+
+LFS 0.8C24 keeps the same 8C23 marker as its predecessor. Wrapper 0.3.3 therefore handles this one audited transition explicitly: an exact recorded C23 baseline is upgraded through the pinned C24 installer while complete player-owned paths and metadata, including downloaded `data/skins_dds` files, are preserved. If the official updater already produced C24 files, setup accepts them without a second game download only when every protected entry is exact audited C24 content or an unchanged, previously trusted C23-only entry. Unknown files, protected directories, special filesystem entries, or changed audited content still stop before mutation.
 
 No game payload is bundled with the wrapper package. Immutable [v0.1.6](https://github.com/mitzracing/live-for-speed-linux/releases/tag/v0.1.6) remains available as the audited old-graphics LFS 0.7G fallback.
 
@@ -91,7 +93,7 @@ A deterministic wrapper-only `.deb` is supported on Debian 13 and Ubuntu 24.04. 
 
 ```bash
 sudo apt update
-sudo apt install ./live-for-speed-linux_0.3.2-0github1_amd64.deb
+sudo apt install ./live-for-speed-linux_0.3.3-0github1_amd64.deb
 ```
 
 The package does not contain the game, Wine, DXVK, or player data. It installs no proprietary payload and downloads nothing during package installation. See [`packaging/debian/`](packaging/debian/README.md) for the support boundary, deterministic build, removal behavior, and repository-publication distinction.

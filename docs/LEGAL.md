@@ -35,7 +35,7 @@ The package signature authenticates the Arch packager and package bytes. It does
 
 The wrapper downloads an official DXVK release from its upstream GitHub project. DXVK uses the Zlib license.
 
-The wrapper deploys only the audited 32-bit `d3d11.dll` and `dxgi.dll` required by LFS 0.8C20 new graphics. It does not modify either DLL.
+The wrapper deploys only the audited 32-bit `d3d11.dll` and `dxgi.dll` required by LFS 0.8C24 new graphics. It does not modify either DLL.
 
 ## Names and trademarks
 
