@@ -14,6 +14,7 @@ No unresolved high-confidence HIGH security finding identified in the reviewed c
 - Support previews exclude known private fields; issue-title scanning and exact redacted-placeholder handling have regression coverage. Public reports still require user review.
 - Packages contain wrapper files, public certificates, manifests, and documentation—not game payloads, prefixes, credentials, or private audit evidence.
 - Release changes add project guidance and truthful prerelease links/metadata. They do not change runtime code, runtime pins, privileges, or remote security settings.
+- Source-archive directory modes are normalized only below private temporary staging. Regression coverage compares archives from different directory modes and verifies the input checkout stays unchanged.
 
 ## Proof limits and follow-up
 

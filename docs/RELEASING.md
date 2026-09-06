@@ -68,7 +68,7 @@ Normal package installation and removal must never download, embed, replace, or 
 
 ## AUR publication
 
-The AUR recipe uses the deterministic archive created by `make release-archive`, not GitHub's generated source snapshot. Set `VERSION` to a new, unreleased value first: the builder refuses to reuse an archive name whose matching tag already points to another commit. `LFS_LINUX_ALLOW_POST_RELEASE_ARCHIVE=1` is reserved for deterministic test snapshots and must not be used for publication.
+The AUR recipe uses the deterministic archive created by `make release-archive`, not GitHub's generated source snapshot. The builder normalizes directory and tracked file modes in its disposable copy; it does not change the owner's checkout permissions. Set `VERSION` to a new, unreleased value first: the builder refuses to reuse an archive name whose matching tag already points to another commit. `LFS_LINUX_ALLOW_POST_RELEASE_ARCHIVE=1` is reserved for deterministic test snapshots and must not be used for publication.
 
 1. Run `make release-archive` twice and compare SHA-256 digests.
 2. Confirm the digest equals `packaging/aur/PKGBUILD`.

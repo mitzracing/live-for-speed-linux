@@ -34,9 +34,20 @@ archive_two="$(find "$TMP_ROOT/two" -type f -name '*.tar.gz' -print -quit)"
 [[ -n "$archive_one" && -n "$archive_two" ]]
 archive_hash="$(sha256sum "$archive_one" | awk '{print $1}')"
 [[ "$archive_hash" == "$(sha256sum "$archive_two" | awk '{print $1}')" ]]
+# Checkout directory modes follow the maintainer/CI umask, not Git file modes.
+mkdir "$TMP_ROOT/group-writable"
+tar -xzf "$archive_one" -C "$TMP_ROOT/group-writable"
+mode_source="$TMP_ROOT/group-writable/$ARCHIVE_ROOT"
+find "$mode_source" -type d -exec chmod 0775 -- {} +
+"$mode_source/scripts/build-release-archive.sh" "$TMP_ROOT/mode-archive" >"$TMP_ROOT/mode.sha"
+cmp "$archive_one" "$TMP_ROOT/mode-archive/$ARCHIVE_ROOT.tar.gz"
+[[ "$(stat -c %a "$mode_source/libexec")" == 775 ]]
 if [[ -f "$ROOT_DIR/packaging/aur/PKGBUILD" && "$post_release" -eq 0 ]]; then
   pinned_hash="$(grep -Eo "sha256sums=\\('[0-9a-f]{64}'\\)" "$ROOT_DIR/packaging/aur/PKGBUILD" | grep -Eo '[0-9a-f]{64}')"
-  [[ "$archive_hash" == "$pinned_hash" ]]
+  if [[ "$archive_hash" != "$pinned_hash" ]]; then
+    printf 'Source archive checksum mismatch: expected %s, got %s\n' "$pinned_hash" "$archive_hash" >&2
+    exit 1
+  fi
 fi
 
 listing="$(tar -tzf "$archive_one")"

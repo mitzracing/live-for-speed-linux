@@ -51,6 +51,8 @@ for entry in "${ENTRIES[@]}"; do
   mkdir -p "$STAGING/$(dirname "$entry")"
   cp -a -- "$ROOT_DIR/$entry" "$STAGING/$entry"
 done
+# Git does not record directory modes; normalize only the disposable copy.
+find "$STAGING" -mindepth 1 -type d -exec chmod 0755 -- {} +
 # Preserve recorded release modes without modifying the owner's working tree.
 # Extracted source archives already carry these modes and need no Git metadata.
 if git -C "$ROOT_DIR" rev-parse --git-dir >/dev/null 2>&1; then
