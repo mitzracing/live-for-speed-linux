@@ -98,6 +98,7 @@ assert "lfs.net" not in " ".join(audit.images)
 
 root = Path(sys.argv[2]).parent
 repository = "https://github.com/mitzracing/live-for-speed-linux"
+assert repository + "/blob/main/website/assets/README.md" in (root / "docs/LEGAL.md").read_text(), "installed legal notes need publicly reachable image credits"
 headings = re.findall(r"^#{1,6} (.+)$", (root / "README.md").read_text(), re.MULTILINE)
 readme_anchors = {re.sub(r"[^\w\s-]", "", heading.lower()).replace(" ", "-") for heading in headings}
 for link in audit.links:
