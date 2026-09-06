@@ -10,6 +10,7 @@ readonly ARCHIVE_ROOT
 TMP_ROOT="$(mktemp -d /tmp/lfs-linux-release.XXXXXX)"
 readonly TMP_ROOT
 trap 'rm -rf "$TMP_ROOT"' EXIT
+trap 'printf "Release archive check failed at line %s: %s\n" "$LINENO" "$BASH_COMMAND" >&2' ERR
 
 post_release=0
 if git -C "$ROOT_DIR" rev-parse --git-dir >/dev/null 2>&1 &&
