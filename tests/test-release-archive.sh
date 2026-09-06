@@ -69,7 +69,12 @@ fi
 
 tar -xzf "$archive_one" -C "$TMP_ROOT"
 archive_dir="$TMP_ROOT/$ARCHIVE_ROOT"
-LFS_LINUX_SOURCE_ARCHIVE=1 "$archive_dir/tests/test-public-static.sh" >/dev/null
+if LFS_LINUX_SOURCE_ARCHIVE=1 "$archive_dir/tests/test-public-static.sh" >"$TMP_ROOT/static.log" 2>&1; then
+  :
+else
+  cat "$TMP_ROOT/static.log" >&2
+  exit 1
+fi
 "$archive_dir/tests/test-public-core.sh" >/dev/null
 "$archive_dir/tests/test-runtime-trust.sh" >/dev/null
 python3 "$archive_dir/tests/test-player-safety.py" >/dev/null

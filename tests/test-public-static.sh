@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
+trap 'printf "Static check failed at line %s: %s\n" "$LINENO" "$BASH_COMMAND" >&2' ERR
 
 ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 readonly ROOT_DIR
