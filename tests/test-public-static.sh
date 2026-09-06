@@ -17,7 +17,11 @@ for name in ('lfs-linux-gtk', 'lfs_linux_dialog.py', 'lfs_linux_gtk.py'):
     ast.parse(path.read_text(), filename=str(path))
 PY
 if command -v shellcheck >/dev/null 2>&1; then
-  shellcheck "$ROOT_DIR/bin/"* "$ROOT_DIR/libexec/lfs-linux-core" "$ROOT_DIR/libexec/lfs-linux-ui" "$ROOT_DIR/scripts/"*.sh "$ROOT_DIR/tests/"*.sh
+  # Resolve source directives in the checked tree, not the caller's checkout.
+  (
+    cd "$ROOT_DIR"
+    shellcheck "$ROOT_DIR/bin/"* "$ROOT_DIR/libexec/lfs-linux-core" "$ROOT_DIR/libexec/lfs-linux-ui" "$ROOT_DIR/scripts/"*.sh "$ROOT_DIR/tests/"*.sh
+  )
 fi
 
 python3 - "$ROOT_DIR/share/metainfo/io.github.mitzracing.live_for_speed_linux.metainfo.xml" "$ROOT_DIR/share/applications/io.github.mitzracing.live_for_speed_linux.desktop" <<'PY'
