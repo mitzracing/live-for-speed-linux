@@ -1,10 +1,12 @@
 #!/usr/bin/env node
+// Optional: LFS_WEBSITE_URL checks a deployed site instead of the staged local files.
+// LFS_WEBSITE_SCREENSHOTS saves visual evidence to the supplied directory.
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { pathToFileURL } from "node:url";
 import { spawn, spawnSync } from "node:child_process";
 
 function browserBinary() {
@@ -49,9 +51,9 @@ class DevToolsClient {
     this.socket.addEventListener("message", (event) => {
       const message = JSON.parse(event.data);
       if (!message.id || !this.pending.has(message.id)) return;
-      const { resolve: resolvePromise, reject } = this.pending.get(message.id);
+      const { method, resolve: resolvePromise, reject } = this.pending.get(message.id);
       this.pending.delete(message.id);
-      if (message.error) reject(new Error(message.error.message));
+      if (message.error) reject(new Error(`${method}: ${message.error.message}`));
       else resolvePromise(message.result);
     });
   }
@@ -60,7 +62,7 @@ class DevToolsClient {
     const id = this.nextId;
     this.nextId += 1;
     return new Promise((resolvePromise, reject) => {
-      this.pending.set(id, { resolve: resolvePromise, reject });
+      this.pending.set(id, { method, resolve: resolvePromise, reject });
       this.socket.send(JSON.stringify({ id, method, params }));
     });
   }
@@ -105,7 +107,13 @@ try {
   await client.open();
   await client.send("Page.enable");
   await client.send("Runtime.enable");
-  const target = pathToFileURL(fileURLToPath(new URL("../website/index.html", import.meta.url))).href;
+  const site = join(profile, "site");
+  await mkdir(site);
+  for (const name of ["index.html", "styles.css", "feedback.js"]) {
+    await copyFile(new URL(`../website/${name}`, import.meta.url), join(site, name));
+  }
+  await copyFile(new URL("../share/icons/hicolor/scalable/apps/io.github.mitzracing.live_for_speed_linux.svg", import.meta.url), join(site, "icon.svg"));
+  const target = process.env.LFS_WEBSITE_URL || pathToFileURL(join(site, "index.html")).href;
   await client.send("Page.navigate", { url: target });
 
   let ready = false;
@@ -119,71 +127,181 @@ try {
   }
   assert.ok(ready, "website feedback script did not initialize");
 
-  const readLayout = async (width) => {
-    await client.send("Emulation.setDeviceMetricsOverride", {
-      width,
-      height: 1000,
-      deviceScaleFactor: 1,
-      mobile: false,
-    });
-    const result = await client.send("Runtime.evaluate", {
+  const screenshotDirectory = process.env.LFS_WEBSITE_SCREENSHOTS;
+  const capture = async (name, selector) => {
+    if (!screenshotDirectory) return;
+    await mkdir(screenshotDirectory, { recursive: true });
+    const measured = await client.send("Runtime.evaluate", {
       expression: `(() => {
-        const bounds = (selector) => {
-          const rect = document.querySelector(selector).getBoundingClientRect();
-          return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom };
-        };
-        const main = document.querySelector('.main-column');
-        const mainRect = main.getBoundingClientRect();
-        const mainOverflow = [...main.querySelectorAll('*')].filter((element) => {
-          const rect = element.getBoundingClientRect();
-          if (!rect.width || (rect.left >= mainRect.left - 0.5 && rect.right <= mainRect.right + 0.5)) return false;
-          for (let ancestor = element.parentElement; ancestor && ancestor !== main; ancestor = ancestor.parentElement) {
-            const ancestorRect = ancestor.getBoundingClientRect();
-            const overflow = getComputedStyle(ancestor).overflowX;
-            if (['auto', 'hidden', 'scroll', 'clip'].includes(overflow)
-              && ancestorRect.left >= mainRect.left - 0.5
-              && ancestorRect.right <= mainRect.right + 0.5) return false;
-          }
-          return true;
-        }).map((element) => element.tagName + (element.className ? '.' + String(element.className).replaceAll(' ', '.') : ''));
-        return {
-          page: bounds('.page-grid'),
-          main: bounds('.main-column'),
-          mainOverflow,
-          mainPanels: [...main.children].map((panel) => {
-            const rect = panel.getBoundingClientRect();
-            return { left: rect.left, right: rect.right };
-          }),
-          side: bounds('.side-column'),
-          sidePanels: [...document.querySelectorAll('.side-panel')].map((panel) => {
-            const rect = panel.getBoundingClientRect();
-            return { left: rect.left, right: rect.right };
-          }),
-        };
+        window.scrollTo({top: 0, behavior: 'instant'});
+        const rect = document.querySelector(${JSON.stringify(selector)}).getBoundingClientRect();
+        return {x: 0, y: Math.max(0, rect.top + scrollY), width: innerWidth, height: Math.min(1400, rect.height), scale: 1};
       })()`,
       returnByValue: true,
     });
-    return result.result.value;
+    const image = await client.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: true, clip: measured.result.value });
+    await writeFile(join(screenshotDirectory, `${name}.png`), Buffer.from(image.data, "base64"));
   };
 
-  for (const width of [1440, 1024, 800]) {
-    const layout = await readLayout(width);
-    assert.ok(Math.abs(layout.main.top - layout.side.top) < 1, `columns not aligned at ${width}px`);
-    assert.ok(layout.main.right <= layout.side.left + 0.5, `main column overlaps sidebar at ${width}px`);
-    assert.ok(
-      layout.mainPanels.every((panel) => panel.left >= layout.main.left - 0.5 && panel.right <= layout.main.right + 0.5),
-      `main panel escapes its column at ${width}px`,
-    );
-    assert.deepEqual(layout.mainOverflow, [], `main descendant escapes its column at ${width}px: ${layout.mainOverflow.join(', ')}`);
-    assert.ok(layout.side.right <= layout.page.right + 0.5, `sidebar escapes page grid at ${width}px`);
-    assert.ok(
-      layout.sidePanels.every((panel) => panel.left >= layout.side.left - 0.5 && panel.right <= layout.side.right + 0.5),
-      `sidebar panel escapes its column at ${width}px`,
-    );
-  }
+  const version = (await readFile(new URL("../VERSION", import.meta.url), "utf8")).trim();
+  const release = `https://github.com/mitzracing/live-for-speed-linux/releases/download/v${version}`;
+  const expectedDownloads = [
+    `${release}/live-for-speed-linux_${version}-0github1_amd64.deb`,
+    `${release}/live-for-speed-linux-${version}-1-x86_64.pkg.tar.zst`,
+  ];
+  const readLayout = async (width, deviceScaleFactor = 1) => {
+    await client.send("Emulation.setDeviceMetricsOverride", { width, height: 1000, deviceScaleFactor, mobile: false });
+    const result = await client.send("Runtime.evaluate", {
+      expression: `(() => {
+        // Exercise the original defect even when checking an older, accordion-based site.
+        document.querySelectorAll('#install details').forEach(el => el.open = true);
+        const links = [...document.querySelectorAll('#install a[href*="/releases/download/"]')];
+        const controls = links.map(link => {
+          link.scrollIntoView({block: 'center', behavior: 'instant'});
+          const rect = link.getBoundingClientRect();
+          const card = link.closest('article, details');
+          const bounds = card.getBoundingClientRect();
+          const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+          const overlaps = [...card.querySelectorAll('p, h3, a')].filter(other => {
+            if (other === link || other.contains(link) || link.contains(other)) return false;
+            const r = other.getBoundingClientRect();
+            return Math.min(rect.right, r.right) - Math.max(rect.left, r.left) > 0.5
+              && Math.min(rect.bottom, r.bottom) - Math.max(rect.top, r.top) > 0.5;
+          }).map(other => other.textContent.trim());
+          return {
+            label: link.textContent.trim(), href: link.href, overlaps,
+            fragments: link.getClientRects().length,
+            width: rect.width, height: rect.height,
+            contained: rect.left >= bounds.left && rect.right <= bounds.right,
+            reachable: Boolean(hit && link.contains(hit)),
+            hiddenInDetails: Boolean(link.closest('details')),
+          };
+        });
+        const cards = links.map(link => {
+          const r = link.closest('article, details').getBoundingClientRect();
+          return {left: r.left, right: r.right, top: r.top, bottom: r.bottom};
+        });
+        return {controls, cards, pageWidth: document.documentElement.scrollWidth, viewport: innerWidth};
+      })()`,
+      returnByValue: true,
+    });
+    assert.ok(!result.exceptionDetails, JSON.stringify(result.exceptionDetails));
+    const layout = result.result.value;
+    assert.equal(layout.controls.length, 2, "both distribution downloads must exist");
+    for (const control of layout.controls) {
+      const context = `${control.label} at ${width}px / ${deviceScaleFactor}x`;
+      assert.deepEqual(control.overlaps, [], `download overlaps surrounding content: ${context}`);
+      assert.equal(control.fragments, 1, `download fragments across lines: ${context}`);
+      assert.ok(control.width >= 44 && control.height >= 44, `small download target: ${context}`);
+      assert.ok(control.contained && control.reachable, `download clipped or obscured: ${context}`);
+      assert.equal(control.hiddenInDetails, false, `download hidden inside disclosure: ${context}`);
+    }
+    assert.deepEqual(layout.controls.map(control => control.href), expectedDownloads, "release download targets changed");
+    assert.ok(layout.pageWidth <= layout.viewport + 1, `horizontal page overflow at ${width}px`);
+    const [first, second] = layout.cards;
+    if (width > 760) {
+      assert.ok(Math.abs(first.top - second.top) < 1 && first.right <= second.left, `download cards overlap or misalign at ${width}px`);
+    } else {
+      assert.ok(second.top >= first.bottom + 16, `download cards do not stack with a gap at ${width}px`);
+    }
+    return layout;
+  };
 
-  const stackedLayout = await readLayout(760);
-  assert.ok(stackedLayout.side.top >= stackedLayout.main.bottom, "sidebar does not stack below main content at 760px");
+  for (const width of [1440, 1024, 800, 768, 760, 390, 320]) {
+    await readLayout(width);
+    if ([1440, 390].includes(width)) {
+      await capture(`top-${width}`, 'body');
+      await capture(`downloads-${width}`, '#install');
+      for (const selector of ['#how-it-works', '#trust', '#support', '.technical', '.site-footer']) {
+        await capture(`${selector.slice(1)}-${width}`, selector);
+      }
+    }
+  }
+  await readLayout(720, 2); // 1440 physical pixels at 200% scale; 720 CSS pixels of reflow.
+  await client.send("Runtime.evaluate", { expression: "document.documentElement.style.fontSize = '200%'" });
+  await readLayout(320);
+  await client.send("Runtime.evaluate", { expression: "document.documentElement.style.removeProperty('font-size')" });
+  await readLayout(390);
+
+  for (const kind of ['bug', 'compatibility', 'feature', 'feedback']) {
+    const selected = await client.send("Runtime.evaluate", {
+      expression: `(() => {
+        document.querySelector('[data-feedback-kind="${kind}"]').click();
+        const form = document.getElementById('feedback-form');
+        return {
+          open: document.getElementById('feedback-disclosure').open,
+          kind: form.elements.kind.value, focus: document.activeElement.id,
+          packageHidden: form.querySelector('[data-package-method]').hidden,
+          wrapperHidden: form.querySelector('[data-wrapper-version]').hidden,
+          required: [...form.elements].filter(el => el.required).map(el => el.id).sort(),
+          expanded: [...document.querySelectorAll('[data-feedback-kind]')].every(el => el.getAttribute('aria-expanded') === 'true'),
+        };
+      })()`, returnByValue: true,
+    });
+    const state = selected.result.value;
+    assert.ok(state.open && state.expanded);
+    assert.equal(state.kind, kind);
+    assert.equal(state.focus, 'summary');
+    assert.equal(state.packageHidden, kind !== 'compatibility');
+    assert.equal(state.wrapperHidden, kind !== 'bug');
+    const required = ['kind', 'summary', 'details', 'expected', 'safety'];
+    if (['bug', 'compatibility'].includes(kind)) required.push('distribution', 'distributionVersion', 'desktop', 'graphics', 'steps');
+    if (kind === 'bug') required.push('wrapperVersion');
+    if (kind === 'compatibility') required.push('packageMethod');
+    if (kind === 'feature') required.push('value');
+    assert.deepEqual(state.required, required.sort());
+  }
+  await capture('feedback-390', '#feedback-disclosure');
+
+  const contrast = await client.send("Runtime.evaluate", {
+    expression: `(() => {
+      const rgb = value => value.match(/[\\d.]+/g).map(Number);
+      const luminance = value => rgb(value).slice(0, 3).map(n => {
+        const c = n / 255;
+        return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+      }).reduce((sum, n, i) => sum + n * [0.2126, 0.7152, 0.0722][i], 0);
+      const background = el => {
+        for (let node = el; node; node = node.parentElement) {
+          const color = getComputedStyle(node).backgroundColor;
+          if (rgb(color)[3] !== 0) return color;
+        }
+        throw new Error('No opaque page background');
+      };
+      const selectors = ['body', '.hero-lede', '.hero-note', '.eyebrow', '.button.primary', '.text-link', '.download-card p', '.release-notice', '.release-badge', 'nav a', '.legal', '.support-card strong', '.support-card span', 'label', 'input', 'select', 'textarea'];
+      return selectors.flatMap(selector => [...document.querySelectorAll(selector)].map(el => {
+        const foreground = luminance(getComputedStyle(el).color);
+        const behind = luminance(background(el));
+        return {selector, ratio: (Math.max(foreground, behind) + 0.05) / (Math.min(foreground, behind) + 0.05)};
+      }));
+    })()`, returnByValue: true,
+  });
+  assert.ok(!contrast.exceptionDetails, JSON.stringify(contrast.exceptionDetails));
+  assert.ok(contrast.result.value.length > 30, 'contrast check missed page content');
+  for (const sample of contrast.result.value) assert.ok(sample.ratio >= 4.5, `low text contrast: ${JSON.stringify(sample)}`);
+
+  await client.send("Runtime.evaluate", { expression: "document.getElementById('collapse-feedback').click()" });
+  await client.send("Emulation.setEmulatedMedia", { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
+  const motion = await client.send("Runtime.evaluate", { expression: "getComputedStyle(document.documentElement).scrollBehavior", returnByValue: true });
+  assert.equal(motion.result.value, 'auto', 'reduced motion must disable smooth scrolling');
+  await client.send("Runtime.evaluate", { expression: "document.body.tabIndex = -1; document.body.focus(); document.body.removeAttribute('tabindex')" });
+  const key = async (name, code) => {
+    for (const type of ['keyDown', 'keyUp']) await client.send('Input.dispatchKeyEvent', { type, key: name, code: name, windowsVirtualKeyCode: code });
+  };
+  await key('Tab', 9);
+  const skip = await client.send('Runtime.evaluate', {
+    expression: "({skip: document.activeElement.classList.contains('skip-link'), top: document.activeElement.getBoundingClientRect().top})", returnByValue: true,
+  });
+  assert.ok(skip.result.value.skip && skip.result.value.top >= 0, 'keyboard skip link missing or clipped');
+  await key('Enter', 13);
+  const skipped = await client.send('Runtime.evaluate', { expression: "document.activeElement.id", returnByValue: true });
+  assert.equal(skipped.result.value, 'install', 'skip link did not focus downloads');
+  await key('Tab', 9); // Tested-scope link in the public-test notice.
+  await key('Tab', 9); // First package download.
+  const focus = await client.send('Runtime.evaluate', {
+    expression: "({href: document.activeElement.href, outline: getComputedStyle(document.activeElement).outlineStyle, width: parseFloat(getComputedStyle(document.activeElement).outlineWidth)})", returnByValue: true,
+  });
+  assert.equal(focus.result.value.href, expectedDownloads[0]);
+  assert.ok(focus.result.value.outline !== 'none' && focus.result.value.width >= 2, 'download keyboard focus is invisible');
 
   const evaluated = await client.send("Runtime.evaluate", {
     expression: `(() => {
@@ -249,6 +367,9 @@ try {
     assert.ok(!outcome.diagnostics.includes(privateValue), `form retained ${privateValue}`);
   }
 
+  await client.send('Runtime.evaluate', { expression: "document.querySelector('#feedback-result details').open = true" });
+  await readLayout(320); // Expanded form and redacted preview must also fit.
+
   const collapsed = await client.send("Runtime.evaluate", {
     expression: `(() => {
       document.getElementById('collapse-feedback').click();
@@ -262,7 +383,19 @@ try {
   assert.equal(collapsed.result.value.open, false);
   assert.equal(collapsed.result.value.focusedTag, "SUMMARY");
 
-  console.log("[PASS] real browser keeps main/sidebar geometry isolated and exercises safe GitHub handoff");
+  await client.send('Emulation.setScriptExecutionDisabled', { value: true });
+  await client.send('Page.reload', { ignoreCache: true });
+  let noScriptReady = false;
+  for (let attempt = 0; attempt < 100 && !noScriptReady; attempt += 1) {
+    const state = await client.send('Runtime.evaluate', {
+      expression: "document.readyState === 'complete' && !window.LfsFeedback && document.querySelectorAll('img').length > 0 && [...document.images].every(img => img.complete && img.naturalWidth > 0)", returnByValue: true,
+    });
+    noScriptReady = Boolean(state.result.value);
+    if (!noScriptReady) await new Promise(resolvePromise => setTimeout(resolvePromise, 50));
+  }
+  assert.ok(noScriptReady, 'no-JavaScript page or community icon did not load');
+  await readLayout(390);
+  console.log("[PASS] browser: 320–1440px downloads, 2x reflow, 200% text, contrast, keyboard, no-JS, and safe feedback handoff");
 } finally {
   if (client) client.close();
   browser.kill("SIGTERM");

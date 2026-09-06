@@ -15,6 +15,7 @@ readonly JS="$ROOT_DIR/website/feedback.js"
 python3 - "$HTML" "$ROOT_DIR/VERSION" <<'PY'
 from html.parser import HTMLParser
 from pathlib import Path
+import re
 import sys
 
 class Audit(HTMLParser):
@@ -25,6 +26,8 @@ class Audit(HTMLParser):
         self.viewport = 0
         self.scripts = []
         self.images = []
+        self.stylesheets = []
+        self.release_versions = []
         self.ids = set()
         self.links = []
         self.form_fields = set()
@@ -35,7 +38,11 @@ class Audit(HTMLParser):
         if tag == "meta" and values.get("name") == "viewport": self.viewport += 1
         if tag == "script": self.scripts.append(values.get("src", ""))
         if tag == "img": self.images.append(values.get("src", ""))
-        if "id" in values: self.ids.add(values["id"])
+        if "id" in values:
+            assert values["id"] not in self.ids, f"duplicate id: {values['id']}"
+            self.ids.add(values["id"])
+        if tag == "link" and values.get("rel") == "stylesheet": self.stylesheets.append(values.get("href", ""))
+        if "data-release-version" in values: self.release_versions.append(values["data-release-version"])
         if tag == "a": self.links.append(values.get("href", ""))
         if tag in {"input", "select", "textarea"} and values.get("id"):
             self.form_fields.add(values["id"])
@@ -49,6 +56,8 @@ assert audit.title == 1, audit.title
 assert audit.viewport == 1, audit.viewport
 assert audit.scripts == ["feedback.js"], audit.scripts
 assert set(audit.images) == {"icon.svg"}, audit.images
+assert len(audit.stylesheets) == 1 and audit.stylesheets[0].startswith("styles.css?"), audit.stylesheets
+assert audit.release_versions == [version], audit.release_versions
 assert {"top", "install", "support", "trust", "feedback-disclosure", "feedback-form", "feedback-result", "github-handoff", "collapse-feedback"} <= audit.ids, audit.ids
 assert {"kind", "summary", "distribution", "distributionVersion", "packageMethod", "wrapperVersion", "desktop", "graphics", "details", "expected", "steps", "value", "diagnostics", "safety"} <= audit.form_fields, audit.form_fields
 assert '<details id="feedback-disclosure" class="feedback-disclosure">' in text
@@ -56,9 +65,10 @@ assert 'action="#support"' in text
 assert 'name="' not in text[text.index('<form id="feedback-form"'):text.index('</form>', text.index('<form id="feedback-form"'))]
 assert all(link.startswith(("#", "https://")) for link in audit.links), audit.links
 assert "not affiliated with or endorsed" in text
-assert text.count(f"<strong>{version}</strong>") == 2
+assert all(link[1:] in audit.ids for link in audit.links if link.startswith("#")), "broken section link"
 release = f"https://github.com/mitzracing/live-for-speed-linux/releases/download/v{version}"
 assert f"{release}/live-for-speed-linux_{version}-0github1_amd64.deb" in audit.links
+assert f"{release}/live-for-speed-linux-{version}-1-x86_64.pkg.tar.zst" in audit.links
 assert "No software-store listing is available" in text
 assert "locally recorded protected game file" not in text
 assert "first installation" in text
@@ -72,6 +82,17 @@ assert "issues/new?template=bug.yml" in text
 assert 'label%3A%22help+wanted%22+-label%3A%22status%3Apossible-sensitive%22' in text
 assert "Nothing is sent until you review and submit on GitHub" in text
 assert "lfs.net" not in " ".join(audit.images)
+
+root = Path(sys.argv[2]).parent
+repository = "https://github.com/mitzracing/live-for-speed-linux"
+headings = re.findall(r"^#{1,6} (.+)$", (root / "README.md").read_text(), re.MULTILINE)
+readme_anchors = {re.sub(r"[^\w\s-]", "", heading.lower()).replace(" ", "-") for heading in headings}
+for link in audit.links:
+    if link.startswith(repository + "#"):
+        assert link.split("#", 1)[1] in readme_anchors, f"broken README link: {link}"
+    if link.startswith(repository + "/blob/main/"):
+        path = link.removeprefix(repository + "/blob/main/").split("#", 1)[0]
+        assert (root / path).is_file(), f"missing linked document: {link}"
 PY
 
 [[ "$(grep -o '{' "$CSS" | wc -l)" -eq "$(grep -o '}' "$CSS" | wc -l)" ]]

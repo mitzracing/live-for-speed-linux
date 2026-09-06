@@ -4,155 +4,165 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Install and play Live for Speed on Linux with graphical setup, resumable downloads, and player-safe repairs.">
+  <meta name="theme-color" content="#0d131a">
   <title>Live for Speed Linux — install and play</title>
   <link rel="icon" href="icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=20260906">
   <script src="feedback.js" defer></script>
 </head>
-<body>
-  <div class="utility-bar">
-    <div class="shell utility-links">
-      <a href="#top">LFS Linux home</a>
-      <a href="#support">Help &amp; feedback</a>
-      <a href="https://github.com/mitzracing/live-for-speed-linux">Project docs</a>
-      <a href="https://www.lfs.net/">Official LFS website</a>
-      <span class="utility-note">Independent community project</span>
-    </div>
-  </div>
-
-  <header class="masthead">
-    <div class="shell masthead-inner">
+<body id="top">
+  <a class="skip-link" href="#install">Skip to downloads</a>
+  <header class="site-header">
+    <div class="shell header-inner">
       <a class="brand" href="#top" aria-label="Live for Speed Linux home">
-        <img src="icon.svg" width="104" height="104" alt="">
-        <span class="brand-copy">
-          <span class="brand-kicker">Unofficial community launcher</span>
-          <span class="brand-name">Live for Speed <strong>Linux</strong></span>
-          <span class="brand-detail">Graphical setup · click to play</span>
-        </span>
+        <img src="icon.svg" width="44" height="44" alt="">
+        <span>Live for Speed <strong>Linux</strong></span>
       </a>
-      <div class="release-chip" aria-label="Current release">
-        <span>PUBLIC TEST</span>
-        <strong>0.4.0</strong>
-        <small>LFS 0.8C20 TEST</small>
-      </div>
+      <nav aria-label="Main navigation">
+        <a href="#install">Download</a>
+        <a href="#support">Help</a>
+        <a href="https://github.com/mitzracing/live-for-speed-linux">GitHub <span aria-hidden="true">↗</span></a>
+      </nav>
     </div>
   </header>
-  <div class="accent-line" aria-hidden="true"></div>
 
-  <nav class="primary-nav" aria-label="Primary navigation">
-    <div class="shell nav-row">
-      <a class="active" href="#top">Overview</a>
-      <a href="#install">Install</a>
-      <a href="#support">Support</a>
-      <a href="#trust">Trust</a>
-      <a href="https://github.com/mitzracing/live-for-speed-linux/blob/main/docs/ARCHITECTURE.md">Architecture</a>
-      <a href="https://github.com/mitzracing/live-for-speed-linux">GitHub</a>
-    </div>
-  </nav>
-  <nav class="sub-nav" aria-label="Project highlights">
-    <div class="shell nav-row">
-      <span>VERIFIED DOWNLOADS</span>
-      <span>GRAPHICAL SETUP</span>
-      <span>PLAYER DATA KEPT</span>
-      <span>CLICK TO PLAY</span>
-    </div>
-  </nav>
-
-  <main id="top" class="shell page-grid">
-    <div class="main-column">
-      <section class="race-card" aria-labelledby="hero-title">
-        <div class="track-lines" aria-hidden="true"></div>
-        <div class="hero-copy">
-          <p class="eyebrow">Arch · Manjaro · Debian 13 · Ubuntu 24.04 · x86_64</p>
-          <h1 id="hero-title">Live for Speed.<br>At home on Linux.</h1>
-          <p>Install the launcher, open the game icon, and choose Install and play. Setup downloads and checks everything LFS needs. When LFS updates itself, the next launch uses your updated game.</p>
-          <div class="hero-actions">
-            <a class="button blue" href="#install">Install Live for Speed</a>
-            <a class="button orange" href="#support">Get help</a>
-          </div>
-          <p class="route">No terminal or Wine configuration during game setup.</p>
+  <main>
+    <section class="hero shell" aria-labelledby="hero-title">
+      <div class="hero-copy">
+        <p class="eyebrow">Independent community launcher</p>
+        <h1 id="hero-title">Live for Speed.<br><span>Now on Linux.</span></h1>
+        <p class="hero-lede">A few clicks to race. Graphical setup, one game icon, and updates handled by LFS itself.</p>
+        <div class="hero-actions">
+          <a class="button primary" href="#install">Get the launcher <span aria-hidden="true">↓</span></a>
+          <a class="text-link" href="#how-it-works">How it works <span aria-hidden="true">↗</span></a>
         </div>
-      </section>
+        <p class="hero-note"><span class="test-dot" aria-hidden="true"></span> Public test · Linux x86_64 · Vulkan graphics</p>
+      </div>
+      <div class="hero-art" aria-hidden="true">
+        <div class="art-caption"><span>LESS SETUP</span><span>MORE TRACK TIME</span></div>
+        <svg class="track" viewBox="0 0 480 320" fill="none">
+          <path class="track-edge" d="M95 243C37 243 39 174 93 174H174C211 174 220 141 193 122L145 88C108 62 137 30 178 43L366 103C429 123 432 199 369 219L260 254C219 267 219 224 184 232L129 244Z"/>
+          <path class="track-line" d="M95 243C37 243 39 174 93 174H174C211 174 220 141 193 122L145 88C108 62 137 30 178 43L366 103C429 123 432 199 369 219L260 254C219 267 219 224 184 232L129 244Z"/>
+          <path class="racing-line" d="M69 190C86 174 143 184 177 168C207 154 214 144 198 125"/>
+          <circle cx="198" cy="125" r="6" class="track-marker"/>
+          <path class="start-line" d="M315 107L323 82M322 109L330 84"/>
+        </svg>
+        <div class="art-steps"><span><b>01</b> SET UP</span><span><b>02</b> PLAY</span><span><b>03</b> REOPEN</span></div>
+      </div>
+    </section>
 
-      <section class="content-panel" id="install">
-        <header class="panel-heading">
-          <h2><span>›</span> Get started with Live for Speed Linux</h2>
-          <small>one informed setup</small>
-        </header>
-        <div class="panel-body install-steps">
-          <p class="publication"><strong>0.4.0 public test:</strong> downloads are available for testing. Graphical package installation and real updated-game acceptance checks remain open. No software-store listing is available. <a href="https://github.com/mitzracing/live-for-speed-linux/blob/main/docs/RELEASE-CANDIDATE.md">Tested scope and remaining checks</a>.</p>
-          <article>
-            <span class="step-number">1</span>
-            <div>
-              <h3>Choose your Linux distribution</h3>
-              <details class="install-choice">
-                <summary>Debian 13 or Ubuntu 24.04 · x86_64</summary>
-                <p>Download the small launcher package, open it with a graphical package installer, then open Live for Speed Linux from your application menu. The package does not contain the game.</p>
-                <a class="button blue" href="https://github.com/mitzracing/live-for-speed-linux/releases/download/v0.4.0/live-for-speed-linux_0.4.0-0github1_amd64.deb">Download .deb · 0.4.0 public test</a>
-                <p><a href="https://github.com/mitzracing/live-for-speed-linux/releases/tag/v0.4.0">Release notes and checksums</a></p>
-              </details>
-              <details class="install-choice">
-                <summary>Arch Linux or Manjaro · x86_64</summary>
-                <p>An Arch test package is available on GitHub. The AUR/Pamac route is not published or verified yet; this download is not a software-store listing.</p>
-                <a class="button blue" href="https://github.com/mitzracing/live-for-speed-linux/releases/download/v0.4.0/live-for-speed-linux-0.4.0-1-x86_64.pkg.tar.zst">Download Arch package · public test</a>
-              </details>
-              <details class="install-choice">
-                <summary>Another distribution or advanced installation</summary>
-                <p>See the <a href="https://github.com/mitzracing/live-for-speed-linux#readme">source and compatibility instructions</a>. This release requires Linux x86_64 and a Vulkan-capable graphics driver.</p>
-              </details>
-            </div>
-          </article>
-          <article>
-            <span class="step-number">2</span>
-            <div>
-              <h3>Open Live for Speed Linux</h3>
-              <p>Find the game in your application menu. Choose <strong>Install and play</strong> after reviewing the download size and public-test notice. Setup shows progress and can resume interrupted downloads.</p>
-            </div>
-          </article>
-          <article>
-            <span class="step-number">3</span>
-            <div>
-              <h3>Play now. Click the same icon next time.</h3>
-              <p>LFS opens when setup finishes. Your settings, setups, replays, and downloaded skins stay yours. The launcher can repair compatibility components without replacing your game.</p>
-            </div>
-          </article>
-          <p class="publication"><strong>Public-test channel:</strong> first installation starts with LFS 0.8C20 new graphics. LFS manages its own game updates. <a href="https://github.com/mitzracing/live-for-speed-linux/releases/tag/v0.1.6">v0.1.6</a> remains the old-graphics 0.7G fallback.</p>
+    <section class="section shell" id="install" aria-labelledby="install-title" tabindex="-1">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Get the launcher</p>
+          <h2 id="install-title">Choose your Linux.</h2>
         </div>
-      </section>
-
-      <section class="content-panel" id="support">
-        <header class="panel-heading">
-          <h2><span>›</span> Help and feedback</h2>
-          <small>no coding required</small>
-        </header>
-        <div class="panel-body support-body">
-          <p class="support-lede">Describe what happened here. The browser removes known private-data patterns, then opens the matching GitHub form with your text filled in. Nothing is sent until you review and submit on GitHub.</p>
-
-          <div class="support-grid" aria-label="Choose a report type">
-            <button class="support-card" type="button" data-feedback-kind="bug" aria-controls="feedback-disclosure" aria-expanded="false">
-              <strong>Something broke</strong>
-              <span>Report a game or launcher problem</span>
-            </button>
-            <button class="support-card" type="button" data-feedback-kind="compatibility" aria-controls="feedback-disclosure" aria-expanded="false">
-              <strong>Different distribution</strong>
-              <span>Share compatibility results</span>
-            </button>
-            <button class="support-card" type="button" data-feedback-kind="feature" aria-controls="feedback-disclosure" aria-expanded="false">
-              <strong>Suggest an improvement</strong>
-              <span>Explain the player problem first</span>
-            </button>
-            <button class="support-card" type="button" data-feedback-kind="feedback" aria-controls="feedback-disclosure" aria-expanded="false">
-              <strong>Share your experience</strong>
-              <span>Tell us what worked or confused you</span>
-            </button>
+        <span class="release-badge" data-release-version="0.4.0">Public test <strong>0.4.0</strong></span>
+      </div>
+      <p class="release-notice"><strong>Public test.</strong> Graphical package installation and the full game update/reopen flow still need real-world testing. No software-store listing is available. <a href="https://github.com/mitzracing/live-for-speed-linux/blob/main/docs/RELEASE-CANDIDATE.md">See what has been tested.</a></p>
+      <div class="download-grid">
+        <article class="download-card" aria-labelledby="deb-title">
+          <span class="package-type">.DEB</span>
+          <h3 id="deb-title">Debian &amp; Ubuntu</h3>
+          <p class="package-platform">Debian 13 or Ubuntu 24.04 · x86_64</p>
+          <p>Download the small launcher package. Open it with your graphical package installer, then find Live for Speed Linux in your application menu.</p>
+          <div class="download-actions">
+            <a class="button primary" href="https://github.com/mitzracing/live-for-speed-linux/releases/download/v0.4.0/live-for-speed-linux_0.4.0-0github1_amd64.deb">Download .deb <span aria-hidden="true">↓</span></a>
+            <a class="text-link" href="https://github.com/mitzracing/live-for-speed-linux/releases/tag/v0.4.0">Release notes &amp; checksums <span aria-hidden="true">↗</span></a>
           </div>
+        </article>
+        <article class="download-card" aria-labelledby="arch-title">
+          <span class="package-type">.PKG.TAR.ZST</span>
+          <h3 id="arch-title">Arch &amp; Manjaro</h3>
+          <p class="package-platform">Arch Linux or Manjaro · x86_64</p>
+          <p>A direct Arch test package from GitHub. The AUR/Pamac route is not published or verified yet; this download is not a store listing.</p>
+          <div class="download-actions">
+            <a class="button primary" href="https://github.com/mitzracing/live-for-speed-linux/releases/download/v0.4.0/live-for-speed-linux-0.4.0-1-x86_64.pkg.tar.zst">Download Arch package <span aria-hidden="true">↓</span></a>
+            <a class="text-link" href="https://github.com/mitzracing/live-for-speed-linux/blob/main/packaging/aur/README.md">Arch installation details <span aria-hidden="true">↗</span></a>
+          </div>
+        </article>
+      </div>
+      <p class="download-footnote">The launcher does not contain the game. Setup downloads it separately. Using another distribution? <a href="https://github.com/mitzracing/live-for-speed-linux#install-from-source">See source installation and compatibility.</a></p>
+    </section>
 
-          <details id="feedback-disclosure" class="feedback-disclosure">
-            <summary>
-              <strong id="feedback-summary-label">Write a report</strong>
-              <span>Open only when you need it</span>
-            </summary>
-            <div class="feedback-shell">
+    <section class="section shell" id="how-it-works" aria-labelledby="steps-title">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">From download to driving</p>
+          <h2 id="steps-title">One icon. Every session.</h2>
+        </div>
+      </div>
+      <ol class="steps-grid">
+        <li>
+          <span class="step-number" aria-hidden="true">01</span>
+          <h3>Install the launcher</h3>
+          <p>Choose your package above and approve installation. The small launcher handles game setup for you.</p>
+        </li>
+        <li>
+          <span class="step-number" aria-hidden="true">02</span>
+          <h3>Install and play</h3>
+          <p>Open Live for Speed Linux. Choose <strong>Install and play</strong> after reviewing the download size and public-test notice. Setup shows progress and can resume interrupted downloads.</p>
+        </li>
+        <li>
+          <span class="step-number" aria-hidden="true">03</span>
+          <h3>Update. Reopen. Race.</h3>
+          <p>LFS updates itself. Follow its restart, close normally, then use the same game icon next time. No terminal or Wine configuration for normal play.</p>
+        </li>
+      </ol>
+    </section>
+
+    <section class="ownership shell" id="trust" aria-labelledby="trust-title">
+      <div class="ownership-heading">
+        <p class="eyebrow">Your game stays yours</p>
+        <h2 id="trust-title">We handle setup.<br>LFS handles the game.</h2>
+        <p>A lightweight launcher, not another game manager.</p>
+      </div>
+      <div class="ownership-points">
+        <div>
+          <h3>Updates belong to LFS</h3>
+          <p>Update inside LFS and follow its restart. The launcher does not ask you to approve game updates.</p>
+        </div>
+        <div>
+          <h3>Your files stay in place</h3>
+          <p>Compatibility repair preserves the entire existing game, including settings, setups, replays, and player data.</p>
+        </div>
+        <div>
+          <h3>Verified setup downloads</h3>
+          <p>Official game downloads and compatibility inputs are checked before use. No game binaries are bundled with the launcher.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section shell" id="support" aria-labelledby="support-title">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Help &amp; feedback</p>
+          <h2 id="support-title">Need a hand?</h2>
+        </div>
+        <a class="text-link" href="https://github.com/mitzracing/live-for-speed-linux/blob/main/docs/TROUBLESHOOTING.md">Troubleshooting <span aria-hidden="true">↗</span></a>
+      </div>
+      <p class="support-lede">Describe what happened here. The browser removes known private-data patterns, then opens the matching GitHub form with your text filled in. Nothing is sent until you review and submit on GitHub.</p>
+      <div class="support-grid" aria-label="Choose a report type">
+        <button class="support-card" type="button" data-feedback-kind="bug" aria-controls="feedback-disclosure" aria-expanded="false">
+          <strong>Something broke</strong><span>Report a game or launcher problem</span>
+        </button>
+        <button class="support-card" type="button" data-feedback-kind="compatibility" aria-controls="feedback-disclosure" aria-expanded="false">
+          <strong>Different distribution</strong><span>Share compatibility results</span>
+        </button>
+        <button class="support-card" type="button" data-feedback-kind="feature" aria-controls="feedback-disclosure" aria-expanded="false">
+          <strong>Suggest an improvement</strong><span>Explain the player problem first</span>
+        </button>
+        <button class="support-card" type="button" data-feedback-kind="feedback" aria-controls="feedback-disclosure" aria-expanded="false">
+          <strong>Share your experience</strong><span>Tell us what worked or confused you</span>
+        </button>
+      </div>
+
+      <details id="feedback-disclosure" class="feedback-disclosure">
+        <summary>
+          <strong id="feedback-summary-label">Write a report</strong>
+          <span>Open only when you need it</span>
+        </summary>
+        <div class="feedback-shell">
           <form id="feedback-form" class="feedback-form" action="#support">
             <div class="form-grid">
               <label>
@@ -191,7 +201,7 @@
               </label>
               <label data-wrapper-version>
                 Wrapper version
-                <input id="wrapperVersion" maxlength="40" autocomplete="off" placeholder="From lfs-linux status">
+                <input id="wrapperVersion" maxlength="40" autocomplete="off" placeholder="From Help or a diagnostic report">
               </label>
               <label>
                 Desktop and display session
@@ -227,116 +237,65 @@
               I understand the report is public. I will review the sanitized text and will not add passwords, unlock data, registry files, proprietary files, or private logs on GitHub.
             </label>
             <div class="form-actions">
-              <button class="button blue prepare-button" type="submit">Prepare GitHub handoff</button>
-              <button id="collapse-feedback" class="collapse-button" type="button">Collapse form</button>
+              <button class="button primary prepare-button" type="submit">Prepare GitHub handoff</button>
+              <button id="collapse-feedback" class="button secondary" type="button">Collapse form</button>
             </div>
           </form>
-
           <div id="feedback-result" class="feedback-result" aria-live="polite" hidden>
             <p id="feedback-status"></p>
-            <a id="github-handoff" class="button orange" href="https://github.com/mitzracing/live-for-speed-linux/issues/new" target="_blank" rel="noopener">Review and submit on GitHub</a>
+            <a id="github-handoff" class="button primary" href="https://github.com/mitzracing/live-for-speed-linux/issues/new" target="_blank" rel="noopener">Review and submit on GitHub</a>
             <details>
               <summary>Review generated text</summary>
               <pre id="report-preview"></pre>
             </details>
           </div>
-            </div>
-          </details>
-
-          <p class="direct-forms">Prefer to start on GitHub? Use the direct <a href="https://github.com/mitzracing/live-for-speed-linux/issues/new?template=bug.yml">problem</a>, <a href="https://github.com/mitzracing/live-for-speed-linux/issues/new?template=compatibility.yml">compatibility</a>, <a href="https://github.com/mitzracing/live-for-speed-linux/issues/new?template=feature.yml">improvement</a>, or <a href="https://github.com/mitzracing/live-for-speed-linux/issues/new?template=feedback.yml">experience</a> form.</p>
-          <noscript><p class="publication">JavaScript is disabled. Use one of the direct GitHub forms above and remove private data yourself.</p></noscript>
-
-          <div class="queue-strip">
-            <p><strong>Players:</strong> GitHub sign-in is required. This page stores nothing and uses no external form service.</p>
-            <p><strong>Contributors:</strong> Select a <a href="https://github.com/mitzracing/live-for-speed-linux/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22+-label%3A%22status%3Apossible-sensitive%22">sanitized help-wanted ticket</a>, comment, then submit a linked pull request.</p>
-          </div>
         </div>
-      </section>
+      </details>
+      <p class="direct-forms">Prefer to start on GitHub? Use the direct <a href="https://github.com/mitzracing/live-for-speed-linux/issues/new?template=bug.yml">problem</a>, <a href="https://github.com/mitzracing/live-for-speed-linux/issues/new?template=compatibility.yml">compatibility</a>, <a href="https://github.com/mitzracing/live-for-speed-linux/issues/new?template=feature.yml">improvement</a>, or <a href="https://github.com/mitzracing/live-for-speed-linux/issues/new?template=feedback.yml">experience</a> form.</p>
+      <noscript><p class="release-notice">JavaScript is disabled. Use one of the direct GitHub forms above and remove private data yourself.</p></noscript>
+      <p class="privacy-note">GitHub sign-in is required. This page stores nothing and uses no external form service.</p>
+    </section>
 
-      <section class="content-panel" id="trust">
-        <header class="panel-heading">
-          <h2><span>›</span> Small wrapper, strict boundaries</h2>
-          <small>fail closed</small>
-        </header>
-        <div class="panel-body boundary-grid">
-          <div>
-            <h3>What it verifies</h3>
-            <ul>
-              <li>Official LFS installer size and SHA-256</li>
-              <li>The official game seed before first installation</li>
-              <li>Every required Wine runtime file and link</li>
-              <li>Private DXVK D3D11 and DXGI DLL copies</li>
-            </ul>
-          </div>
-          <div>
-            <h3>What it preserves</h3>
-            <ul>
-              <li>Settings and controller profiles</li>
-              <li>Unlock state and player profiles</li>
-              <li>Setups, layouts, replays, and screenshots</li>
-              <li>Existing shader cache between launches</li>
-            </ul>
-          </div>
-          <p class="boundary-note">LFS owns installed game files and updates: no game fingerprint or update approval is required. No game binaries, official logos, unlock tools, or modified assets are distributed by this project.</p>
+    <section class="section shell technical" aria-labelledby="technical-title">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Under the hood</p>
+          <h2 id="technical-title">Details, when you need them.</h2>
         </div>
-      </section>
-    </div>
-
-    <aside class="side-column" aria-label="Project status">
-      <section class="side-panel">
-        <h2>RELEASE STATUS</h2>
-        <div class="side-body status-list">
-          <p><span>Wrapper</span><strong>0.4.0</strong></p>
-          <p><span>Game pin</span><strong>0.8C20</strong></p>
-          <p><span>Channel</span><strong>PUBLIC TEST</strong></p>
-          <p><span>Wine pin</span><strong>11.15-1</strong></p>
-          <p><span>DXVK pin</span><strong>3.0.2</strong></p>
-          <p><span>Release</span><strong>PRERELEASE</strong></p>
+      </div>
+      <details>
+        <summary>Game version &amp; compatibility</summary>
+        <div class="technical-body">
+          <p>The first installation starts with LFS 0.8C20 PUBLIC TEST (new graphics), Wine 11.15-1, and DXVK 3.0.2. The bootstrap pin is not your installed game version: LFS manages its own updates.</p>
+          <p>Linux x86_64 and a Vulkan-capable graphics driver are required. Debian 12 and Ubuntu 22.04 are not supported by the pinned runtime. See the <a href="https://github.com/mitzracing/live-for-speed-linux#requirements">full requirements</a>.</p>
+          <p><a href="https://github.com/mitzracing/live-for-speed-linux/releases/tag/v0.1.6">v0.1.6</a> remains the old-graphics 0.7G fallback. It is a separate option for older graphics, not a way to downgrade or repair an updated game.</p>
         </div>
-      </section>
-
-      <section class="side-panel">
-        <h2>READY FOR RACE DAY</h2>
-        <div class="side-body link-list">
-          <p>One game icon for setup and play.</p>
-          <p>Downloads resume after interruption.</p>
-          <p>Help and repair are available from the application menu.</p>
-          <a href="https://github.com/mitzracing/live-for-speed-linux/blob/main/docs/ARCHITECTURE.md">Technical details →</a>
+      </details>
+      <details>
+        <summary>Download checks &amp; player-data boundaries</summary>
+        <div class="technical-body">
+          <p>Setup checks the official LFS installer size and SHA-256, the complete game seed before first installation, Wine runtime files and links, and the private DXVK DLL copies.</p>
+          <p>Existing game content belongs to LFS and the player. Compatibility repair does not replace it. <a href="https://github.com/mitzracing/live-for-speed-linux/blob/main/docs/ARCHITECTURE.md">Read the architecture and ownership rules.</a></p>
         </div>
-      </section>
-
-      <section class="side-panel legal-panel">
-        <h2>COMMUNITY PROJECT</h2>
-        <div class="side-body">
-          <p>Live for Speed Linux is not affiliated with or endorsed by the Live for Speed developers.</p>
-          <p>Live for Speed remains proprietary software under its own terms.</p>
-          <a class="side-link" href="https://www.lfs.net/">Visit official LFS website →</a>
-        </div>
-      </section>
-
-      <section class="side-panel">
-        <h2>PROJECT LINKS</h2>
-        <div class="side-body link-list">
-          <a href="https://github.com/mitzracing/live-for-speed-linux/blob/main/SUPPORT.md">Help and feedback</a>
-          <a href="https://github.com/mitzracing/live-for-speed-linux/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22+-label%3A%22status%3Apossible-sensitive%22">Contributor queue</a>
-          <a href="https://github.com/mitzracing/live-for-speed-linux/blob/main/docs/TRIAGE.md">Maintainer dashboard</a>
-          <a href="https://github.com/mitzracing/live-for-speed-linux/releases">Releases</a>
-          <a href="https://github.com/mitzracing/live-for-speed-linux/blob/main/CONTRIBUTING.md">Contribution guide</a>
-          <a href="https://github.com/mitzracing/live-for-speed-linux/blob/main/docs/TROUBLESHOOTING.md">Troubleshooting</a>
-          <a href="https://github.com/mitzracing/live-for-speed-linux/blob/main/docs/FLATHUB.md">Flathub policy gate</a>
-        </div>
-      </section>
-    </aside>
+      </details>
+    </section>
   </main>
 
-  <footer>
-    <div class="accent-line" aria-hidden="true"></div>
-    <div class="shell footer-inner">
-      <div>
-        <strong>Live for Speed Linux</strong>
-        <p>Unofficial community launcher · MIT-licensed wrapper</p>
+  <footer class="site-footer">
+    <div class="shell">
+      <div class="footer-top">
+        <div>
+          <strong>Live for Speed Linux</strong>
+          <p>Less setup. More track time.</p>
+        </div>
+        <nav aria-label="Project links">
+          <a href="https://github.com/mitzracing/live-for-speed-linux/releases">Releases</a>
+          <a href="https://github.com/mitzracing/live-for-speed-linux/blob/main/CONTRIBUTING.md">Contribute</a>
+          <a href="https://github.com/mitzracing/live-for-speed-linux/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22+-label%3A%22status%3Apossible-sensitive%22">Help-wanted tickets</a>
+          <a href="https://www.lfs.net/">Official LFS website <span aria-hidden="true">↗</span></a>
+        </nav>
       </div>
-      <p>Live for Speed is proprietary software owned by its developers. <a href="https://www.lfs.net/">Official website</a>.</p>
+      <p class="legal">An independent community project, not affiliated with or endorsed by the Live for Speed developers. The wrapper is MIT-licensed. Live for Speed remains proprietary software under its own terms. No official logos, unlock tools, or modified game assets are distributed.</p>
     </div>
   </footer>
 </body>
