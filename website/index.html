@@ -4,10 +4,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Install and play Live for Speed on Linux with graphical setup, resumable downloads, and player-safe repairs.">
-  <meta name="theme-color" content="#0d131a">
+  <meta name="theme-color" content="#101214">
   <title>Live for Speed Linux — install and play</title>
   <link rel="icon" href="icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="styles.css?v=20260906.1">
+  <link rel="stylesheet" href="styles.css?v=20260906.2">
   <script src="feedback.js" defer></script>
 </head>
 <body id="top">
@@ -16,11 +16,12 @@
     <div class="shell header-inner">
       <a class="brand" href="#top" aria-label="Live for Speed Linux home">
         <img src="icon.svg" width="44" height="44" alt="">
-        <span>Live for Speed <strong>Linux</strong></span>
+        <span class="brand-copy"><strong>LIVE FOR SPEED <i>LINUX</i></strong><small>INDEPENDENT COMMUNITY LAUNCHER</small></span>
       </a>
       <nav aria-label="Main navigation">
         <a href="#install">Download</a>
-        <a href="#support">Help</a>
+        <a href="#how-it-works">The launcher</a>
+        <a href="#support">Support</a>
         <a href="https://github.com/mitzracing/live-for-speed-linux">GitHub <span aria-hidden="true">↗</span></a>
       </nav>
     </div>
@@ -28,34 +29,39 @@
 
   <main>
     <section class="hero shell" aria-labelledby="hero-title">
+      <div class="hero-photo">
+        <img src="assets/blackwood-rallycross.webp" width="1024" height="640" alt="Three cars racing through the dirt at Blackwood in an archival Live for Speed screenshot." fetchpriority="high">
+      </div>
+      <div class="hero-topline"><span>BUILT FOR THE NEXT SESSION</span><span>INDEPENDENT COMMUNITY PROJECT</span></div>
       <div class="hero-copy">
-        <p class="eyebrow">Independent community launcher</p>
-        <h1 id="hero-title">Live for Speed.<br><span>Now on Linux.</span></h1>
-        <p class="hero-lede">A few clicks to race. Graphical setup, one game icon, and updates handled by LFS itself.</p>
+        <p class="eyebrow"><span class="accent-mark" aria-hidden="true"></span> LIVE FOR SPEED. ON LINUX.</p>
+        <h1 id="hero-title">MORE RACING.<br><span>LESS SETUP.</span></h1>
+        <p class="hero-lede">The sim you love. A simpler way to launch it.<br>Graphical setup, one game icon, and updates left to LFS.</p>
         <div class="hero-actions">
           <a class="button primary" href="#install">Get the launcher <span aria-hidden="true">↓</span></a>
-          <a class="text-link" href="#how-it-works">How it works <span aria-hidden="true">↗</span></a>
+          <a class="button secondary" href="#how-it-works">See how it works <span aria-hidden="true">↗</span></a>
         </div>
         <p class="hero-note"><span class="test-dot" aria-hidden="true"></span> Public test · Linux x86_64 · Vulkan graphics</p>
       </div>
-      <div class="hero-art" aria-hidden="true">
-        <div class="art-caption"><span>LESS SETUP</span><span>MORE TRACK TIME</span></div>
-        <svg class="track" viewBox="0 0 480 320" fill="none">
-          <path class="track-edge" d="M95 243C37 243 39 174 93 174H174C211 174 220 141 193 122L145 88C108 62 137 30 178 43L366 103C429 123 432 199 369 219L260 254C219 267 219 224 184 232L129 244Z"/>
-          <path class="track-line" d="M95 243C37 243 39 174 93 174H174C211 174 220 141 193 122L145 88C108 62 137 30 178 43L366 103C429 123 432 199 369 219L260 254C219 267 219 224 184 232L129 244Z"/>
-          <path class="racing-line" d="M69 190C86 174 143 184 177 168C207 154 214 144 198 125"/>
-          <circle cx="198" cy="125" r="6" class="track-marker"/>
-          <path class="start-line" d="M315 107L323 82M322 109L330 84"/>
-        </svg>
-        <div class="art-steps"><span><b>01</b> SET UP</span><span><b>02</b> PLAY</span><span><b>03</b> REOPEN</span></div>
+      <div class="hero-bottom">
+        <span class="scene-label"><b>BLACKWOOD</b> / RALLYCROSS ARCHIVE</span>
+        <a href="#image-credit">Image credit <span aria-hidden="true">↗</span></a>
       </div>
     </section>
+
+    <dl class="platform-strip shell" aria-label="Launcher at a glance">
+      <div><dt>THE PLATFORM</dt><dd>Linux, x86_64</dd></div>
+      <div><dt>THE SETUP</dt><dd>Graphical. Resumable.</dd></div>
+      <div><dt>GAME UPDATES</dt><dd>Handled by LFS</dd></div>
+      <div><dt>YOUR GAME &amp; FILES</dt><dd><a href="#trust">Always yours <span aria-hidden="true">↗</span></a></dd></div>
+    </dl>
 
     <section class="section shell" id="install" aria-labelledby="install-title" tabindex="-1">
       <div class="section-heading">
         <div>
-          <p class="eyebrow">Get the launcher</p>
-          <h2 id="install-title">Choose your Linux.</h2>
+          <p class="eyebrow">01 / GET ON THE GRID</p>
+          <h2 id="install-title">YOUR LINUX. YOUR STARTING POINT.</h2>
+          <p class="section-intro">Pick your package. Leave the Wine setup to us.</p>
         </div>
         <span class="release-badge" data-release-version="0.4.0">Public test <strong>0.4.0</strong></span>
       </div>
@@ -88,8 +94,8 @@
     <section class="section shell" id="how-it-works" aria-labelledby="steps-title">
       <div class="section-heading">
         <div>
-          <p class="eyebrow">From download to driving</p>
-          <h2 id="steps-title">One icon. Every session.</h2>
+          <p class="eyebrow">02 / FROM DOWNLOAD TO DRIVING</p>
+          <h2 id="steps-title">ONE ICON. EVERY SESSION.</h2>
         </div>
       </div>
       <ol class="steps-grid">
@@ -113,8 +119,8 @@
 
     <section class="ownership shell" id="trust" aria-labelledby="trust-title">
       <div class="ownership-heading">
-        <p class="eyebrow">Your game stays yours</p>
-        <h2 id="trust-title">We handle setup.<br>LFS handles the game.</h2>
+        <p class="eyebrow">03 / THE PLAYER COMES FIRST</p>
+        <h2 id="trust-title">WE HANDLE SETUP.<br>LFS HANDLES THE GAME.</h2>
         <p>A lightweight launcher, not another game manager.</p>
       </div>
       <div class="ownership-points">
@@ -136,8 +142,8 @@
     <section class="section shell" id="support" aria-labelledby="support-title">
       <div class="section-heading">
         <div>
-          <p class="eyebrow">Help &amp; feedback</p>
-          <h2 id="support-title">Need a hand?</h2>
+          <p class="eyebrow">04 / BACK TO THE PADDOCK</p>
+          <h2 id="support-title">LET’S GET YOU BACK ON TRACK.</h2>
         </div>
         <a class="text-link" href="https://github.com/mitzracing/live-for-speed-linux/blob/main/docs/TROUBLESHOOTING.md">Troubleshooting <span aria-hidden="true">↗</span></a>
       </div>
@@ -259,8 +265,8 @@
     <section class="section shell technical" aria-labelledby="technical-title">
       <div class="section-heading">
         <div>
-          <p class="eyebrow">Under the hood</p>
-          <h2 id="technical-title">Details, when you need them.</h2>
+          <p class="eyebrow">05 / UNDER THE HOOD</p>
+          <h2 id="technical-title">THE DETAILS. NO GUESSWORK.</h2>
         </div>
       </div>
       <details>
@@ -295,7 +301,8 @@
           <a href="https://www.lfs.net/">Official LFS website <span aria-hidden="true">↗</span></a>
         </nav>
       </div>
-      <p class="legal">An independent community project, not affiliated with or endorsed by the Live for Speed developers. The wrapper is MIT-licensed. Live for Speed remains proprietary software under its own terms. No official logos, unlock tools, or modified game assets are distributed.</p>
+      <p class="legal">An independent community project, not affiliated with or endorsed by the Live for Speed developers. The wrapper is MIT-licensed. Live for Speed remains proprietary software under its own terms. No game binaries or unlock tools are distributed.</p>
+      <p class="legal image-credit" id="image-credit">Image: <a href="https://commons.wikimedia.org/wiki/File:Rallycross_blackwood_lfs.jpg">Rallycross at Blackwood</a> by Martin Kapal, <a href="https://creativecommons.org/licenses/by-sa/3.0/">CC BY-SA 3.0</a>. Converted to WebP; displayed with cropping and colour treatment. Archival imagery, not a claim about the current game version.</p>
     </div>
   </footer>
 </body>

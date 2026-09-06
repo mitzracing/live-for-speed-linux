@@ -2,11 +2,11 @@
 // Optional: LFS_WEBSITE_URL checks a deployed site instead of the staged local files.
 // LFS_WEBSITE_SCREENSHOTS saves visual evidence to the supplied directory.
 import assert from "node:assert/strict";
-import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { spawn, spawnSync } from "node:child_process";
 
 function browserBinary() {
@@ -108,11 +108,8 @@ try {
   await client.send("Page.enable");
   await client.send("Runtime.enable");
   const site = join(profile, "site");
-  await mkdir(site);
-  for (const name of ["index.html", "styles.css", "feedback.js"]) {
-    await copyFile(new URL(`../website/${name}`, import.meta.url), join(site, name));
-  }
-  await copyFile(new URL("../share/icons/hicolor/scalable/apps/io.github.mitzracing.live_for_speed_linux.svg", import.meta.url), join(site, "icon.svg"));
+  const assembled = spawnSync("bash", [fileURLToPath(new URL("../scripts/build-website.sh", import.meta.url)), site], { encoding: "utf8" });
+  assert.equal(assembled.status, 0, `site assembly failed: ${assembled.stderr}`);
   const target = process.env.LFS_WEBSITE_URL || pathToFileURL(join(site, "index.html")).href;
   await client.send("Page.navigate", { url: target });
 
@@ -402,9 +399,33 @@ try {
     noScriptReady = Boolean(state.result.value);
     if (!noScriptReady) await new Promise(resolvePromise => setTimeout(resolvePromise, 50));
   }
-  assert.ok(noScriptReady, 'no-JavaScript page or community icon did not load');
+  assert.ok(noScriptReady, 'no-JavaScript page or website images did not load');
   await readLayout(390);
-  console.log("[PASS] browser: 320–1440px downloads, 2x reflow, 200% text, contrast, keyboard, no-JS, and safe feedback handoff");
+  const imageFallback = await client.send('Runtime.evaluate', {
+    expression: `(async () => {
+      const hero = document.querySelector('.hero');
+      const before = hero.getBoundingClientRect().height;
+      const image = hero.querySelector('img');
+      image.src = 'data:image/webp;base64,AA==';
+      try { await image.decode(); } catch { /* Deliberately invalid image. */ }
+      const link = hero.querySelector('.button.primary');
+      link.scrollIntoView({block: 'center', behavior: 'instant'});
+      const rect = link.getBoundingClientRect();
+      return {
+        failed: image.complete && image.naturalWidth === 0,
+        heightChange: hero.getBoundingClientRect().height - before,
+        reachable: link.contains(document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2)),
+        href: link.getAttribute('href'),
+      };
+    })()`, awaitPromise: true, returnByValue: true,
+  });
+  assert.ok(!imageFallback.exceptionDetails, JSON.stringify(imageFallback.exceptionDetails));
+  assert.ok(imageFallback.result.value.failed, 'image failure fixture did not fail');
+  assert.ok(Math.abs(imageFallback.result.value.heightChange) < 1, 'failed image shifts hero layout');
+  assert.ok(imageFallback.result.value.reachable, 'failed image obscures hero action');
+  assert.equal(imageFallback.result.value.href, '#install');
+  await readLayout(390);
+  console.log("[PASS] browser: 320–1440px downloads, 2x reflow, 200% text, contrast, keyboard, no-JS, image fallback, and safe feedback handoff");
 } finally {
   if (client) client.close();
   browser.kill("SIGTERM");

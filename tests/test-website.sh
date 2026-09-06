@@ -14,6 +14,7 @@ readonly JS="$ROOT_DIR/website/feedback.js"
 
 python3 - "$HTML" "$ROOT_DIR/VERSION" <<'PY'
 from html.parser import HTMLParser
+from hashlib import sha256
 from pathlib import Path
 import re
 import sys
@@ -55,7 +56,19 @@ assert audit.h1 == 1, audit.h1
 assert audit.title == 1, audit.title
 assert audit.viewport == 1, audit.viewport
 assert audit.scripts == ["feedback.js"], audit.scripts
-assert set(audit.images) == {"icon.svg"}, audit.images
+assert set(audit.images) == {"icon.svg", "assets/blackwood-rallycross.webp"}, audit.images
+assert "Martin Kapal" in text and "Archival imagery" in text
+assert "https://commons.wikimedia.org/wiki/File:Rallycross_blackwood_lfs.jpg" in audit.links
+assert "https://creativecommons.org/licenses/by-sa/3.0/" in audit.links
+assets = Path(sys.argv[1]).parent / "assets"
+assert {path.name for path in assets.iterdir()} == {"blackwood-rallycross.webp", "README.md"}, "unreviewed website asset"
+image = assets / "blackwood-rallycross.webp"
+assert image.is_file() and not image.is_symlink()
+assert image.stat().st_size < 153600, "hero image exceeds 150 KiB budget"
+assert sha256(image.read_bytes()).hexdigest() == "992b8b0e43fb8f8226a7be962ae995837639ffcc7b58a38a8542fc208cbaea9f", "unreviewed hero image bytes"
+credits = (assets / "README.md").read_text()
+assert "Martin Kapal" in credits and "CC BY-SA 3.0" in credits
+assert "https://creativecommons.org/licenses/by-sa/3.0/" in credits
 assert len(audit.stylesheets) == 1 and audit.stylesheets[0].startswith("styles.css?"), audit.stylesheets
 assert audit.release_versions == [version], audit.release_versions
 assert {"top", "install", "support", "trust", "feedback-disclosure", "feedback-form", "feedback-result", "github-handoff", "collapse-feedback"} <= audit.ids, audit.ids
@@ -103,7 +116,26 @@ PY
 grep -Fq '@media (max-width: 760px)' "$CSS"
 grep -Fq 'prefers-reduced-motion' "$CSS"
 
+site_tmp="$(mktemp -d)"
+readonly site_tmp
+trap 'rm -rf -- "$site_tmp"' EXIT
+(
+  cd "$site_tmp"
+  bash "$ROOT_DIR/scripts/build-website.sh" 'site with spaces'
+)
+for path in index.html styles.css feedback.js assets/blackwood-rallycross.webp assets/README.md; do
+  cmp "$ROOT_DIR/website/$path" "$site_tmp/site with spaces/$path"
+done
+cmp "$ROOT_DIR/share/icons/hicolor/scalable/apps/io.github.mitzracing.live_for_speed_linux.svg" "$site_tmp/site with spaces/icon.svg"
+[[ "$(find "$site_tmp/site with spaces" -type f | wc -l)" -eq 6 ]]
+printf 'keep existing output\n' > "$site_tmp/site with spaces/index.html"
+if bash "$ROOT_DIR/scripts/build-website.sh" "$site_tmp/site with spaces" > "$site_tmp/refusal.log" 2>&1; then
+  printf 'site builder overwrote an existing destination\n' >&2
+  exit 1
+fi
+grep -Fxq 'keep existing output' "$site_tmp/site with spaces/index.html"
+
 node "$ROOT_DIR/tests/test-feedback-generator.mjs"
 timeout --foreground --kill-after=10s 120 node "$ROOT_DIR/tests/test-feedback-browser.mjs"
 
-printf '[PASS] website is small, responsive, sanitizer-tested, and uses only community-owned imagery\n'
+printf '[PASS] website is small, responsive, sanitizer-tested, with attributed and checksum-checked imagery\n'

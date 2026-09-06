@@ -19,6 +19,18 @@ The complete acceptance procedure remains:
 11. Remove the package and confirm user-owned state remains unchanged.
 12. Publish only audited wrapper artifacts.
 
+## Website-only publication
+
+Website changes do not require a new wrapper version or replacement of existing release assets.
+
+1. Run `bash tests/test-website.sh`, then require successful repository CI on the candidate commit.
+2. Use `bash scripts/build-website.sh NEW_OUTPUT_DIRECTORY` to assemble the static site. Its parent directory must exist. The builder refuses an existing output directory, so it cannot retain stale assets or overwrite other work. Browser tests and Pages use this same builder.
+3. Review desktop and mobile rendering, download links, keyboard focus, feedback privacy, and image attribution. Keep public-test limitations visible.
+4. After owner approval, update `main`. The Pages workflow publishes the assembled site, including the licensed image and its attribution record.
+5. Confirm successful Pages deployment. Compare the live HTML, CSS, JavaScript, icon, image, and attribution record with the tested output. Recheck download URLs and live browser behavior.
+
+Use a new CSS cache key when styling changes. Website photography and its credits are not part of Linux packages; the existing application icon remains installed. To roll back, revert the website change as a new commit and redeploy; do not rewrite release tags, replace package assets, or change player files.
+
 ## Upstream pin update
 
 Update `share/lfs-linux/release.env` as one change:

@@ -81,7 +81,7 @@ assert "withheld from contributor work" in support
 assert "do not receive `help wanted`" in triage
 
 pages_workflow = (ROOT / ".github" / "workflows" / "pages.yml").read_text(encoding="utf-8")
-assert "website/feedback.js" in pages_workflow
+assert "bash scripts/build-website.sh _site" in pages_workflow
 
 feedback_script = (ROOT / "website" / "feedback.js").read_text(encoding="utf-8")
 for category in ("registry content", "home path", "email address", "private key", "machine identifier"):
