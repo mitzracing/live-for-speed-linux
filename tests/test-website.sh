@@ -92,6 +92,10 @@ for link in audit.links:
         assert link.split("#", 1)[1] in readme_anchors, f"broken README link: {link}"
     if link.startswith(repository + "/blob/main/"):
         path = link.removeprefix(repository + "/blob/main/").split("#", 1)[0]
+        # AUR recipes and their README are intentionally omitted from source archives.
+        # Check this link in Git checkouts; every bundled document is checked everywhere.
+        if path == "packaging/aur/README.md" and not (root / ".git").exists() and not (root / "packaging/aur").exists():
+            continue
         assert (root / path).is_file(), f"missing linked document: {link}"
 PY
 
