@@ -24,8 +24,8 @@
   </keywords>
   <description>
     <p>Live for Speed Linux is an unofficial community launcher for the untouched official Live for Speed racing simulator.</p>
-    <p>Version 0.3.2 bootstraps exact LFS 0.8C20 new graphics, which upstream labels PUBLIC TEST rather than stable.</p>
-    <p>On first launch, one informed setup prompt downloads official files, verifies every protected game and Wine runtime file, configures exact Wine 11.15-1 and DXVK D3D11/DXGI, and starts the game. Versioned updates completed by LFS are recorded after exit and accepted on later launches.</p>
+    <p>Version 0.4.0 bootstraps exact LFS 0.8C20 new graphics, which upstream labels PUBLIC TEST rather than stable.</p>
+    <p>Open the game from your application menu. A graphical setup downloads and checks the required files, shows progress, and starts LFS. Interrupted downloads can resume; repairs preserve player data. LFS owns its installed files and updates. Later launches use the updated game without fingerprints or wrapper approval; compatibility repair keeps the entire existing game.</p>
     <p>Live for Speed is proprietary software from Scawen Roberts, Eric Bailey, and Victor van Vlaardingen. This community wrapper is not affiliated with or endorsed by the Live for Speed developers.</p>
   </description>
   <url type="homepage">https://github.com/mitzracing/live-for-speed-linux</url>
@@ -43,6 +43,11 @@
     <content_attribute id="social-chat">intense</content_attribute>
   </content_rating>
   <releases>
+    <release version="0.4.0" date="2026-09-06" type="development">
+      <description>
+        <p>Add graphical installation, compatibility repair, and Help. Remove installed-game fingerprint gates so LFS owns updates and later launches. Preserve the entire existing game and player data; provision private Wine independently of system Wine. This public test has open manual gameplay and graphical package-installation checks.</p>
+      </description>
+    </release>
     <release version="0.3.2" date="2026-09-01">
       <description>
         <p>Reject root entry points, authenticate the pinned Wine package signer, verify the complete runtime before execution, preflight archive members and links, and add Debian software-catalog search metadata.</p>

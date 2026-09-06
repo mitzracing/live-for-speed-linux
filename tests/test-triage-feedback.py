@@ -66,6 +66,24 @@ class CaptureHandler(BaseHTTPRequestHandler):
 
 
 class FeedbackTriageTest(unittest.TestCase):
+    def test_sensitive_title_is_withheld_even_on_edit(self) -> None:
+        report = event(["type:bug", "help wanted"], "Ordinary details", action="edited")
+        report["issue"]["title"] = "token=abcdefghijklmnopqrstuvwxyz0123456789"
+        plan = TRIAGE.build_plan(report)
+        self.assertTrue(plan["sensitive"])
+        self.assertIn("help wanted", plan["remove_labels"])
+
+    def test_browser_redactions_do_not_quarantine_safe_reports(self) -> None:
+        sanitized = subprocess.check_output([
+            "node", "-e",
+            "const f=require('./website/feedback.js'); process.stdout.write(f.sanitizeText('token=abcdefghijklmnopqrstuvwxyz0123456789\\nmachine-id=abcdef').value)",
+        ], cwd=ROOT, text=True)
+        plan = TRIAGE.build_plan(event(["type:bug"], sanitized))
+        self.assertFalse(plan["sensitive"])
+        self.assertIn("help wanted", plan["labels"])
+        for value in ("token=[redacted] secret", "token=[redacted]ghp_" + "a" * 30):
+            self.assertTrue(TRIAGE.contains_sensitive_data(value))
+
     def test_bug_enters_manjaro_contributor_queue(self) -> None:
         plan = TRIAGE.build_plan(
             event(

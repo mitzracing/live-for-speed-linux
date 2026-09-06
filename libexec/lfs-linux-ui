@@ -1,0 +1,314 @@
+#!/usr/bin/env bash
+# Sourced by lfs-linux-core for desktop actions. The core owns all game state.
+
+ui_icon() {
+  local icon="${DATA_DIR:-/usr/share/lfs-linux}/../icons/hicolor/scalable/apps/io.github.mitzracing.live_for_speed_linux.svg"
+  if [[ -f "$icon" ]]; then printf '%s\n' "$icon"
+  else printf 'io.github.mitzracing.live_for_speed_linux\n'; fi
+}
+
+ui_dialog() {
+  local argument
+  local -a arguments=()
+  for argument in "$@"; do
+    if [[ "$argument" == --text=* ]]; then argument="${argument//\\n/$'\n'}"; fi
+    arguments+=("$argument")
+  done
+  if [[ -n "${LFS_LINUX_GTK_SOCKET:-}" ]]; then
+    "$UI_GTK_EXECUTABLE" --client "$LFS_LINUX_GTK_SOCKET" "${arguments[@]}" 8>&- 9>&-
+  else zenity "${arguments[@]}"; fi
+}
+
+ui_stop_view() {
+  if [[ -n "${UI_VIEW_PID:-}" ]]; then
+    kill "$UI_VIEW_PID" 2>/dev/null || true
+    wait "$UI_VIEW_PID" 2>/dev/null || true
+    UI_VIEW_PID=''
+    rm -f -- "$LFS_LINUX_GTK_SOCKET" "$LFS_LINUX_GTK_SOCKET.ready"
+  fi
+}
+
+ui_start_view() {
+  local attempt
+  [[ "${UI_BACKEND:-zenity}" == gtk ]] || return 0
+  [[ -z "${UI_VIEW_PID:-}" ]] || return 0
+  "$UI_GTK_EXECUTABLE" --serve "$LFS_LINUX_GTK_SOCKET" "$(ui_icon)" 8>&- 9>&- >>"$UI_LOG" 2>&1 &
+  UI_VIEW_PID=$!
+  for ((attempt=0; attempt<100; attempt++)); do
+    if [[ -S "$LFS_LINUX_GTK_SOCKET" && -f "$LFS_LINUX_GTK_SOCKET.ready" ]] && kill -0 "$UI_VIEW_PID" 2>/dev/null; then return 0; fi
+    kill -0 "$UI_VIEW_PID" 2>/dev/null || break
+    sleep 0.05
+  done
+  ui_stop_view
+  return 1
+}
+
+ui_select_view() {
+  UI_BACKEND="${LFS_LINUX_UI:-auto}"
+  case "$UI_BACKEND" in auto|gtk|zenity) ;; *) die 'LFS_LINUX_UI must be auto, gtk, or zenity' ;; esac
+  export UI_GTK_EXECUTABLE="${UI_GTK_EXECUTABLE:-$(dirname "$CORE_EXECUTABLE")/lfs-linux-gtk}"
+  unset LFS_LINUX_GTK_SOCKET
+  if [[ "$UI_BACKEND" != zenity ]] && [[ -x "$UI_GTK_EXECUTABLE" ]] && "$UI_GTK_EXECUTABLE" --probe >>"$UI_LOG" 2>&1; then
+    UI_BACKEND=gtk
+    export LFS_LINUX_GTK_SOCKET="$UI_WORK/view.sock"
+    if ui_start_view; then return 0; fi
+  fi
+  [[ "${LFS_LINUX_UI:-auto}" != gtk ]] || die 'GTK view unavailable; select LFS_LINUX_UI=zenity for the fallback'
+  UI_BACKEND=zenity
+  unset LFS_LINUX_GTK_SOCKET
+  require_command zenity
+}
+
+ui_question() {
+  ui_dialog --question --icon="$(ui_icon)" --no-markup --title='Live for Speed Linux' --width=540 "$@"
+}
+
+ui_download_progress() {
+  local path="$1" total="$2" label="$3" bytes=0
+  if [[ -f "$path" && ! -L "$path" ]]; then bytes="$(stat -c %s -- "$path" 2>/dev/null || printf 0)"; fi
+  [[ "$bytes" =~ ^[0-9]+$ ]] || bytes=0
+  (( bytes <= total )) || bytes="$total"
+  LC_ALL=C awk -v label="$label" -v bytes="$bytes" -v total="$total" \
+    'BEGIN {unit = total < 1048576 ? 1024 : 1048576; printf "# Downloading %s — %.1f / %.1f %s\n", label, bytes/unit, total/unit, unit == 1024 ? "KiB" : "MiB"}'
+  if [[ "${UI_BACKEND:-zenity}" == gtk ]]; then printf '@bytes\t%s\t%s\n' "$bytes" "$total"; fi
+}
+
+ui_pump() {
+  local directory="$1" initial="$2" kind value status phase text filename total label download=''
+  printf '# %s\n' "$initial"
+  while true; do
+    status=0
+    IFS=$'\t' read -r -t 0.25 kind value || status=$?
+    if (( status != 0 && status <= 128 )); then break; fi
+    if (( status == 0 )); then
+      case "$kind" in
+        stage) printf '# %s\n' "$value" ;;
+        phase)
+          IFS=$'\t' read -r phase text <<<"$value"
+          printf '# %s\n' "$text"
+          if [[ "${UI_BACKEND:-zenity}" == gtk ]]; then printf '@phase\t%s\n' "$phase"; fi
+          ;;
+        download-start)
+          IFS=$'\t' read -r filename total label <<<"$value"
+          if [[ "$filename" =~ ^[a-zA-Z0-9._-]+$ && "$filename" != .* && "$total" =~ ^[0-9]+$ ]] && (( total > 0 )); then
+            download="$CACHE_DIR/$filename"
+          fi
+          ;;
+        download-end)
+          download=''
+          if [[ "${UI_BACKEND:-zenity}" == gtk ]]; then printf '@indeterminate\n'; fi
+          ;;
+        error) printf '%s\n' "$value" >"$directory/error" ;;
+        launched)
+          : >"$directory/launched"
+          if [[ "${UI_BACKEND:-zenity}" == gtk ]]; then printf '@hide\n'; fi
+          printf '100\n'
+          return
+          ;;
+      esac
+    fi
+    [[ -z "$download" ]] || ui_download_progress "$download" "$total" "$label"
+  done
+  : >"$directory/complete"
+  printf '100\n'
+}
+
+ui_cancel_worker() {
+  local pid="$1" attempt
+  # Operations have separate sessions; never signal another Wine session's group.
+  kill -TERM -- "-$pid" 2>/dev/null || true
+  for ((attempt=0; attempt<200; attempt++)); do
+    kill -0 "$pid" 2>/dev/null || return 0
+    sleep 0.1
+  done
+  kill -KILL -- "-$pid" 2>/dev/null || true
+}
+
+ui_run() {
+  local operation="$1" message="$2" directory worker progress pump result=0 progress_result=0
+  local -a progress_options=()
+  # Once launch crosses into gameplay, closing feedback must not kill the game.
+  [[ "$operation" != launch ]] || progress_options+=(--no-cancel)
+  # After gameplay, a failed launch may need a new view. Never replay an operation on GUI failure.
+  ui_start_view || die 'could not reopen the GTK view'
+  directory="$(mktemp -d "$UI_WORK/operation.XXXXXX")"
+  UI_OUTPUT="$directory/output"
+  mkfifo -m 0600 "$directory/events" "$directory/progress"
+  ui_pump "$directory" "$message" <"$directory/events" >"$directory/progress" &
+  pump=$!
+  UI_PUMP="$pump"
+  ui_dialog --progress --pulsate --auto-close "${progress_options[@]}" --title='Live for Speed Linux' --text="$message" --width=460 <"$directory/progress" 2>>"$UI_LOG" &
+  progress=$!
+  UI_PROGRESS="$progress"
+  LFS_LINUX_GUI_EVENTS=1 setsid "$CORE_EXECUTABLE" "$operation" 3>"$directory/events" 8>&- 9>&- >"$UI_OUTPUT" 2>>"$UI_LOG" &
+  worker=$!
+  UI_WORKER="$worker"
+  while kill -0 "$worker" 2>/dev/null; do
+    if ! kill -0 "$progress" 2>/dev/null; then
+      wait "$progress" || progress_result=$?
+      if (( progress_result != 0 )); then
+        kill "$pump" 2>/dev/null || true
+      fi
+      # Launch may cross into gameplay while the dialog closes. Never kill it.
+      if [[ "$operation" != launch && "$progress_result" != 0 && ! -e "$directory/complete" ]]; then
+        ui_cancel_worker "$worker"
+        wait "$worker" 2>/dev/null || true
+        kill "$pump" 2>/dev/null || true
+        wait "$pump" 2>/dev/null || true
+        UI_WORKER=''
+        UI_PUMP=''
+        UI_PROGRESS=''
+        return 3
+      fi
+      break
+    fi
+    sleep 0.1
+  done
+  if [[ -e "$directory/launched" ]]; then ui_stop_view; fi
+  wait "$worker" || result=$?
+  UI_WORKER=''
+  wait "$pump" 2>/dev/null || true
+  wait "$progress" 2>/dev/null || true
+  UI_PUMP=''
+  UI_PROGRESS=''
+  cat "$UI_OUTPUT" >>"$UI_LOG"
+  UI_LAST_OPERATION="$operation"
+  UI_LAST_RESULT="$result"
+  UI_ERROR='failed'
+  [[ ! -f "$directory/error" ]] || UI_ERROR="$(<"$directory/error")"
+  [[ "$result" != 130 && "$result" != 143 ]] || result=3
+  return "$result"
+}
+
+ui_help() {
+  local report="$UI_WORK/report.txt" answer destination
+  ui_start_view || die 'could not reopen the GTK view'
+  "$CORE_EXECUTABLE" support-report >"$report"
+  printf '\nLast action: %s\nResult: %s\nCategory: %s\n' "${UI_LAST_OPERATION:-none}" "${UI_LAST_RESULT:-none}" "${UI_ERROR:-none}" >>"$report"
+  while true; do
+    answer="$(ui_dialog --text-info --title='Help for Live for Speed Linux' --width=650 --height=420 --filename="$report" --ok-label='Close' --extra-button='Save report' --extra-button='Open support')" || true
+    case "$answer" in
+      'Save report')
+        if destination="$(ui_dialog --file-selection --save --confirm-overwrite --title='Save diagnostic report' --filename='lfs-diagnostic.txt')"; then
+          [[ -n "$destination" ]] && install -m0600 -- "$report" "$destination"
+        fi
+        ;;
+      'Open support')
+        if command -v xdg-open >/dev/null 2>&1; then
+          # A browser may outlive Help; it must not keep the launcher locked.
+          xdg-open 'https://mitzracing.github.io/live-for-speed-linux/#support' 8>&- 9>&- >/dev/null 2>&1 || true
+        else ui_dialog --info --text='Help: https://mitzracing.github.io/live-for-speed-linux/#support' || true; fi
+        ;;
+      *) return 0 ;;
+    esac
+  done
+}
+
+ui_retry() {
+  local answer message
+  ui_start_view || die 'could not reopen the GTK view'
+  case "${UI_ERROR:-failed}" in
+    download) message='The download was interrupted. Check your internet connection, then retry. Downloaded data will be reused.' ;;
+    space) message='There is not enough free disk space to prepare the game. Free some space, then retry.' ;;
+    permissions) message='The game folder is not writable. Check the drive or folder permissions, then retry.' ;;
+    *) message='The launcher could not complete this action. You can retry or open Help for a diagnostic summary.' ;;
+  esac
+  while true; do
+    if answer="$(ui_question --text="$message" --ok-label='Retry' --cancel-label='Close' --extra-button='Help')"; then return 0; fi
+    [[ "$answer" == Help ]] || return 1
+    ui_help
+  done
+}
+
+ui_cleanup() {
+  if [[ -n "${UI_WORKER:-}" && "${UI_CURRENT_ACTION:-}" != launch ]]; then ui_cancel_worker "$UI_WORKER"; fi
+  if [[ -n "${UI_PUMP:-}" ]]; then kill "$UI_PUMP" 2>/dev/null || true; fi
+  if [[ -n "${UI_PROGRESS:-}" ]]; then kill "$UI_PROGRESS" 2>/dev/null || true; fi
+  ui_stop_view
+  [[ -z "${UI_WORK:-}" ]] || rm -rf -- "$UI_WORK"
+}
+
+ui_main() {
+  local action="$1" state result answer lock="$LOCK_DIR/desktop.lock" download_mib
+  require_command setsid
+  require_command mkfifo
+  case "$action" in launch|setup|doctor|help|recover-update) ;; *) die "unknown desktop action: $action" ;; esac
+  open_launch_lock
+  if [[ -e "$lock" || -L "$lock" ]]; then
+    owner_private_regular_file "$lock" || die 'unsafe desktop lock file'
+  elif ! (set -o noclobber; : >"$lock") 2>/dev/null; then
+    owner_private_regular_file "$lock" || die 'unsafe desktop lock file'
+  fi
+  exec 8<>"$lock"
+  exec 9>&-
+  if [[ "$action" != help ]] && ! flock -n 8; then
+    if command -v wmctrl >/dev/null 2>&1; then wmctrl -a 'Live for Speed' 2>/dev/null || true; fi
+    return 0
+  fi
+  mkdir -p "$LOG_DIR"
+  chmod 0700 "$LOG_DIR"
+  UI_WORK="$(mktemp -d "$LOCK_DIR/desktop.XXXXXX")"
+  UI_LOG="$LOG_DIR/desktop-$(date +%Y%m%d-%H%M%S)-$$.log"
+  UI_WORKER=''
+  UI_PUMP=''
+  UI_PROGRESS=''
+  UI_VIEW_PID=''
+  trap ui_cleanup EXIT
+  trap 'exit 130' INT TERM
+  ui_select_view
+  download_mib=$(( (LFS_INSTALLER_SIZE + WINE_PACKAGE_SIZE + DXVK_ARCHIVE_SIZE + 1048575) / 1048576 ))
+  if [[ "$action" == help ]]; then ui_help; return; fi
+  if [[ "$action" == doctor ]]; then
+    UI_CURRENT_ACTION=doctor
+    ui_run doctor 'Checking this installation…' || true
+    ui_help
+    return
+  fi
+  while true; do
+    UI_CURRENT_ACTION=desktop-state
+    if ui_run desktop-state 'Checking your installation…'; then state="$(<"$UI_OUTPUT")"
+    else
+      result=$?
+      (( result != 3 )) || return 0
+      ui_retry && continue
+      return 1
+    fi
+    case "$state" in
+      fresh|resume)
+        ui_question --text="Install and play on Linux.\n\nPublic test: LFS $LFS_VERSION\nDownload: up to $download_mib MiB\n\nWe download the official game and prepare it for you. Interrupted downloads resume. Your existing player data stays yours.\n\nLive for Speed's license applies: https://www.lfs.net/agreement" --ok-label='Install and play' --cancel-label='Cancel' || return 0
+        UI_CURRENT_ACTION=install
+        ;;
+      repair)
+        ui_question --text='Prepare or repair the components needed to run LFS? Your existing game and all player files will be kept.' --ok-label='Repair and play' --cancel-label='Cancel' || return 0
+        UI_CURRENT_ACTION=install
+        ;;
+      services)
+        ui_question --text='A previous game session has not finished closing. Close its remaining processes so LFS can continue?' --ok-label='Close previous session' --cancel-label='Cancel' || return 0
+        UI_CURRENT_ACTION=stop
+        ;;
+      busy|running|ready)
+        if [[ "$action" == setup && "$state" == ready ]]; then
+          ui_question --text='Check and repair the components needed to run LFS? Your existing game and all player files will be kept.' --ok-label='Check and repair' --cancel-label='Cancel' || return 0
+          UI_CURRENT_ACTION=install
+          action=launch
+        else UI_CURRENT_ACTION=launch; fi
+        ;;
+      unsupported|blocked)
+        if [[ "$state" == unsupported ]]; then answer='This package requires an x86_64 Linux computer.'
+        else answer='The game executable is missing or cannot be opened safely. Your files have been kept. Open Help for recovery options before replacing any game files.'; fi
+        ui_dialog --warning --icon="$(ui_icon)" --no-markup --title='Live for Speed Linux' --text="$answer" --ok-label='Help' || return 0
+        ui_help
+        return 1
+        ;;
+      *) die 'invalid desktop state response' ;;
+    esac
+    if ui_run "$UI_CURRENT_ACTION" 'Preparing Live for Speed…'; then
+      [[ "$UI_CURRENT_ACTION" != launch ]] || return 0
+      action=launch
+    else
+      result=$?
+      (( result != 3 )) || return 0
+      ui_retry || return "$result"
+    fi
+  done
+}

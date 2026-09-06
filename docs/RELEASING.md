@@ -2,16 +2,20 @@
 
 ## Wrapper release
 
+The owner approved 0.4.0 as a public-test prerelease with the manual acceptance checks in `docs/RELEASE-CANDIDATE.md` still open. Run automated checks and exact-artifact validation before publishing. Mark the GitHub release as a prerelease and disclose open checks on the website and in release notes. This is not full end-to-end acceptance or permission to advertise an unavailable store route.
+
+The complete acceptance procedure remains:
+
 1. Run `make test`.
 2. Build a staged filesystem with `make DESTDIR="$PWD/pkgroot" install`.
 3. Run `make deb-check` in clean Ubuntu 24.04 and Debian 13 containers.
 4. Validate the desktop file and AppStream metadata.
 5. Build the AUR package from a real signed or immutable project tag.
 6. Install each candidate package in a disposable environment.
-7. Run a clean `lfs-linux install` without copying an existing prefix.
-8. Run `lfs-linux doctor`.
-9. Run a cold GUI launch on the project display.
-10. Confirm DXVK, Vulkan device, audio stream, and clean exit.
+7. Open the application-menu entry with no existing prefix or Wine configuration. Complete **Install and play**; test real download cancellation and resume.
+8. Run `lfs-linux doctor` as a maintainer check, not as a required player step.
+9. Exercise the exact installed desktop entry, native Wayland, and report Save. Test the downloaded-package route and each advertised store route separately.
+10. Confirm DXVK, actual GPU, audio, gameplay, updater restart, full exit, and application-menu relaunch without update approval or a terminal.
 11. Remove the package and confirm user-owned state remains unchanged.
 12. Publish only audited wrapper artifacts.
 
@@ -23,22 +27,25 @@ Update `share/lfs-linux/release.env` as one change:
 - installer filename and URL
 - byte size
 - installer SHA-256
-- installed `LFS.exe` SHA-256 and byte size
-- the complete runtime immutable manifest and complete extraction seed-manifest names, sizes, SHA-256 digests, and entry counts
+- bootstrap `LFS.exe` SHA-256 and byte size
+- bootstrap stock and complete extraction seed-manifest names, sizes, SHA-256 digests, and entry counts
 - required helmet, track, and vehicle asset paths, sizes, and SHA-256 digests
 - every nested archive's exact path, destination class, size, and SHA-256 digest
 - minimum extracted file count and byte size as secondary sanity checks
-- prior audited executable digest, immutable predecessor migration manifest, and complete predecessor seed manifest; use the seed to distinguish untouched defaults from player changes
 - DXVK version, URL, size, archive SHA-256, and required 32-bit D3D11/DXGI DLL sizes and SHA-256 digests
 - exact Wine package version, immutable archive and detached-signature URLs, sizes and SHA-256 digests, audited packager-key fingerprint and digest, and complete runtime-manifest pins
 
 The wrapper preflights archive member paths and links, extracts the verified NSIS archive with 7-Zip, and does not execute the installer stub. For 0.8, verify and preflight every nested archive before extracting it into its audited destination. Preserve sorted installer order and explicit replacement semantics: later pinned nested archives intentionally replace earlier seed entries inside disposable staging. A skip-existing policy changes official bytes and must fail the complete seed manifest. Remove `$PLUGINSDIR`, `inst_tmp`, and `UninstallLFS.exe`, then regenerate the LFS manifest with `scripts/generate-payload-manifest.py lfs`. Extract the exact Wine package and regenerate its manifest with the `wine` profile. Review player-owned exclusions before accepting either manifest.
 
-Delete a randomly selected immutable file that is not one of the separately pinned representative files. Confirm `doctor` and `launch` fail, `install` restores its exact hash, and player-owned paths remain byte-identical. Perform the same drift-and-reprovision check on one non-entry-point Wine DLL.
+Remove or change a file in a bootstrap fixture and require extraction verification to reject it before activation. Repeat with unsafe archive members and changed nested archives. A game directory appearing during extraction must remain untouched. Corrupt a non-entry-point Wine DLL and a prefix DXVK DLL: execution must reject the runtime, graphical setup must offer repair, and repair must preserve the game.
 
-Then test an in-place upgrade from every digest listed in `LFS_UPGRADE_FROM_SHA256S`. Require its complete protected predecessor migration manifest, compare player-owned paths before and after the atomic swap, interrupt each swap state to prove recovery, and confirm that the complete new stock tree passes validation. Prove a changed predecessor stock file and unknown out-of-session executable drift are rejected before game-tree mutation. Remove a digest and predecessor manifest when that path is no longer supported.
+Test existing games from old and newer bootstraps, including changed stock, new assets, deleted non-executable assets, profiles, account state, skins and linked folders. Setup must preserve the entire game without downloading an older installer. A missing, empty, unreadable or linked executable must stop setup without game-file changes. Legacy swap recovery may restore an absent destination, but must keep both trees if both exist. Historical predecessor digests/manifests are no longer migration or launch gates.
 
-Simulate an in-game update from a fully validated launch. Require a newer `data/versions/*.txt` marker, changed `LFS.exe`, and at least one added protected file. Make the original Wine parent exit nonzero while `LFS.exe` starts during the settle-grace boundary and remains active beyond another interval; confirm the wrapper waits without killing it, preserves the parent status, then records only after exit. Make `wineserver --wait` return an unexpected status and confirm exact propagation without cleanup. Keep a real non-game Wine-prefix process past the interval; confirm launch never calls prefix-wide kill, retains recovery evidence, reports the service, releases its foreground lock to descendants, and only explicit `stop` terminates it. Also give an unrelated native helper the same `WINEPREFIX`; confirm process status ignores it. Fault between content-addressed manifest placement and marker commit; confirm the old pair remains valid. While that failed commit still holds the launch lock, start another launcher and confirm it rejects before baseline validation. Precreate a public fallback lock directory and a lock-file symlink; confirm both fail without truncating the symlink target. Verify recovery rejects open-permission, unknown-key, duplicate-key, event-time, confirmation-evidence-race, protected-content race by a short-lived game process, and missing evidence. Require a validated pre-confirmation snapshot digest plus an identical post-confirmation inventory, preserve mutable account/log/cache/mod/skin paths, and succeed with valid interrupted-session evidence. Finally confirm `ready` succeeds, next launch uses the baseline without downloading the packaged installer, `doctor` passes, explicit `install` preserves it, and later out-of-session drift fails closed.
+Simulate update → updater restart → gameplay → full exit → application-menu relaunch. Change the executable and assets without adding a newer `data/versions` marker. Make the first Wine parent exit nonzero and restart during the settle-grace boundary; confirm the wrapper waits without killing the game and preserves the exit status. Make `wineserver --wait` fail: retain the error but ensure a later normal launch needs no fingerprint recovery. Old, malformed or missing local update records must not block or get rewritten.
+
+Keep non-game Wine-prefix processes past the wait interval. Confirm launch leaves them running, does not leak its lock to descendants, and only explicit stop or graphical confirmation terminates them. An unrelated native helper with the same `WINEPREFIX` must be ignored. During gameplay, a second launch must not start another game. Public lock directories and lock-file symlinks must fail without truncating their targets.
+
+Finally test the exact installed package on a real supported desktop, not only fixture workers. Verify LFS's displayed version and actual gameplay after updating and reopening. Local fixture or container success cannot replace this publication gate.
 
 Then run the full wrapper release procedure.
 
@@ -79,6 +86,6 @@ GitHub release publication and AUR submission require explicit owner approval.
 
 ## Rollback
 
-Revert the wrapper package to the last verified tag. For the 0.8C20 public-test release, v0.2.2 is the audited 0.8C19 predecessor and immutable v0.1.6 remains the old-graphics 0.7G fallback. Do not downgrade or overwrite a packaged or locally recorded game baseline automatically; back up the XDG state tree and use a separate state directory for fallback validation.
+Revert the wrapper package to the last verified tag. For the 0.8C20 public-test release, v0.2.2 is the audited 0.8C19 predecessor and immutable v0.1.6 remains the old-graphics 0.7G fallback. Do not downgrade or overwrite installed game files. A pre-0.4.0 wrapper can recreate fingerprint refusals after a valid update. Back up XDG state and use a separate state directory for fallback validation; do not call a wrapper downgrade a game repair.
 
 If an upstream public-test update is incompatible, keep the prior pin only while its official URL and terms remain valid. Clearly report that status and never call a public test stable.

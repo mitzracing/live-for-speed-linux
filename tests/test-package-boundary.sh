@@ -8,6 +8,10 @@ for path in \
   usr/bin/lfs-linux \
   usr/bin/lfs-linux-desktop \
   usr/lib/lfs-linux/lfs-linux-core \
+  usr/lib/lfs-linux/lfs-linux-ui \
+  usr/lib/lfs-linux/lfs-linux-gtk \
+  usr/lib/lfs-linux/lfs_linux_dialog.py \
+  usr/lib/lfs-linux/lfs_linux_gtk.py \
   usr/share/lfs-linux/release.env \
   usr/share/lfs-linux/arch-wine-peter-jung.pgp \
   usr/share/lfs-linux/lfs-0.8C20-stock.manifest \

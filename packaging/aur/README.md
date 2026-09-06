@@ -23,14 +23,15 @@ The archive excludes local test prefixes, logs, screenshots, LFS binaries, and D
 Local verification can use the already-built archive without downloading it:
 
 ```bash
-SRCDEST="$PWD/dist" makepkg --verifysource -p packaging/aur/PKGBUILD
+cd packaging/aur
+SRCDEST="$OLDPWD/dist" makepkg --verifysource
 ```
 
 Run the complete publication procedure in `docs/RELEASING.md`. After submission, set the AUR package-base keywords to `game`, `games`, `racing`, `simulator`, `wine`, and `lfs`, then verify them through the AUR package page and RPC before announcing catalog search visibility.
 
 ## Dependencies
 
-The package requires exact `wine=11.15-1`, matching the only runtime payload accepted by wrapper 0.3.x. Source installs can provision that same immutable Arch Linux Archive package privately when the exact system package is unavailable. Every Wine file and link is checked against the shipped runtime manifest. The wrapper privately deploys the audited DXVK D3D11 and DXGI DLLs, so it does not depend on `dxvk-bin`.
+The package provisions the exact authenticated Wine 11.15-1 runtime privately. It declares the runtime's host libraries and does not depend on system Wine, so a newer unrelated Wine package does not block installation or upgrades. Every runtime file and link is checked before execution. DXVK is deployed privately from its verified upstream archive.
 
 The package directly requires:
 
@@ -39,7 +40,9 @@ The package directly requires:
 - `libarchive` for verified private Wine package extraction
 - the Vulkan loader and one `vulkan-driver` provider
 - PulseAudio client compatibility for Wine audio
-- `xterm` for the guaranteed first-run setup window
+- `python`, `python-gobject`, and `gtk4>=4.10` for the branded native setup window
+- `zenity` for the selectable fallback dialogs
+- `xdg-utils` for the optional support link
 - `xdotool` for a clean in-game `/exit` request
 
 It does not depend on Bottles, Steam, Lutris, Gamescope, or a launcher daemon.

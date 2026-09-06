@@ -1,0 +1,9 @@
+bugs:
+  - bug_id: BUG-001
+    date: 2026-09-05
+    severity: high
+    priority: 1
+    scope: game-update-lifecycle
+    summary: Stale wrapper fingerprint blocks normal relaunch after an LFS update.
+    file: specs/bugs/BUG-001-update-relaunch.md
+    status: pending_owner_acceptance

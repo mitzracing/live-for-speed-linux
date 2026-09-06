@@ -1,0 +1,9 @@
+#!/usr/bin/python3
+"""Packaged GTK view entry point; the Bash controller owns all operations."""
+import sys
+
+sys.dont_write_bytecode = True
+from lfs_linux_dialog import main
+
+if __name__ == "__main__":
+    raise SystemExit(main(sys.argv[1:]))

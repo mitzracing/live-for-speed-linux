@@ -31,7 +31,7 @@ grep -Fqi 'racing simulator' <<<"$(dpkg-deb --field "$deb_one" Description)"
 depends="$(dpkg-deb --field "$deb_one" Depends)"
 for dependency in \
   '7zip' 'gpgv' 'libarchive-tools' 'libasound2t64' 'libc6' 'libsane1' \
-  'libvulkan1' 'vulkan-icd' 'x-terminal-emulator'; do
+  'libvulkan1' 'vulkan-icd' 'zenity' 'python3' 'python3-gi' 'gir1.2-gtk-4.0'; do
   grep -Eq "(^|[,|] )${dependency//./\\.}([ ,|]|$)" <<<"$depends"
 done
 
@@ -59,6 +59,10 @@ dpkg-deb --extract "$deb_one" "$TMP_ROOT/extracted"
 "$ROOT_DIR/tests/test-package-boundary.sh" "$TMP_ROOT/extracted" >/dev/null
 cmp "$ROOT_DIR/bin/lfs-linux" "$TMP_ROOT/extracted/usr/bin/lfs-linux"
 cmp "$ROOT_DIR/libexec/lfs-linux-core" "$TMP_ROOT/extracted/usr/lib/lfs-linux/lfs-linux-core"
+for helper in lfs-linux-ui lfs-linux-gtk lfs_linux_dialog.py lfs_linux_gtk.py; do
+  cmp "$ROOT_DIR/libexec/$helper" "$TMP_ROOT/extracted/usr/lib/lfs-linux/$helper"
+done
+[[ "$(stat -c %a "$TMP_ROOT/extracted/usr/lib/lfs-linux/lfs-linux-gtk")" == '755' ]]
 cmp "$ROOT_DIR/share/lfs-linux/arch-wine-peter-jung.pgp" "$TMP_ROOT/extracted/usr/share/lfs-linux/arch-wine-peter-jung.pgp"
 cmp "$ROOT_DIR/packaging/debian/copyright" "$TMP_ROOT/extracted/usr/share/doc/live-for-speed-linux/copyright"
 grep -Fq 'Files: share/lfs-linux/arch-wine-peter-jung.pgp' "$TMP_ROOT/extracted/usr/share/doc/live-for-speed-linux/copyright"
@@ -69,6 +73,7 @@ grep -Fq 'License: GPL-3+' "$TMP_ROOT/extracted/usr/share/doc/live-for-speed-lin
 (( $(stat -c %s "$deb_one") < 3000000 ))
 
 grep -Fq 'libc6 (>= 2.38)' <<<"$depends"
+grep -Fq 'gir1.2-gtk-4.0 (>= 4.10)' <<<"$depends"
 if grep -Eq '(^|[,|] )(wine32|wine64|[^, ]+:i386|desktop-file-utils|vulkan-tools|xdotool|xz-utils)([ ,|]|$)' <<<"$depends"; then
   printf 'Debian package incorrectly requires a system Wine, i386 stack, or optional tool\n' >&2
   exit 1

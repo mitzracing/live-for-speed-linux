@@ -12,22 +12,27 @@ Normal wrapper changes must fit one of these small units:
 - one focused test
 - one documentation correction
 
-A normal audited bootstrap update changes outer and nested payload fields, regenerates the protected stock-file manifest, records the prior executable digest plus complete predecessor migration and full seed manifests, and runs clean-install, repair, atomic migration, interruption-recovery, trusted in-game update continuity, and unknown out-of-session drift checks. Users do not need that wrapper release before launching a versioned update completed by LFS itself. A Wine update similarly regenerates its complete runtime manifest. Neither path requires editing game assets or reverse engineering the executable.
+An audited bootstrap update changes outer and nested payload fields and regenerates the stock and complete seed manifests. Test clean installation, interrupted downloads, runtime repair, existing-game preservation, and update → restart → exit → desktop relaunch. Existing games are never migrated to a wrapper's bootstrap. LFS owns their updates; no executable allowlist or version-marker observation is needed. A Wine update regenerates its complete runtime manifest. Neither path requires editing game assets or reverse engineering the executable.
 
 ## Stable interfaces
 
 - `share/lfs-linux/release.env` owns audited versions, archives, and manifest digests.
-- `share/lfs-linux/*.manifest` owns complete extraction seeds, immutable game inventories, predecessor migration references, and the Wine inventory.
+- `share/lfs-linux/*.manifest` owns complete extraction seeds, bootstrap stock inventories, historical predecessor references, and the Wine inventory. Historical predecessor files are not launch or migration gates.
 - `libexec/lfs-linux-core` owns prefix lifecycle and launch behavior.
 - `bin/lfs-linux` only locates and delegates to the core.
-- `bin/lfs-linux-desktop` owns first-run terminal selection and then replaces itself with the CLI launcher.
+- `bin/lfs-linux-desktop` dispatches graphical actions. `libexec/lfs-linux-ui` owns dialog requests, progress, cancellation, and report previews for both views. The core owns state validation and mutations.
+- `libexec/lfs-linux-gtk`, `libexec/lfs_linux_dialog.py`, and `libexec/lfs_linux_gtk.py` provide the private GTK view. They do not implement another installer.
 - Distribution packages only install project files.
 - The verified official installer archive defines the stock game tree.
-- LFS owns player settings and account unlock state; extraction merges preserve those paths.
+- LFS and the player own the entire installed game directory. Runtime repair leaves it untouched.
 
 ## Automated aid
 
 CI performs syntax, metadata, package-boundary, and failure-path checks.
+
+Maintainers keep both views in the shared-controller tests. `make gtk-check` exercises real GTK widgets with disposable workers. Debian 13 and Ubuntu 24.04 checks include this gate.
+
+`LFS_LINUX_UI=zenity` provides a reversible fallback for a GTK regression. A view change does not require a player-state migration. New dialog types require transport, widget, and shared-controller coverage.
 
 The weekly upstream check has three outcomes:
 
@@ -71,6 +76,6 @@ Stop and redesign only if one of these changes occurs:
 - the pinned Arch Wine package or detached signature disappears, the signer changes, or the runtime drops required PE32 behavior
 - upstream grants official Flatpak participation
 - LFS changes its data layout in a way that threatens player data
-- the public-test updater changes stock files without a distinct executable digest
+- an upstream change prevents normal update, restart, or later launch
 
-Until then, prefer small manifest or shell patches.
+Until then, prefer small manifest or shell patches. Do not rebuild local game fingerprinting to handle update changes. Legacy update records are ignored and left in place; only explicit state removal deletes known records. Downgrading to a fingerprint-enforcing wrapper can recreate the launch failure, so test rollback in separate state without downgrading the game.

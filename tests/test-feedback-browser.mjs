@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
-import { pathToFileURL } from "node:url";
+import { join } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { spawn, spawnSync } from "node:child_process";
 
 function browserBinary() {
@@ -105,7 +105,7 @@ try {
   await client.open();
   await client.send("Page.enable");
   await client.send("Runtime.enable");
-  const target = pathToFileURL(resolve("website/index.html")).href;
+  const target = pathToFileURL(fileURLToPath(new URL("../website/index.html", import.meta.url))).href;
   await client.send("Page.navigate", { url: target });
 
   let ready = false;

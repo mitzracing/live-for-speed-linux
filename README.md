@@ -2,7 +2,9 @@
 
 Unofficial community Linux launcher for the untouched official [Live for Speed](https://www.lfs.net/) Windows build.
 
-**Status:** v0.3.2 public-test wrapper release. The validated AUR recipe awaits maintainer SSH access. The core works without Steam, Bottles, Lutris, or a background launcher.
+**Mission:** get LFS running in a few clicks, then get out of its way. The wrapper owns setup and compatibility; LFS owns game files and updates. Updates must survive restart, full exit, and later launch without wrapper approval.
+
+**Status:** [v0.4.0 public-test release](https://github.com/mitzracing/live-for-speed-linux/releases/tag/v0.4.0). Manual acceptance checks remain open; see [release status](docs/RELEASE-CANDIDATE.md). No software-store listing is available. The core works without Steam, Bottles, Lutris, or a background launcher.
 
 This release bootstraps exact official **LFS 0.8C20 new graphics**, which lfs.net still labels **PUBLIC TEST**. It is not represented as a stable LFS release. Use immutable [v0.1.6](https://github.com/mitzracing/live-for-speed-linux/releases/tag/v0.1.6) for the audited old-graphics 0.7G fallback.
 
@@ -14,13 +16,13 @@ The public package is `live-for-speed-linux`. The stable command and player-stat
 
 ## What it does
 
-- Downloads LFS directly from `lfs.net` after an explicit user command.
-- Verifies the official archive and all 52 nested archives, extracts without executing the installer, checks every official seed file, then tracks protected stock separately from mutable player data.
+- Downloads LFS directly from `lfs.net` after the player confirms graphical setup.
+- Verifies the official archive and all 52 nested archives, extracts without executing the installer, and checks every official seed file before first installation.
 - Authenticates the pinned Wine package with its detached Arch packager signature, then creates one private Wine prefix under the XDG data directory.
 - Deploys only DXVK's audited 32-bit D3D11 and DXGI DLLs required by LFS 0.8C20.
 - Starts Wine directly with no wrapper daemon or container.
-- Records a versioned in-game update after the trusted LFS session exits, then verifies that local baseline on later launches.
-- Keeps an updater-restarted LFS process alive, records durable launch events, and retains bounded recovery evidence if the wrapper is interrupted.
+- Lets LFS manage its installed files and updates; no game fingerprint, version-marker gate, or update approval on later launches.
+- Keeps an updater-restarted LFS process alive and records diagnostic launch events.
 - Preserves game-owned settings, profiles, replays, unlock state, and cache.
 - Detects official download-page changes without editing game files.
 
@@ -31,24 +33,26 @@ The public package is `live-for-speed-linux`. The stable command and player-stat
 - Store account credentials
 - Unlock licensed content
 - Download or apply game updates itself; LFS owns its in-game updater
-- Trust protected-file changes made outside a validated LFS session
+- Authenticate or certify the contents of an already installed game
 - Claim official LFS support for Linux
 
 ## One-click setup
 
-After installing the wrapper package, open **Live for Speed Linux** from the application menu. First launch explains that LFS 0.8C20 is a public test, shows the approximately 1.7 GB official download, verifies the LFS, Wine, and DXVK inputs, configures the private prefix, and starts LFS. Later launches go directly to the game.
+Install the wrapper package, then open **Live for Speed Linux** from the application menu. The graphical first launch shows the download size and public-test notice. Choose **Install and play**; progress names the active stage, interrupted downloads resume, and LFS opens when preparation finishes. Later clicks open the installed game.
 
-If LFS updates itself during a validated session, the foreground wrapper waits for all private-prefix processes to exit without any automatic prefix-wide kill. An updater-restarted game remains active; unsettled non-game services are left for explicit `lfs-linux stop` and no update is recorded on that failure path. A newer game version marker allows it to record the resulting protected-file inventory as a local baseline. Next-day desktop launch verifies and starts that updated game without an old-version setup prompt, downgrade, full redownload, or matching wrapper release. Protected-file changes made outside that trusted session still fail closed. If the wrapper itself is interrupted after a verified launch, `lfs-linux recover-update` requires unchanged session evidence, a newer marker, a stopped private prefix, and explicit confirmation before recording anything.
+Accept updates inside LFS, follow its restart prompt, then reopen normally after closing. No wrapper update approval or rebaseline is needed. Downloaded packages and supported software-store packages use this same launcher flow.
+
+The same icon offers repair of compatibility components when needed. Repair keeps your entire existing game and all player files; it does not replace them with the older bootstrap. Right-click the icon for **Help and Diagnostic Report** to preview a small report and optionally save it or open support.
 
 No game payload is bundled with the wrapper package. Immutable [v0.1.6](https://github.com/mitzracing/live-for-speed-linux/releases/tag/v0.1.6) remains available as the audited old-graphics LFS 0.7G fallback.
 
 ## Commands
 
 ```text
-lfs-linux setup         Interactive first-run setup used by the desktop launcher
+lfs-linux setup         Optional interactive terminal setup
 lfs-linux install       Install or repair verified upstream runtime files
-lfs-linux launch        Validate pins and start LFS
-lfs-linux recover-update  Explicitly recover an interrupted trusted update
+lfs-linux launch        Check compatibility components and start LFS
+lfs-linux recover-update  Legacy command; updates need no wrapper recovery
 lfs-linux stop          Stop only this private Wine prefix
 lfs-linux doctor        Check host and installation state
 lfs-linux status        Show versions and paths
@@ -64,7 +68,8 @@ lfs-linux remove        Remove per-user prefix after explicit confirmation
 - Audited Wine 11.15-1 (the wrapper provisions the pinned Arch runtime when that exact system package is unavailable)
 - Vulkan-capable GPU and driver
 - Bash, 7-Zip, curl, `gpgv`, GNU core utilities, findutils, libarchive (`bsdtar`), tar, and util-linux
-- A supported terminal for graphical first-run setup (`xterm` is the AUR default)
+- GTK 4.10 or later and Python/PyGObject for branded setup and help (installed by the package)
+- Zenity for the selectable fallback (installed by the package)
 
 The audited Arch Wine runtime uses pure WoW64. This lets its x86_64 package run the 32-bit LFS executable without the traditional 32-bit Unix Wine stack. Other Wine versions fail closed instead of being accepted by a broad compatibility range.
 
@@ -87,12 +92,11 @@ The AUR package contains only this open-source wrapper. It does not contain the 
 
 ## Debian and Ubuntu
 
-A deterministic wrapper-only `.deb` is supported on Debian 13 and Ubuntu 24.04. Install the GitHub release asset with APT so its audited amd64 host-library and Vulkan dependencies are resolved. The package does not depend on Debian or Ubuntu Wine: it provisions the exact authenticated private Wine runtime. Pure WoW64 requires no i386 Unix library stack:
+[Download the 0.4.0 public-test `.deb`](https://github.com/mitzracing/live-for-speed-linux/releases/download/v0.4.0/live-for-speed-linux_0.4.0-0github1_amd64.deb) for Debian 13 or Ubuntu 24.04. Open it with a graphical package installer, then open **Live for Speed Linux** from the application menu.
 
-```bash
-sudo apt update
-sudo apt install ./live-for-speed-linux_0.3.2-0github1_amd64.deb
-```
+Package and container checks passed. Exact graphical installer and real updated-game acceptance remain open; this is a testing release, not a verified software-store route. See [release status](docs/RELEASE-CANDIDATE.md).
+
+Advanced APT instructions and deterministic builds are documented in [Debian packaging](packaging/debian/README.md).
 
 The package does not contain the game, Wine, DXVK, or player data. It installs no proprietary payload and downloads nothing during package installation. See [`packaging/debian/`](packaging/debian/README.md) for the support boundary, deterministic build, removal behavior, and repository-publication distinction.
 
@@ -118,15 +122,17 @@ See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for state paths and performan
 
 ## Updates
 
-Run:
+Use LFS's in-game updater. After its restart, play and close normally. Open **Live for Speed Linux** again to continue. The version shown inside LFS is authoritative; bootstrap pins describe new installations only.
+
+Optional maintainer check:
 
 ```bash
 lfs-linux update-check
 ```
 
-The command reports the official stable and public-test/new-graphics channels separately. A newer public test or changed installer returns status 2 for maintainer review. It never modifies LFS and does not block a versioned update that LFS completed during a trusted session.
+The command reports the official stable and public-test/new-graphics channels separately. A newer public test or changed installer returns status 2 for maintainer review. It never modifies LFS and does not control whether an installed game may launch.
 
-There is no background checker in the launch path. The weekly repository workflow treats status 2 as an expected maintenance event: it checks whether the pinned bootstrap URL remains available, creates or refreshes one deduplicated GitHub issue, and leaves the run green with a warning. Downloads-page, script, or GitHub API failures remain red; an inconclusive supplemental installer-header probe is reported as unknown. Maintainers update release pins only after a clean extraction, audit, migration drill, and live run. See [`docs/RELEASING.md`](docs/RELEASING.md).
+There is no background checker in the launch path. The weekly repository workflow treats status 2 as an expected maintenance event: it checks whether the pinned bootstrap URL remains available, creates or refreshes one deduplicated GitHub issue, and leaves the run green with a warning. Downloads-page, script, or GitHub API failures remain red; an inconclusive supplemental installer-header probe is reported as unknown. Maintainers update release pins only after a clean extraction, audit, existing-game preservation check, and live run. See [`docs/RELEASING.md`](docs/RELEASING.md).
 
 ## Flathub
 

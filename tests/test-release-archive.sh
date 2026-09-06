@@ -40,6 +40,7 @@ if [[ -f "$ROOT_DIR/packaging/aur/PKGBUILD" && "$post_release" -eq 0 ]]; then
 fi
 
 listing="$(tar -tzf "$archive_one")"
+grep -Fq "$ARCHIVE_ROOT/AGENTS.md" <<<"$listing"
 grep -Fq "$ARCHIVE_ROOT/bin/lfs-linux" <<<"$listing"
 grep -Fq "$ARCHIVE_ROOT/bin/lfs-linux-desktop" <<<"$listing"
 grep -Fq "$ARCHIVE_ROOT/libexec/lfs-linux-core" <<<"$listing"
@@ -59,6 +60,9 @@ archive_dir="$TMP_ROOT/$ARCHIVE_ROOT"
 LFS_LINUX_SOURCE_ARCHIVE=1 "$archive_dir/tests/test-public-static.sh" >/dev/null
 "$archive_dir/tests/test-public-core.sh" >/dev/null
 "$archive_dir/tests/test-runtime-trust.sh" >/dev/null
+python3 "$archive_dir/tests/test-player-safety.py" >/dev/null
+python3 "$archive_dir/tests/test-desktop.py" >/dev/null
+PYTHONDONTWRITEBYTECODE=1 python3 "$archive_dir/tests/test-gtk-dialog.py" >/dev/null
 "$archive_dir/tests/test-upgrade.sh" >/dev/null
 python3 "$archive_dir/tests/test-support-static.py" >/dev/null
 python3 "$archive_dir/tests/test-triage-feedback.py" >/dev/null

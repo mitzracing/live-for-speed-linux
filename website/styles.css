@@ -263,3 +263,8 @@ footer { background: #141618; }
   html { scroll-behavior: auto; }
   *, *::before, *::after { transition: none !important; }
 }
+
+.install-choice { margin: 1rem 0; padding: 1rem; border: 1px solid #465465; border-radius: 4px; }
+.install-choice summary { cursor: pointer; font-weight: 700; }
+.install-choice p { margin-top: 1rem; }
+.button:disabled { cursor: default; opacity: .65; }

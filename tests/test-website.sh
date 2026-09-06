@@ -57,7 +57,11 @@ assert 'name="' not in text[text.index('<form id="feedback-form"'):text.index('<
 assert all(link.startswith(("#", "https://")) for link in audit.links), audit.links
 assert "not affiliated with or endorsed" in text
 assert text.count(f"<strong>{version}</strong>") == 2
-assert f"v{version}/live-for-speed-linux_{version}-0github1_amd64.deb" in text
+release = f"https://github.com/mitzracing/live-for-speed-linux/releases/download/v{version}"
+assert f"{release}/live-for-speed-linux_{version}-0github1_amd64.deb" in audit.links
+assert "No software-store listing is available" in text
+assert "locally recorded protected game file" not in text
+assert "first installation" in text
 assert "0.3.0" not in text
 assert "Debian 13" in text and "Ubuntu 24.04" in text
 assert "0.8C20" in text

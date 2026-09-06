@@ -1,85 +1,9 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-readonly PROGRAM_NAME='Live for Speed Linux'
-(( EUID != 0 )) || { printf '%s: do not run per-user LFS commands as root\n' "$PROGRAM_NAME" >&2; exit 1; }
+(( EUID != 0 )) || { printf 'Live for Speed Linux: do not launch as root\n' >&2; exit 1; }
 SELF_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 readonly SELF_DIR
 readonly LFS_COMMAND="${LFS_LINUX_COMMAND:-$SELF_DIR/lfs-linux}"
-
-fail() {
-  printf '%s: %s\n' "$PROGRAM_NAME" "$*" >&2
-  if command -v notify-send >/dev/null 2>&1; then
-    notify-send --app-name="$PROGRAM_NAME" "$PROGRAM_NAME" "$*" 2>/dev/null || true
-  fi
-  exit 1
-}
-
-run_terminal() {
-  local mode="$1"
-  if command -v xterm >/dev/null 2>&1; then
-    xterm -T "$PROGRAM_NAME Setup" -e "$SELF_DIR/lfs-linux-desktop" "$mode"
-  elif command -v konsole >/dev/null 2>&1; then
-    konsole -p "tabtitle=$PROGRAM_NAME Setup" -e "$SELF_DIR/lfs-linux-desktop" "$mode"
-  elif command -v gnome-terminal >/dev/null 2>&1; then
-    gnome-terminal --wait -- "$SELF_DIR/lfs-linux-desktop" "$mode"
-  elif command -v alacritty >/dev/null 2>&1; then
-    alacritty --title "$PROGRAM_NAME Setup" -e "$SELF_DIR/lfs-linux-desktop" "$mode"
-  elif command -v kitty >/dev/null 2>&1; then
-    kitty --title "$PROGRAM_NAME Setup" "$SELF_DIR/lfs-linux-desktop" "$mode"
-  elif command -v x-terminal-emulator >/dev/null 2>&1; then
-    x-terminal-emulator -e "$SELF_DIR/lfs-linux-desktop" "$mode"
-  else
-    fail 'no supported terminal found; run: lfs-linux setup'
-  fi
-}
-
-hold_on_failure() {
-  local status="$1"
-  (( status == 0 )) && return
-  printf '\nSetup did not complete. Review the error above.\n'
-  if [[ -t 0 ]]; then
-    read -r -p 'Press Enter to close. ' _ || true
-  fi
-  return "$status"
-}
-
-terminal_setup() {
-  local status
-  set +e
-  "$LFS_COMMAND" setup
-  status=$?
-  set -e
-  hold_on_failure "$status"
-}
-
-terminal_doctor() {
-  local status
-  set +e
-  "$LFS_COMMAND" doctor
-  status=$?
-  set -e
-  printf '\n'
-  if [[ -t 0 ]]; then
-    read -r -p 'Press Enter to close. ' _ || true
-  fi
-  return "$status"
-}
-
-[[ -x "$LFS_COMMAND" ]] || fail 'lfs-linux command is missing; reinstall the package'
-
-case "${1:-launch}" in
-  --terminal-setup) terminal_setup ;;
-  --terminal-doctor) terminal_doctor ;;
-  doctor) run_terminal --terminal-doctor ;;
-  launch)
-    if "$LFS_COMMAND" ready >/dev/null 2>&1; then
-      exec "$LFS_COMMAND" launch
-    fi
-    run_terminal --terminal-setup || true
-    "$LFS_COMMAND" ready >/dev/null 2>&1 || fail 'setup was cancelled or failed; run: lfs-linux setup'
-    exec "$LFS_COMMAND" launch
-    ;;
-  setup) run_terminal --terminal-setup ;;
-  *) fail "unknown desktop action: $1" ;;
-esac
+[[ -x "$LFS_COMMAND" ]] || { printf 'Live for Speed Linux: launcher is missing\n' >&2; exit 1; }
+exec "$LFS_COMMAND" desktop "${1:-launch}"

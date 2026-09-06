@@ -2,7 +2,7 @@
 Type=Application
 Name=Live for Speed Linux
 GenericName=Racing Simulator Launcher
-Comment=Run Live for Speed on Linux with verified Wine and DXVK files
+Comment=Install and play Live for Speed on Linux
 Exec=lfs-linux-desktop launch
 TryExec=lfs-linux-desktop
 Icon=io.github.mitzracing.live_for_speed_linux
@@ -12,7 +12,7 @@ StartupWMClass=lfs.exe
 Categories=Game;Simulation;SportsGame;
 Keywords=game;games;racing;simulator;motorsport;driving;wine;LFS;
 PrefersNonDefaultGPU=true
-Actions=Install;Doctor;
+Actions=Install;Doctor;Help;
 
 [Desktop Action Install]
 Name=Install or Repair LFS
@@ -21,3 +21,7 @@ Exec=lfs-linux-desktop setup
 [Desktop Action Doctor]
 Name=Check Live for Speed Linux
 Exec=lfs-linux-desktop doctor
+
+[Desktop Action Help]
+Name=Help and Diagnostic Report
+Exec=lfs-linux-desktop help

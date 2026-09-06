@@ -69,7 +69,7 @@ Homepage: https://github.com/mitzracing/live-for-speed-linux
 Provides: lfs-linux, live-for-speed-launcher
 Conflicts: lfs-linux, live-for-speed-launcher
 Replaces: lfs-linux, live-for-speed-launcher
-Depends: 7zip, ca-certificates, curl, fontconfig, gawk, gettext-base, gpgv, libarchive-tools, libasound2t64, libc6 (>= 2.38), libfreetype6, libgcc-s1, libglib2.0-0t64, libgphoto2-6t64, libgphoto2-port12t64, libgstreamer-plugins-base1.0-0, libgstreamer1.0-0, libpcsclite1, libpulse0, libsane1, libsystemd0, libudev1, libunwind8, libusb-1.0-0, libvulkan1, libwayland-client0, libwayland-egl1, libx11-6, libxcursor1, libxext6, libxi6, libxkbcommon0, libxkbregistry0, libxrandr2, mesa-vulkan-drivers | vulkan-icd, ocl-icd-libopencl1, xterm | x-terminal-emulator
+Depends: 7zip, ca-certificates, curl, fontconfig, gawk, gettext-base, gpgv, libarchive-tools, libasound2t64, libc6 (>= 2.38), libfreetype6, libgcc-s1, libglib2.0-0t64, libgphoto2-6t64, libgphoto2-port12t64, libgstreamer-plugins-base1.0-0, libgstreamer1.0-0, libpcsclite1, libpulse0, libsane1, libsystemd0, libudev1, libunwind8, libusb-1.0-0, libvulkan1, libwayland-client0, libwayland-egl1, libx11-6, libxcursor1, libxext6, libxi6, libxkbcommon0, libxkbregistry0, libxrandr2, mesa-vulkan-drivers | vulkan-icd, ocl-icd-libopencl1, xdg-utils, zenity, python3, python3-gi, gir1.2-gtk-4.0 (>= 4.10)
 Recommends: libnotify-bin, vulkan-tools, wmctrl, xdotool
 Description: unofficial launcher for the Live for Speed racing simulator
  Verifies and installs untouched official Live for Speed racing simulator

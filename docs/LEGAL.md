@@ -19,7 +19,7 @@ The repository does not distribute Live for Speed executables, tracks, cars, tex
 
 The user confirms desktop first-run setup or starts `lfs-linux install`. The wrapper then downloads the official installer directly from `https://www.lfs.net/`.
 
-The wrapper verifies the exact installer size and SHA-256 digest before local extraction. It does not execute or patch the installer, and it does not patch installed game files. LFS can apply its own in-game updates; the wrapper only records their protected-file inventory after the trusted game session exits.
+The wrapper verifies the exact installer size and SHA-256 digest before local extraction. It does not execute or patch the installer, and it does not patch installed game files. LFS owns its installed files and in-game updates. The wrapper does not patch, replace, fingerprint, or approve those updates.
 
 Live for Speed remains proprietary software. Its terms apply separately: <https://www.lfs.net/agreement>.
 

@@ -24,6 +24,15 @@ Run static checks:
 make test
 ```
 
+Native view tests also require system Python with PyGObject, GTK 4.10 or later, and a disposable display. The workers use fixtures, not game downloads.
+
+```bash
+# Use the configured Xephyr display, or run: xvfb-run -a make gtk-check
+make gtk-check
+```
+
+`LFS_LINUX_UI=zenity` selects the fallback for manual checks. `LFS_LINUX_UI=gtk` requires GTK. The default selects GTK when available.
+
 Run a disposable install with explicit XDG directories:
 
 ```bash

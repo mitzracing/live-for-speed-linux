@@ -6,12 +6,16 @@ LIBEXECDIR := $(DESTDIR)$(PREFIX)/lib/lfs-linux
 DATADIR := $(DESTDIR)$(PREFIX)/share
 MANDIR := $(DATADIR)/man
 
-.PHONY: install test package-check release-archive deb deb-check
+.PHONY: install test gtk-check package-check release-archive deb deb-check
 
 install:
 	install -Dm755 bin/lfs-linux $(BINDIR)/lfs-linux
 	install -Dm755 bin/lfs-linux-desktop $(BINDIR)/lfs-linux-desktop
 	install -Dm755 libexec/lfs-linux-core $(LIBEXECDIR)/lfs-linux-core
+	install -Dm644 libexec/lfs-linux-ui $(LIBEXECDIR)/lfs-linux-ui
+	install -Dm755 libexec/lfs-linux-gtk $(LIBEXECDIR)/lfs-linux-gtk
+	install -Dm644 libexec/lfs_linux_dialog.py $(LIBEXECDIR)/lfs_linux_dialog.py
+	install -Dm644 libexec/lfs_linux_gtk.py $(LIBEXECDIR)/lfs_linux_gtk.py
 	install -Dm644 share/lfs-linux/release.env $(DATADIR)/lfs-linux/release.env
 	install -Dm644 share/lfs-linux/arch-wine-peter-jung.pgp $(DATADIR)/lfs-linux/arch-wine-peter-jung.pgp
 	install -Dm644 share/lfs-linux/lfs-0.8C20-stock.manifest $(DATADIR)/lfs-linux/lfs-0.8C20-stock.manifest
@@ -35,12 +39,18 @@ test:
 	./tests/test-public-static.sh
 	./tests/test-public-core.sh
 	./tests/test-runtime-trust.sh
+	python3 tests/test-player-safety.py
+	python3 tests/test-desktop.py
+	PYTHONDONTWRITEBYTECODE=1 python3 tests/test-gtk-dialog.py
 	./tests/test-upgrade.sh
 	python3 tests/test-support-static.py
 	python3 tests/test-triage-feedback.py
 	python3 tests/test-upstream-drift.py
 	./tests/test-website.sh
 	./tests/test-release-archive.sh
+
+gtk-check:
+	PYTHONDONTWRITEBYTECODE=1 /usr/bin/python3 tests/test-gtk-view.py
 
 package-check:
 	rm -rf artifacts/pkgroot

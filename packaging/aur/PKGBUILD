@@ -1,5 +1,5 @@
 pkgname=live-for-speed-linux
-pkgver=0.3.2
+pkgver=0.4.0
 pkgrel=1
 pkgdesc='Unofficial launcher for Live for Speed, a racing simulator game'
 arch=('x86_64')
@@ -10,6 +10,30 @@ conflicts=('lfs-linux' 'live-for-speed-launcher')
 replaces=('lfs-linux' 'live-for-speed-launcher')
 depends=(
   '7zip'
+  'alsa-lib'
+  'fontconfig'
+  'freetype2'
+  'gettext'
+  'glib2'
+  'glibc'
+  'libgcc'
+  'libgphoto2'
+  'gst-plugins-base-libs'
+  'gstreamer'
+  'libpcap'
+  'libusb'
+  'libunwind'
+  'libx11'
+  'libxcursor'
+  'libxext'
+  'libxi'
+  'libxkbcommon'
+  'libxrandr'
+  'opencl-icd-loader'
+  'pcsclite'
+  'sane'
+  'systemd-libs'
+  'wayland'
   'bash'
   'coreutils'
   'curl'
@@ -25,9 +49,12 @@ depends=(
   'util-linux'
   'vulkan-icd-loader'
   'vulkan-driver'
-  'wine=11.15-1'
   'xdotool'
-  'xterm'
+  'zenity'
+  'python'
+  'python-gobject'
+  'gtk4>=4.10'
+  'xdg-utils'
 )
 optdepends=(
   'libnotify: desktop launch error notifications'
@@ -37,7 +64,7 @@ optdepends=(
 install=live-for-speed-linux.install
 _source_name='live-for-speed-linux'
 source=("$_source_name-$pkgver.tar.gz::$url/releases/download/v$pkgver/$_source_name-$pkgver.tar.gz")
-sha256sums=('a36b63ed70a652bca8987917e9bc26769a2f23930523292c764544d4e0faaa1a')
+sha256sums=('ac7225a8b6771414a0b8f2b1bd0c2a4dfa2e67eef5b970d279ded3e9c40c64a4')
 
 package() {
   cd "$srcdir/$_source_name-$pkgver"

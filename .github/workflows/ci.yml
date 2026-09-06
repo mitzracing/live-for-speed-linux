@@ -16,9 +16,11 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - name: Install validation tools and runtime-test dependencies
-        run: sudo apt-get update && sudo apt-get install -y appstream curl desktop-file-utils dpkg-dev libarchive-tools libxml2-utils python3 python3-yaml 7zip gpgv shellcheck
+        run: sudo apt-get update && sudo apt-get install -y appstream curl desktop-file-utils dpkg-dev libarchive-tools libxml2-utils python3 python3-yaml python3-gi gir1.2-gtk-4.0 xvfb xauth 7zip gpgv shellcheck
       - name: Run static and unit checks
         run: make test
+      - name: Exercise native GTK dialogs with disposable workers
+        run: GDK_BACKEND=x11 GSK_RENDERER=cairo xvfb-run -a make gtk-check
       - name: Build and validate deterministic Debian package
         run: make deb-check
       - name: Build staged install

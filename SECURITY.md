@@ -8,40 +8,42 @@ Only the latest Live for Speed Linux release receives security fixes.
 
 Do not open a public issue for a vulnerability that exposes credentials, account data, arbitrary code execution, or unsafe update behavior.
 
-Contact the maintainers through [GitHub private vulnerability reporting](https://github.com/mitzracing/live-for-speed-linux/security/advisories/new). Do not publish sensitive proof data.
+Contact maintainers through [GitHub private vulnerability reporting](https://github.com/mitzracing/live-for-speed-linux/security/advisories/new). Do not publish sensitive proof data.
 
-Include:
+Include the wrapper version, distribution, Wine version, affected command, minimal reproduction, and expected security boundary. Do not include an LFS password, unlock code, Wine registry, or complete home path.
 
-- wrapper version
-- distribution and Wine version
-- affected command
-- minimal reproduction
-- expected security boundary
-
-Do not include an LFS password, unlock code, Wine registry, or complete home path.
-
-## Trust model
+## Authenticated inputs
 
 The wrapper processes three upstream binary inputs:
 
-1. The official LFS installer archive from `lfs.net`
+1. The official LFS installer from `lfs.net`
 2. The exact Arch Wine 11.15-1 package from the immutable Arch Linux Archive
 3. The official DXVK release archive from GitHub
 
-The release manifest pins byte sizes and SHA-256 digests. The Wine package additionally requires a valid detached signature from the exact shipped Arch packager certificate and fingerprint; this authenticates the package signer but does not claim reproducible binary-to-source correspondence. Changed bootstrap inputs fail closed. Before extraction, the wrapper rejects absolute paths, parent traversal, control characters, duplicate normalized names, unsupported member types, and escaping links. It extracts the verified LFS NSIS archive with 7-Zip instead of executing its installer stub. Shipped payload manifests verify every protected non-player game file and every Wine runtime file or link before any Wine executable runs.
+The release manifest pins byte sizes and SHA-256 digests. Wine also requires a detached signature from the exact shipped Arch packager certificate and fingerprint. This authenticates the package signer, not reproducible binary-to-source correspondence.
 
-Before Wine starts, the wrapper verifies either the packaged game manifest or a locally recorded in-game update manifest. It then writes one owner-only launch-session record with an exact key schema, verified baseline hashes, current version marker, session ID, epoch, and safe launch-log basename. The owner-only log must contain exactly one matching start event. A local baseline is created only after that LFS session advances its `data/versions/*.txt` marker and all processes in the private Wine prefix exit. Runtime-owned account/configuration files, logs, caches, downloaded mods, generated/downloaded skins, and other player paths remain outside the local protected inventory. Later launches verify every recorded file plus that protected-path inventory. Changes to protected files outside the session fail closed.
+Changed bootstrap inputs fail closed. Before extraction, the wrapper rejects absolute paths, parent traversal, control characters, duplicate normalized names, unsupported member types, and escaping links. It extracts the verified LFS NSIS archive with 7-Zip instead of executing the installer stub. It verifies every nested archive and every final official seed file in private staging before first installation. Activation does not overwrite a destination created during extraction.
 
-New local manifests use content-addressed names and the recorder never overwrites an existing path. A manifest is placed before an atomic marker replacement references it, so a crash or write failure leaves the previous marker/manifest pair valid. Normal launch completion removes the launch-session record; successful update commit also removes obsolete manifests. The v0.3.0 fixed-name manifest remains readable for compatibility.
+Every Wine runtime file or link is verified before any Wine executable runs. Wrapper-owned DXVK DLLs retain size and digest checks. Missing or changed compatibility components require repair; existing game files are kept.
 
-Every mutating command opens the launch lock only after validating an owner-only, non-symlink directory and regular lock file; the `/tmp` fallback cannot follow a precreated cross-user symlink. Launch acquires that lock before loading or hashing its baseline, so concurrent updater commits cannot race pre-launch validation. Explicit `recover-update` accepts an interrupted session only when its exact-schema metadata, evidence hashes, matching log session/epoch, baseline, stopped-prefix state, and advanced marker validate. It snapshots and validates protected files before confirmation, displays that snapshot digest, then requires an identical second inventory after confirmation before commit. Evidence and process state are rechecked around both inventories; recovery never runs automatically. Missing, duplicate, malformed, inconsistent, or raced evidence or content fails before marker mutation.
+## Installed-game ownership
 
-A local game-update baseline proves continuity from a trusted launch plus user confirmation when recovery is needed, not independent vendor authenticity. LFS and Wine already execute with the user's filesystem authority, so code running as that user can alter both game state and local metadata. Package manifests remain the reproducible maintainer-audited boundary.
+After first installation, LFS and the user own the entire game directory. The wrapper does not authenticate installed game contents, require a known executable digest, scan local inventories, or approve updates. It checks for a regular, readable, nonempty, non-symlink `LFS.exe` before launch. This is a usability check, not proof of vendor authenticity or complete game assets.
 
-The wrapper does not sandbox Wine. Wine applications can access host files available to the user. The private prefix isolates configuration and processes, not filesystem authority.
+This explicitly replaces the 0.3.x local-fingerprint policy. A local record was not an independent vendor signature: code running as the user could change both the game and its metadata. It also depended on Wine shutdown and version-marker assumptions that could block legitimate updates. Legacy records are now ignored and retained, not rebaselined. The compatibility `recover-update` command does not mutate them.
+
+Setup preserves an existing game rather than replacing it with an older bootstrap. A missing or unsafe executable in an existing directory stops setup before game-file changes. A legacy swap backup is restored only when the destination is absent. If both trees exist, neither is deleted automatically.
+
+## Process and data boundaries
+
+Mutating operations validate an owner-only, non-symlink lock directory and regular lock file before opening the launch lock. The `/tmp` fallback cannot follow a precreated cross-user symlink. Launch takes the lock before starting the game. Wine descendants do not inherit it.
+
+Launch waits for an updater-restarted game without automatic prefix-wide termination. If non-game Wine services remain, it leaves them running. Closing them requires the graphical **Close previous session** confirmation or explicit `lfs-linux stop`. Wine wait failures remain observable but cannot require game-fingerprint recovery on later launch.
+
+The wrapper does not sandbox Wine. Wine applications can access host files available to the user. The private prefix isolates configuration and processes, not filesystem authority. Package removal leaves user state untouched. Explicit per-user removal requires confirmation and retains unrecognized files.
 
 ## Update policy
 
-The wrapper never downloads or applies a game update during launch. LFS can use its own in-game updater. The foreground wrapper does not perform automatic prefix-wide termination: it waits for an updater-restarted game, leaves unsettled services running for explicit `lfs-linux stop`, records only after clean quiescence, and does not patch game files.
+The wrapper never downloads or applies a game update during normal launch. LFS owns its updater. The wrapper does not patch game files or infer the actual game version from old marker filenames.
 
-`update-check` performs a read-only check and never changes package pins. Scheduled automation may create or update one maintenance issue using only `contents: read` and `issues: write`; it cannot commit code, edit pins, open a pull request, tag, or publish. Report text is bounded and sanitized before it reaches GitHub. Maintainers still review each bootstrap update for new installs and repairs, and no update may merge or publish automatically.
+`update-check` is read-only and never changes pins. Scheduled automation may create or update one sanitized maintenance issue using only `contents: read` and `issues: write`. It cannot commit code, edit pins, open a pull request, tag, or publish. Maintainers review bootstrap updates for new installations; no update may merge or publish automatically.

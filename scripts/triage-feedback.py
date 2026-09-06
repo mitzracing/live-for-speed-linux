@@ -105,6 +105,13 @@ def distribution_label(body: str) -> str | None:
 
 
 def contains_sensitive_data(body: str) -> bool:
+    # The browser preserves field names when it removes values. Only an exact
+    # placeholder at the end of that line is safe; appended text is still scanned.
+    body = re.sub(
+        r"(?im)^([ \t]*(?:password|passwd|unlock(?:\s+code)?|authorization|cookie|token|access[_ -]?key|secret|account(?:\s+(?:name|id|key))?|machine[- ]?id|hardware\s+serial|serial\s+number)[ \t]*[:=])[ \t]*\[redacted\][ \t]*$",
+        "",
+        body,
+    )
     return any(pattern.search(body) for pattern in SENSITIVE_PATTERNS)
 
 
@@ -132,7 +139,7 @@ def build_plan(event: dict[str, Any]) -> dict[str, Any]:
         labels.add(distro)
     remove_labels = (existing & DISTRO_LABELS) - ({distro} if distro is not None else set())
 
-    detected_sensitive = contains_sensitive_data(body)
+    detected_sensitive = contains_sensitive_data(body) or contains_sensitive_data(str(issue.get("title") or ""))
     sensitive = detected_sensitive or "status:possible-sensitive" in existing
     if sensitive:
         labels.difference_update(QUEUE_LABELS)

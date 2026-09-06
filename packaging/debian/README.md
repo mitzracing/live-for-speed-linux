@@ -13,21 +13,19 @@ The pinned Wine 11.15 runtime requires glibc 2.38 or newer. Ubuntu 22.04 and Deb
 
 ## Install
 
-Install the local release asset with APT so its audited amd64 host-library and Vulkan dependencies are resolved. The package does not depend on system Wine; it provisions the exact private Wine 11.15 runtime only after verifying its pinned digest and detached Arch packager signature. Pure WoW64 requires no i386 Unix library stack.
+The 0.4.0 public test uses native graphical setup. Open its `.deb` with a graphical package installer, then open **Live for Speed Linux** from the application menu. Choose **Install and play**. Game setup, retry, compatibility repair, and Help require no terminal.
+
+The owner approved public-test downloads with manual acceptance checks open. This does not certify graphical dependency installation or gameplay. The default Ubuntu App Center, GNOME Software, KDE Discover, and GDebi are distinct routes; record exactly which one was tested before advertising it as verified. See `docs/RELEASE-CANDIDATE.md`.
+
+The package provisions the exact private Wine runtime, independent of any system Wine package. Pure WoW64 requires no i386 Unix library stack. Package installation itself downloads no game files.
+
+### Advanced command-line installation
 
 ```bash
-sudo apt update
-sudo apt install ./live-for-speed-linux_0.3.2-0github1_amd64.deb
+sudo apt install ./live-for-speed-linux_0.4.0-0github1_amd64.deb
 ```
 
-Then open **Live for Speed Linux** from the application menu or run:
-
-```bash
-lfs-linux install
-lfs-linux launch
-```
-
-Package installation does not download or install the game. Never run `lfs-linux install` or `lfs-linux launch` as root.
+Then open the game icon. Per-user launcher commands must never run as root.
 
 ## Build and verify
 
@@ -39,6 +37,11 @@ make deb-check
 ```
 
 The build uses a fixed `SOURCE_DATE_EPOCH`, root-owned archive entries, and deterministic xz compression. `tests/test-debian-package.sh` builds twice, compares hashes, validates control metadata, extracts the data archive, and applies the proprietary-payload boundary check.
+
+`./packaging/debian/build-catalog.sh` composes a local AppStream collection and
+icons from the staged package tree. It requires AppStream's compose tool and
+Python 3. Review this output alongside the package; the command configures no
+repository, generates no signing keys, and publishes nothing.
 
 ## Remove
 

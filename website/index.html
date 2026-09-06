@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Live for Speed Linux is an unofficial community launcher for the untouched Live for Speed build, with verified Wine and DXVK files.">
-  <title>Live for Speed Linux — verified community launcher</title>
+  <meta name="description" content="Install and play Live for Speed on Linux with graphical setup, resumable downloads, and player-safe repairs.">
+  <title>Live for Speed Linux — install and play</title>
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="styles.css">
   <script src="feedback.js" defer></script>
@@ -27,12 +27,12 @@
         <span class="brand-copy">
           <span class="brand-kicker">Unofficial community launcher</span>
           <span class="brand-name">Live for Speed <strong>Linux</strong></span>
-          <span class="brand-detail">Verified setup · direct launch path</span>
+          <span class="brand-detail">Graphical setup · click to play</span>
         </span>
       </a>
       <div class="release-chip" aria-label="Current release">
-        <span>WRAPPER</span>
-        <strong>0.3.2</strong>
+        <span>PUBLIC TEST</span>
+        <strong>0.4.0</strong>
         <small>LFS 0.8C20 TEST</small>
       </div>
     </div>
@@ -51,10 +51,10 @@
   </nav>
   <nav class="sub-nav" aria-label="Project highlights">
     <div class="shell nav-row">
-      <span>PINNED INPUTS</span>
-      <span>PRIVATE PREFIX</span>
-      <span>STOCK GAME FILES</span>
-      <span>NO LAUNCHER DAEMON</span>
+      <span>VERIFIED DOWNLOADS</span>
+      <span>GRAPHICAL SETUP</span>
+      <span>PLAYER DATA KEPT</span>
+      <span>CLICK TO PLAY</span>
     </div>
   </nav>
 
@@ -64,13 +64,13 @@
         <div class="track-lines" aria-hidden="true"></div>
         <div class="hero-copy">
           <p class="eyebrow">Arch · Manjaro · Debian 13 · Ubuntu 24.04 · x86_64</p>
-          <h1 id="hero-title">Race on Linux.<br>Keep LFS stock.</h1>
-          <p>Live for Speed Linux installs exact official 0.8C20 new graphics into one private Wine prefix. When LFS updates itself, later launches verify and start that local version without downgrading it.</p>
+          <h1 id="hero-title">Live for Speed.<br>At home on Linux.</h1>
+          <p>Install the launcher, open the game icon, and choose Install and play. Setup downloads and checks everything LFS needs. When LFS updates itself, the next launch uses your updated game.</p>
           <div class="hero-actions">
-            <a class="button blue" href="#install">Install the wrapper</a>
-            <a class="button orange" href="https://github.com/mitzracing/live-for-speed-linux">Read the source</a>
+            <a class="button blue" href="#install">Install Live for Speed</a>
+            <a class="button orange" href="#support">Get help</a>
           </div>
-          <code class="route">lfs-linux → Wine 11.15-1 → LFS.exe → DXVK D3D11 → Vulkan</code>
+          <p class="route">No terminal or Wine configuration during game setup.</p>
         </div>
       </section>
 
@@ -80,30 +80,43 @@
           <small>one informed setup</small>
         </header>
         <div class="panel-body install-steps">
+          <p class="publication"><strong>0.4.0 public test:</strong> downloads are available for testing. Graphical package installation and real updated-game acceptance checks remain open. No software-store listing is available. <a href="https://github.com/mitzracing/live-for-speed-linux/blob/main/docs/RELEASE-CANDIDATE.md">Tested scope and remaining checks</a>.</p>
           <article>
             <span class="step-number">1</span>
             <div>
-              <h3>Install the verified wrapper release</h3>
-              <pre><code>curl -fLO https://github.com/mitzracing/live-for-speed-linux/releases/download/v0.3.2/live-for-speed-linux_0.3.2-0github1_amd64.deb
-sudo apt install ./live-for-speed-linux_0.3.2-0github1_amd64.deb</code></pre>
-              <p>The direct <code>.deb</code> supports Debian 13 and Ubuntu 24.04. The AUR recipe is ready, but publication still awaits maintainer SSH access. A verified source archive remains available on GitHub.</p>
+              <h3>Choose your Linux distribution</h3>
+              <details class="install-choice">
+                <summary>Debian 13 or Ubuntu 24.04 · x86_64</summary>
+                <p>Download the small launcher package, open it with a graphical package installer, then open Live for Speed Linux from your application menu. The package does not contain the game.</p>
+                <a class="button blue" href="https://github.com/mitzracing/live-for-speed-linux/releases/download/v0.4.0/live-for-speed-linux_0.4.0-0github1_amd64.deb">Download .deb · 0.4.0 public test</a>
+                <p><a href="https://github.com/mitzracing/live-for-speed-linux/releases/tag/v0.4.0">Release notes and checksums</a></p>
+              </details>
+              <details class="install-choice">
+                <summary>Arch Linux or Manjaro · x86_64</summary>
+                <p>An Arch test package is available on GitHub. The AUR/Pamac route is not published or verified yet; this download is not a software-store listing.</p>
+                <a class="button blue" href="https://github.com/mitzracing/live-for-speed-linux/releases/download/v0.4.0/live-for-speed-linux-0.4.0-1-x86_64.pkg.tar.zst">Download Arch package · public test</a>
+              </details>
+              <details class="install-choice">
+                <summary>Another distribution or advanced installation</summary>
+                <p>See the <a href="https://github.com/mitzracing/live-for-speed-linux#readme">source and compatibility instructions</a>. This release requires Linux x86_64 and a Vulkan-capable graphics driver.</p>
+              </details>
             </div>
           </article>
           <article>
             <span class="step-number">2</span>
             <div>
               <h3>Open Live for Speed Linux</h3>
-              <p>Read the source, size, path, and legal notice. Confirm the download once.</p>
+              <p>Find the game in your application menu. Choose <strong>Install and play</strong> after reviewing the download size and public-test notice. Setup shows progress and can resume interrupted downloads.</p>
             </div>
           </article>
           <article>
             <span class="step-number">3</span>
             <div>
-              <h3>Launch the game directly</h3>
-              <p>The wrapper verifies the complete stock inventory before Wine starts the untouched game.</p>
+              <h3>Play now. Click the same icon next time.</h3>
+              <p>LFS opens when setup finishes. Your settings, setups, replays, and downloaded skins stay yours. The launcher can repair compatibility components without replacing your game.</p>
             </div>
           </article>
-          <p class="publication"><strong>Public-test channel:</strong> v0.3.2 bootstraps exact LFS 0.8C20 new graphics and safely records later versioned in-game updates after LFS exits. Immutable <a href="https://github.com/mitzracing/live-for-speed-linux/releases/tag/v0.1.6">v0.1.6</a> remains the old-graphics 0.7G fallback. The <code>.deb</code> is a GitHub download, not a Debian archive or PPA; catalog metadata is ready for GNOME Software and KDE Discover after Debian acceptance, and AUR publication is pending maintainer SSH access.</p>
+          <p class="publication"><strong>Public-test channel:</strong> first installation starts with LFS 0.8C20 new graphics. LFS manages its own game updates. <a href="https://github.com/mitzracing/live-for-speed-linux/releases/tag/v0.1.6">v0.1.6</a> remains the old-graphics 0.7G fallback.</p>
         </div>
       </section>
 
@@ -250,7 +263,7 @@ sudo apt install ./live-for-speed-linux_0.3.2-0github1_amd64.deb</code></pre>
             <h3>What it verifies</h3>
             <ul>
               <li>Official LFS installer size and SHA-256</li>
-              <li>Every packaged or locally recorded protected game file</li>
+              <li>The official game seed before first installation</li>
               <li>Every required Wine runtime file and link</li>
               <li>Private DXVK D3D11 and DXGI DLL copies</li>
             </ul>
@@ -264,7 +277,7 @@ sudo apt install ./live-for-speed-linux_0.3.2-0github1_amd64.deb</code></pre>
               <li>Existing shader cache between launches</li>
             </ul>
           </div>
-          <p class="boundary-note">No game binaries, official logos, unlock tools, or modified assets are distributed by this project.</p>
+          <p class="boundary-note">LFS owns installed game files and updates: no game fingerprint or update approval is required. No game binaries, official logos, unlock tools, or modified assets are distributed by this project.</p>
         </div>
       </section>
     </div>
@@ -273,27 +286,22 @@ sudo apt install ./live-for-speed-linux_0.3.2-0github1_amd64.deb</code></pre>
       <section class="side-panel">
         <h2>RELEASE STATUS</h2>
         <div class="side-body status-list">
-          <p><span>Wrapper</span><strong>0.3.2</strong></p>
+          <p><span>Wrapper</span><strong>0.4.0</strong></p>
           <p><span>Game pin</span><strong>0.8C20</strong></p>
           <p><span>Channel</span><strong>PUBLIC TEST</strong></p>
           <p><span>Wine pin</span><strong>11.15-1</strong></p>
           <p><span>DXVK pin</span><strong>3.0.2</strong></p>
-          <p><span>Release</span><strong class="ok">IMMUTABLE</strong></p>
+          <p><span>Release</span><strong>PRERELEASE</strong></p>
         </div>
       </section>
 
       <section class="side-panel">
-        <h2>DIRECT PATH</h2>
-        <div class="side-body path-list">
-          <span>Desktop entry</span>
-          <i aria-hidden="true">↓</i>
-          <span>Audited Wine</span>
-          <i aria-hidden="true">↓</i>
-          <span>Stock LFS.exe</span>
-          <i aria-hidden="true">↓</i>
-          <span>Private DXVK</span>
-          <i aria-hidden="true">↓</i>
-          <span>Host Vulkan driver</span>
+        <h2>READY FOR RACE DAY</h2>
+        <div class="side-body link-list">
+          <p>One game icon for setup and play.</p>
+          <p>Downloads resume after interruption.</p>
+          <p>Help and repair are available from the application menu.</p>
+          <a href="https://github.com/mitzracing/live-for-speed-linux/blob/main/docs/ARCHITECTURE.md">Technical details →</a>
         </div>
       </section>
 

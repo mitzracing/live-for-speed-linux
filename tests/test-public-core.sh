@@ -12,6 +12,8 @@ export LFS_LINUX_LIBEXEC_DIR="$ROOT_DIR/libexec"
 export LFS_LINUX_STATE_DIR="$TMP_ROOT/state"
 export LFS_LINUX_CACHE_DIR="$TMP_ROOT/cache"
 export LFS_LINUX_LOG_DIR="$TMP_ROOT/log"
+export XDG_RUNTIME_DIR="$TMP_ROOT/xdg-runtime"
+mkdir -p "$XDG_RUNTIME_DIR"
 
 # shellcheck source=/dev/null
 source "$ROOT_DIR/share/lfs-linux/release.env"
@@ -74,16 +76,14 @@ setup_drift_state="$TMP_ROOT/setup-drift-state"
 mkdir -p "$setup_drift_state/prefix/drive_c/LFS"
 printf 'unexpected-executable' >"$setup_drift_state/prefix/drive_c/LFS/LFS.exe"
 set +e
-printf 'y\n' | LFS_LINUX_STATE_DIR="$setup_drift_state" \
+printf 'n\n' | LFS_LINUX_STATE_DIR="$setup_drift_state" \
   "$ROOT_DIR/bin/lfs-linux" setup >"$TMP_ROOT/setup-drift.out" 2>&1
 setup_drift_status=$?
 set -e
-[[ "$setup_drift_status" -ne 0 ]]
-grep -Fq 'unrecognized LFS update detected' "$TMP_ROOT/setup-drift.out"
-if grep -Fq 'Continue with verified setup?' "$TMP_ROOT/setup-drift.out"; then
-  printf 'unknown self-update reached obsolete setup confirmation\n' >&2
-  exit 1
-fi
+[[ "$setup_drift_status" -eq 3 ]]
+grep -Fq 'Keep your existing game and all player files' "$TMP_ROOT/setup-drift.out"
+grep -Fq 'Continue with verified setup?' "$TMP_ROOT/setup-drift.out"
+grep -Fqx unexpected-executable "$setup_drift_state/prefix/drive_c/LFS/LFS.exe"
 [[ ! -e "$setup_drift_state/.managed-by-lfs-linux" ]]
 
 set +e
@@ -100,6 +100,7 @@ mkdir -p "$fake_root/usr/bin" "$fake_root/usr/lib/wine" "$test_data" "$TMP_ROOT/
 cat >"$fake_wine" <<'EOF'
 #!/usr/bin/env bash
 [[ "${1:-}" == '--version' ]] && { printf '%s\n' 'wine-11.15'; exit 0; }
+[[ -f "${1:-}" ]] && exit 0
 exit 1
 EOF
 cat >"$fake_root/usr/bin/wineserver" <<'EOF'
@@ -150,14 +151,15 @@ grep -Fq 'exact audited Wine 11.15-1 is unavailable' "$TMP_ROOT/untested-wine.ou
 [[ ! -e "$TMP_ROOT/untested-state/.managed-by-lfs-linux" ]]
 
 mkdir -p "$TMP_ROOT/drift-state/prefix/drive_c/LFS"
-printf 'unexpected-executable' >"$TMP_ROOT/drift-state/prefix/drive_c/LFS/LFS.exe"
+printf 'external-file' >"$TMP_ROOT/external-executable"
+ln -s "$TMP_ROOT/external-executable" "$TMP_ROOT/drift-state/prefix/drive_c/LFS/LFS.exe"
 set +e
 LFS_LINUX_DATA_DIR="$test_data" LFS_LINUX_STATE_DIR="$TMP_ROOT/drift-state" LFS_LINUX_WINE="$fake_wine" \
   "$ROOT_DIR/bin/lfs-linux" install >"$TMP_ROOT/install-drift.out" 2>&1
 install_drift_status=$?
 set -e
 [[ "$install_drift_status" -ne 0 ]]
-grep -Fq 'unrecognized LFS update detected' "$TMP_ROOT/install-drift.out"
+grep -Fq 'no readable, nonempty regular LFS.exe' "$TMP_ROOT/install-drift.out"
 grep -Fq 'no files changed' "$TMP_ROOT/install-drift.out"
 [[ ! -e "$TMP_ROOT/drift-state/.managed-by-lfs-linux" ]]
 [[ ! -e "$TMP_ROOT/drift-state/runtime" ]]
@@ -170,7 +172,7 @@ LFS_LINUX_DATA_DIR="$test_data" LFS_LINUX_STATE_DIR="$TMP_ROOT/missing-exe-state
 missing_exe_status=$?
 set -e
 [[ "$missing_exe_status" -ne 0 ]]
-grep -Fq 'no recognized executable or current marker' "$TMP_ROOT/missing-exe.out"
+grep -Fq 'no readable, nonempty regular LFS.exe' "$TMP_ROOT/missing-exe.out"
 grep -Fqx 'player-data' "$TMP_ROOT/missing-exe-state/prefix/drive_c/LFS/profile.dat"
 [[ ! -e "$TMP_ROOT/missing-exe-state/.managed-by-lfs-linux" ]]
 [[ ! -e "$TMP_ROOT/missing-exe-state/runtime" ]]
@@ -197,21 +199,21 @@ marker_status=$?
 set -e
 [[ "$marker_status" -ne 0 ]]
 [[ ! -e "$TMP_ROOT/marker-was-sourced" ]]
-grep -Fq 'immutable stock payload drift' "$TMP_ROOT/marker.out"
+grep -Fq 'LFS.exe is missing' "$TMP_ROOT/marker.out"
 
-# Deleting an arbitrary immutable asset must fail even when loose tree totals still pass.
+# Installed game files may change or disappear during LFS updates; no stock launch gate.
 tiny_data="$TMP_ROOT/tiny-data"
 tiny_state="$TMP_ROOT/tiny-state"
 tiny_game="$tiny_state/prefix/drive_c/LFS"
 mkdir -p "$tiny_data" "$tiny_game/data/skins_dds" "$tiny_game/data/wld" "$tiny_game/data/veh" \
-  "$tiny_state/runtime/dxvk/x32" "$tiny_state/prefix/drive_c/windows/syswow64"
+  "$tiny_state/runtime/dxvk-$DXVK_VERSION/x32" "$tiny_state/prefix/drive_c/windows/syswow64"
 printf exe >"$tiny_game/LFS.exe"
 printf helmet >"$tiny_game/data/skins_dds/HEL_DEFAULT.dds"
 printf track >"$tiny_game/data/wld/BLACKWOOD.wld"
 printf vehicle >"$tiny_game/data/veh/XFG.vob"
 printf fone >"$tiny_game/data/veh/F1.vob"
-printf d11 >"$tiny_state/runtime/dxvk/x32/d3d11.dll"
-printf dxg >"$tiny_state/runtime/dxvk/x32/dxgi.dll"
+printf d11 >"$tiny_state/runtime/dxvk-$DXVK_VERSION/x32/d3d11.dll"
+printf dxg >"$tiny_state/runtime/dxvk-$DXVK_VERSION/x32/dxgi.dll"
 printf d11 >"$tiny_state/prefix/drive_c/windows/syswow64/d3d11.dll"
 printf dxg >"$tiny_state/prefix/drive_c/windows/syswow64/dxgi.dll"
 printf '#arch=win64\n' >"$tiny_state/prefix/system.reg"
@@ -220,10 +222,15 @@ exe_hash="$(sha256sum "$tiny_game/LFS.exe" | awk '{print $1}')"
 helmet_hash="$(sha256sum "$tiny_game/data/skins_dds/HEL_DEFAULT.dds" | awk '{print $1}')"
 track_hash="$(sha256sum "$tiny_game/data/wld/BLACKWOOD.wld" | awk '{print $1}')"
 vehicle_hash="$(sha256sum "$tiny_game/data/veh/XFG.vob" | awk '{print $1}')"
-d3d11_hash="$(sha256sum "$tiny_state/runtime/dxvk/x32/d3d11.dll" | awk '{print $1}')"
-dxgi_hash="$(sha256sum "$tiny_state/runtime/dxvk/x32/dxgi.dll" | awk '{print $1}')"
+d3d11_hash="$(sha256sum "$tiny_state/runtime/dxvk-$DXVK_VERSION/x32/d3d11.dll" | awk '{print $1}')"
+dxgi_hash="$(sha256sum "$tiny_state/runtime/dxvk-$DXVK_VERSION/x32/dxgi.dll" | awk '{print $1}')"
 cp "$test_data/release.env" "$tiny_data/release.env"
 cp "$test_data/fake-wine.manifest" "$tiny_data/fake-wine.manifest"
+cp "$test_data/fake-signing-key.gpg" "$tiny_data/fake-signing-key.gpg"
+mkdir -p "$TMP_ROOT/graphics-probe"
+printf '#!/bin/sh\nprintf "deviceName = fixture\\n"\n' >"$TMP_ROOT/graphics-probe/vulkaninfo"
+chmod +x "$TMP_ROOT/graphics-probe/vulkaninfo"
+export PATH="$TMP_ROOT/graphics-probe:$PATH" DISPLAY="${DISPLAY:-:fixture}"
 "$ROOT_DIR/scripts/generate-payload-manifest.py" lfs "$tiny_game" "$tiny_data/tiny-stock.manifest" >/dev/null
 tiny_manifest_size="$(stat -c %s "$tiny_data/tiny-stock.manifest")"
 tiny_manifest_hash="$(sha256sum "$tiny_data/tiny-stock.manifest" | awk '{print $1}')"
@@ -272,10 +279,10 @@ LFS_LINUX_DATA_DIR="$tiny_data" LFS_LINUX_STATE_DIR="$tiny_state" LFS_LINUX_WINE
   "$ROOT_DIR/bin/lfs-linux" ready >"$TMP_ROOT/partial-ready.out" 2>&1
 partial_ready_status=$?
 set -e
-[[ "$partial_doctor_status" -ne 0 && "$partial_launch_status" -ne 0 && "$partial_ready_status" -ne 0 ]]
-grep -Fq 'required stock file missing: data/veh/F1.vob' "$TMP_ROOT/partial-doctor.out"
-grep -Fq 'required stock file missing: data/veh/F1.vob' "$TMP_ROOT/partial-launch.out"
-grep -Fq 'stock LFS tree file count: 4' "$TMP_ROOT/partial-doctor.out"
+[[ "$partial_doctor_status" -eq 0 && "$partial_launch_status" -eq 0 && "$partial_ready_status" -eq 0 ]]
+grep -Fq 'game files and updates are managed by LFS' "$TMP_ROOT/partial-doctor.out"
+grep -Fq 'Starting Live for Speed' "$TMP_ROOT/partial-launch.out"
+[[ ! -e "$tiny_game/data/veh/F1.vob" ]]
 
 mkdir -p "$TMP_ROOT/state/prefix/drive_c/LFS"
 printf '%s\n' 'lfs-linux managed state; unknown files are preserved on removal' >"$TMP_ROOT/state/.managed-by-lfs-linux"
@@ -297,53 +304,13 @@ grep -Fq 'kept unrecognized files' "$TMP_ROOT/remove-confirmed.out"
 mkdir -p "$TMP_ROOT/fake-bin"
 cat >"$TMP_ROOT/fake-bin/lfs-mock" <<'EOF'
 #!/usr/bin/env bash
-case "${1:-}" in
-  ready) [[ -f "$MOCK_READY" ]] ;;
-  setup) printf 'setup\n' >>"$MOCK_LOG"; touch "$MOCK_READY" ;;
-  launch) printf 'launch\n' >>"$MOCK_LOG" ;;
-  doctor) printf 'doctor\n' >>"$MOCK_LOG" ;;
-  *) exit 2 ;;
-esac
+printf '%s\n' "$*" >>"$MOCK_LOG"
 EOF
-cat >"$TMP_ROOT/fake-bin/xterm" <<'EOF'
-#!/usr/bin/env bash
-while (( $# > 0 )); do
-  if [[ "$1" == '-e' ]]; then
-    shift
-    exec "$@"
-  fi
-  shift
+chmod +x "$TMP_ROOT/fake-bin/lfs-mock"
+export MOCK_LOG="$TMP_ROOT/desktop.log"
+for action in launch setup doctor help; do
+  LFS_LINUX_COMMAND="$TMP_ROOT/fake-bin/lfs-mock" "$ROOT_DIR/bin/lfs-linux-desktop" "$action"
+  grep -Fxq "desktop $action" "$MOCK_LOG"
 done
-exit 2
-EOF
-chmod +x "$TMP_ROOT/fake-bin/lfs-mock" "$TMP_ROOT/fake-bin/xterm"
-export MOCK_READY="$TMP_ROOT/desktop-ready" MOCK_LOG="$TMP_ROOT/desktop.log"
-PATH="$TMP_ROOT/fake-bin:$PATH" LFS_LINUX_COMMAND="$TMP_ROOT/fake-bin/lfs-mock" \
-  "$ROOT_DIR/bin/lfs-linux-desktop" launch
-PATH="$TMP_ROOT/fake-bin:$PATH" LFS_LINUX_COMMAND="$TMP_ROOT/fake-bin/lfs-mock" \
-  "$ROOT_DIR/bin/lfs-linux-desktop" launch
-[[ "$(grep -c '^setup$' "$MOCK_LOG")" -eq 1 ]]
-[[ "$(grep -c '^launch$' "$MOCK_LOG")" -eq 2 ]]
 
-generic_bin="$TMP_ROOT/generic-terminal-bin"
-mkdir -p "$generic_bin"
-ln -s /usr/bin/bash "$generic_bin/bash"
-ln -s /usr/bin/dirname "$generic_bin/dirname"
-ln -s /usr/bin/touch "$generic_bin/touch"
-ln -s "$TMP_ROOT/fake-bin/lfs-mock" "$generic_bin/lfs-mock"
-cat >"$generic_bin/x-terminal-emulator" <<'EOF'
-#!/usr/bin/env bash
-printf '%s\n' "$*" >"$MOCK_TERMINAL_LOG"
-[[ "${1:-}" == '-e' ]] || exit 2
-shift
-exec "$@"
-EOF
-chmod +x "$generic_bin/x-terminal-emulator"
-rm -f "$MOCK_READY"
-export MOCK_TERMINAL_LOG="$TMP_ROOT/generic-terminal.log"
-PATH="$generic_bin" LFS_LINUX_COMMAND="$generic_bin/lfs-mock" \
-  "$ROOT_DIR/bin/lfs-linux-desktop" setup
-grep -Fq -- '-e ' "$MOCK_TERMINAL_LOG"
-grep -Fxq 'setup' "$MOCK_LOG"
-
-printf '[PASS] pre-execution Wine verification, stock drift, terminal dispatch, marker, and safe-removal paths pass\n'
+printf '[PASS] pre-execution Wine verification, game-owned updates, desktop dispatch, marker, and safe-removal paths pass\n'

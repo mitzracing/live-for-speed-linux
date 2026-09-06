@@ -22,7 +22,7 @@ apt-get update
 apt-get install -y --no-install-recommends \
   appstream bash ca-certificates coreutils curl desktop-file-utils dpkg-dev file \
   findutils gawk gpgv grep libarchive-tools libxml2-utils make passwd procps python3 \
-  python3-yaml sed shellcheck tar util-linux xz-utils 7zip
+  python3-yaml python3-gi gir1.2-gtk-4.0 xvfb xauth nodejs sed shellcheck tar util-linux xz-utils 7zip
 
 id -u lfstest >/dev/null 2>&1 || useradd --create-home --uid 2000 --shell /bin/bash lfstest
 rm -rf /work /tmp/lfs-test-runtime
@@ -40,12 +40,16 @@ runuser -u lfstest -- env \
     ./tests/test-public-static.sh
     ./tests/test-public-core.sh
     ./tests/test-runtime-trust.sh
+    python3 tests/test-player-safety.py
+    python3 tests/test-desktop.py
+    PYTHONDONTWRITEBYTECODE=1 python3 tests/test-gtk-dialog.py
+    GDK_BACKEND=x11 GSK_RENDERER=cairo xvfb-run -a make gtk-check
     ./tests/test-upgrade.sh
     python3 tests/test-support-static.py
     python3 tests/test-triage-feedback.py
     python3 tests/test-upstream-drift.py
     make package-check
     make deb-check
-    shellcheck bin/* libexec/lfs-linux-core packaging/debian/*.sh scripts/*.sh tests/*.sh
+    shellcheck bin/* libexec/lfs-linux-core libexec/lfs-linux-ui packaging/debian/*.sh scripts/*.sh tests/*.sh
     printf "DISTRO_COMPATIBILITY=PASS\n"
   '

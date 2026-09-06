@@ -4,11 +4,19 @@ set -Eeuo pipefail
 ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 readonly ROOT_DIR
 
-bash -n "$ROOT_DIR/bin/"* "$ROOT_DIR/libexec/lfs-linux-core" "$ROOT_DIR/scripts/"*.sh "$ROOT_DIR/tests/"*.sh
+bash -n "$ROOT_DIR/bin/"* "$ROOT_DIR/libexec/lfs-linux-core" "$ROOT_DIR/libexec/lfs-linux-ui" "$ROOT_DIR/scripts/"*.sh "$ROOT_DIR/tests/"*.sh
 python3 -c 'import ast, pathlib, sys; ast.parse(pathlib.Path(sys.argv[1]).read_text())' "$ROOT_DIR/scripts/generate-payload-manifest.py"
 python3 -c 'import ast, pathlib, sys; ast.parse(pathlib.Path(sys.argv[1]).read_text())' "$ROOT_DIR/scripts/sync-upstream-drift.py"
+python3 - "$ROOT_DIR/libexec" <<'PY'
+import ast
+from pathlib import Path
+import sys
+for name in ('lfs-linux-gtk', 'lfs_linux_dialog.py', 'lfs_linux_gtk.py'):
+    path = Path(sys.argv[1]) / name
+    ast.parse(path.read_text(), filename=str(path))
+PY
 if command -v shellcheck >/dev/null 2>&1; then
-  shellcheck "$ROOT_DIR/bin/"* "$ROOT_DIR/libexec/lfs-linux-core" "$ROOT_DIR/scripts/"*.sh "$ROOT_DIR/tests/"*.sh
+  shellcheck "$ROOT_DIR/bin/"* "$ROOT_DIR/libexec/lfs-linux-core" "$ROOT_DIR/libexec/lfs-linux-ui" "$ROOT_DIR/scripts/"*.sh "$ROOT_DIR/tests/"*.sh
 fi
 
 python3 - "$ROOT_DIR/share/metainfo/io.github.mitzracing.live_for_speed_linux.metainfo.xml" "$ROOT_DIR/share/applications/io.github.mitzracing.live_for_speed_linux.desktop" <<'PY'
@@ -301,6 +309,7 @@ usage = core.split("Commands:\n", 1)[1].split("\nEnvironment:", 1)[0]
 usage_commands = set(re.findall(r"^  ([a-z][a-z-]*)\s", usage, re.MULTILINE))
 dispatch_commands = set(re.findall(r"^  ([a-z][a-z-]*)(?:\||\))", core, re.MULTILINE))
 manual_commands = set(re.findall(r"^\.TP\n\.B ([a-z][a-z-]*)$", manual, re.MULTILINE))
+dispatch_commands -= {"desktop", "desktop-state", "support-report"}
 assert usage_commands == dispatch_commands == manual_commands, (
     usage_commands,
     dispatch_commands,
@@ -318,7 +327,14 @@ if [[ "${LFS_LINUX_SOURCE_ARCHIVE:-0}" != '1' ]]; then
   grep -Fq "pkgver = $(<"$ROOT_DIR/VERSION")" "$ROOT_DIR/packaging/aur/.SRCINFO"
   grep -Fq "pkgdesc='Unofficial launcher for Live for Speed, a racing simulator game'" "$ROOT_DIR/packaging/aur/PKGBUILD"
   grep -Fq 'pkgdesc = Unofficial launcher for Live for Speed, a racing simulator game' "$ROOT_DIR/packaging/aur/.SRCINFO"
-  grep -Fq "'wine=11.15-1'" "$ROOT_DIR/packaging/aur/PKGBUILD"
+  if grep -Eq "^[[:space:]]*'wine(=|')" "$ROOT_DIR/packaging/aur/PKGBUILD"; then
+    printf 'AUR package must provision private Wine without constraining system Wine\n' >&2
+    exit 1
+  fi
+  for dependency in zenity python python-gobject 'gtk4>=4.10'; do
+    grep -Fq "'$dependency'" "$ROOT_DIR/packaging/aur/PKGBUILD"
+    grep -Fq "depends = $dependency" "$ROOT_DIR/packaging/aur/.SRCINFO"
+  done
   grep -Fq "'gnupg'" "$ROOT_DIR/packaging/aur/PKGBUILD"
   grep -Fq 'depends = gnupg' "$ROOT_DIR/packaging/aur/.SRCINFO"
   if grep -Eq 'ALLOW_UNTESTED_WINE|WINE_TESTED_MAJOR|wine>=10' "$ROOT_DIR/packaging/aur/PKGBUILD"; then

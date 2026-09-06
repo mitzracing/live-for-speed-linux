@@ -1,4 +1,4 @@
-.TH LFS-LINUX 1 "September 2026" "lfs-linux 0.3.2" "User Commands"
+.TH LFS-LINUX 1 "September 2026" "lfs-linux 0.4.0" "User Commands"
 .SH NAME
 lfs-linux \- verify, install, and launch Live for Speed in a private Wine prefix
 .SH SYNOPSIS
@@ -7,7 +7,8 @@ lfs-linux \- verify, install, and launch Live for Speed in a private Wine prefix
 .SH DESCRIPTION
 .B lfs-linux
 is an unofficial open-source launcher for the untouched official Live for Speed Windows build.
-It verifies pinned LFS, Wine, and DXVK payloads before use, authenticates the Wine package with its detached Arch packager signature, and keeps game and player files in user-owned XDG directories.
+It verifies downloaded LFS, Wine, and DXVK payloads, authenticates the Wine package with its detached Arch packager signature, and keeps game and player files in user-owned XDG directories.
+After first installation, LFS owns game files and updates. The wrapper verifies compatibility components, not installed game fingerprints.
 Live for Speed 0.8C20 is a public test and is not represented as stable.
 .SH COMMANDS
 .TP
@@ -18,10 +19,10 @@ Run interactive first-use setup.
 Download, verify, and install or repair pinned upstream runtime files.
 .TP
 .B launch
-Validate the installed payload and start LFS.
+Check compatibility components and start LFS without an installed-game fingerprint gate.
 .TP
 .B recover-update
-Explicitly recover an interrupted, evidence-bound in-game update.
+Legacy compatibility notice. Updates no longer require wrapper recovery; launch normally.
 .TP
 .B stop
 Request a clean game exit, then stop only the private Wine prefix if needed.
@@ -30,7 +31,7 @@ Request a clean game exit, then stop only the private Wine prefix if needed.
 Report host, runtime, manifest, and installation checks.
 .TP
 .B status
-Show pinned versions, paths, baseline, and process state.
+Show bootstrap pins, installation presence, paths, and process state. Check the game version inside LFS.
 .TP
 .B update-check
 Compare release pins with the official LFS downloads page without modifying LFS.
@@ -52,7 +53,7 @@ Show command help.
 .SH FILES
 .TP
 .I $XDG_DATA_HOME/lfs-linux
-Private Wine runtime, prefix, game files, and local update baselines.
+Private Wine runtime, prefix, game files, and any retained legacy update records.
 .TP
 .I $XDG_CACHE_HOME/lfs-linux
 Verified downloads and disposable caches.
@@ -65,3 +66,16 @@ Normal system-package removal does not delete user profiles, settings, replays, 
 The wrapper and distribution package do not contain proprietary game payloads.
 .SH SEE ALSO
 Project documentation: https://github.com/mitzracing/live-for-speed-linux
+
+.SH GRAPHICAL USE
+Open Live for Speed Linux from the application menu for graphical installation,
+progress, compatibility-component repair, and automatic launch.
+Accept updates inside LFS and reopen normally after closing. No wrapper update approval is needed.
+The desktop helper accepts launch, setup, doctor, help, and recover-update.
+A branded GTK window replaces the first-run terminal. Download progress uses
+measured bytes. Other steps use an indeterminate indicator. Help previews a small
+diagnostic report before the player saves it or opens the support website.
+.PP
+The default selects GTK when available, with Zenity as the initial fallback.
+Set LFS_LINUX_UI=zenity to select Zenity, or LFS_LINUX_UI=gtk to require GTK.
+The controller does not switch views after an operation starts.
