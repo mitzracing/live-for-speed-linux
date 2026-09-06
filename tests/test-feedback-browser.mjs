@@ -289,9 +289,18 @@ try {
   };
   await key('Tab', 9);
   const skip = await client.send('Runtime.evaluate', {
-    expression: "({skip: document.activeElement.classList.contains('skip-link'), top: document.activeElement.getBoundingClientRect().top})", returnByValue: true,
+    expression: "({skip: document.activeElement.classList.contains('skip-link'), top: document.activeElement.getBoundingClientRect().top, scrollY, tag: document.activeElement.tagName, id: document.activeElement.id})", returnByValue: true,
   });
-  assert.ok(skip.result.value.skip && skip.result.value.top >= 0, 'keyboard skip link missing or clipped');
+  assert.ok(skip.result.value.skip && skip.result.value.top >= 0, `keyboard skip link missing or clipped: ${JSON.stringify(skip.result.value)}`);
+  const scrolledSkip = await client.send('Runtime.evaluate', {
+    expression: `(() => {
+      window.scrollTo({top: 200, behavior: 'instant'});
+      const rect = document.activeElement.getBoundingClientRect();
+      return {top: rect.top, bottom: rect.bottom, viewport: innerHeight};
+    })()`, returnByValue: true,
+  });
+  assert.ok(scrolledSkip.result.value.top >= 0 && scrolledSkip.result.value.bottom <= scrolledSkip.result.value.viewport,
+    `focused skip link leaves viewport during scrolling: ${JSON.stringify(scrolledSkip.result.value)}`);
   await key('Enter', 13);
   const skipped = await client.send('Runtime.evaluate', { expression: "document.activeElement.id", returnByValue: true });
   assert.equal(skipped.result.value, 'install', 'skip link did not focus downloads');

@@ -44,7 +44,7 @@ img, svg { display: block; max-width: 100%; }
 .section-heading > div { min-width: 0; }
 .section-heading .eyebrow { margin-bottom: 12px; }
 
-.skip-link { position: absolute; top: 12px; left: 16px; z-index: 10; transform: translateY(-180%); background: var(--text); color: var(--bg); padding: 12px 20px; border-radius: 8px; }
+.skip-link { position: fixed; top: 12px; left: 16px; z-index: 10; transform: translateY(-180%); background: var(--text); color: var(--bg); padding: 12px 20px; border-radius: 8px; }
 .skip-link:focus { transform: none; }
 .site-header { border-bottom: 1px solid var(--border); }
 .header-inner { min-height: 88px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 32px; padding-block: 16px; }
