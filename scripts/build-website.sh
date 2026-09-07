@@ -7,7 +7,11 @@ readonly OUTPUT_DIR="${1:?Usage: build-website.sh NEW_OUTPUT_DIRECTORY}"
 
 # Refuse existing output rather than retaining stale files or overwriting other work.
 mkdir -- "$OUTPUT_DIR"
-for path in index.html styles.css feedback.js assets/blackwood-rallycross.webp assets/README.md; do
+for path in \
+  index.html styles.css feedback.js installer-demo.js \
+  assets/blackwood-rallycross.webp assets/README.md \
+  assets/spacegrotesk.woff2 assets/spacegrotesk-OFL.txt \
+  assets/installer-demo.webm assets/installer-demo.mp4 assets/installer-poster.webp; do
   install -Dm644 -- "$ROOT_DIR/website/$path" "$OUTPUT_DIR/$path"
 done
 install -Dm644 -- "$ROOT_DIR/share/icons/hicolor/scalable/apps/io.github.mitzracing.live_for_speed_linux.svg" "$OUTPUT_DIR/icon.svg"

@@ -2,6 +2,7 @@
 // Optional: LFS_WEBSITE_URL checks a deployed site instead of the staged local files.
 // LFS_WEBSITE_SCREENSHOTS saves visual evidence to the supplied directory.
 import assert from "node:assert/strict";
+import { checkWebsiteVideo } from "./website-video.mjs";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -111,19 +112,6 @@ try {
   const assembled = spawnSync("bash", [fileURLToPath(new URL("../scripts/build-website.sh", import.meta.url)), site], { encoding: "utf8" });
   assert.equal(assembled.status, 0, `site assembly failed: ${assembled.stderr}`);
   const target = process.env.LFS_WEBSITE_URL || pathToFileURL(join(site, "index.html")).href;
-  await client.send("Page.navigate", { url: target });
-
-  let ready = false;
-  for (let attempt = 0; attempt < 100 && !ready; attempt += 1) {
-    const result = await client.send("Runtime.evaluate", {
-      expression: "document.readyState === 'complete' && Boolean(window.LfsFeedback)",
-      returnByValue: true,
-    });
-    ready = Boolean(result.result.value);
-    if (!ready) await new Promise((resolvePromise) => setTimeout(resolvePromise, 50));
-  }
-  assert.ok(ready, "website feedback script did not initialize");
-
   const screenshotDirectory = process.env.LFS_WEBSITE_SCREENSHOTS;
   const capture = async (name, selector) => {
     if (!screenshotDirectory) return;
@@ -139,6 +127,20 @@ try {
     const image = await client.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: true, clip: measured.result.value });
     await writeFile(join(screenshotDirectory, `${name}.png`), Buffer.from(image.data, "base64"));
   };
+
+  await checkWebsiteVideo(client, target, capture);
+  await client.send("Page.navigate", { url: target });
+  let ready = false;
+  for (let attempt = 0; attempt < 100 && !ready; attempt += 1) {
+    const result = await client.send("Runtime.evaluate", {
+      expression: "document.readyState === 'complete' && Boolean(window.LfsFeedback)",
+      returnByValue: true,
+    });
+    ready = Boolean(result.result.value);
+    if (!ready) await new Promise((resolvePromise) => setTimeout(resolvePromise, 50));
+  }
+  assert.ok(ready, "website feedback script did not initialize");
+  await client.send("Runtime.evaluate", { expression: "document.fonts.ready.then(() => true)", awaitPromise: true });
 
   const version = (await readFile(new URL("../VERSION", import.meta.url), "utf8")).trim();
   const release = `https://github.com/mitzracing/live-for-speed-linux/releases/download/v${version}`;
@@ -427,9 +429,23 @@ try {
   await readLayout(390);
   console.log("[PASS] browser: 320–1440px downloads, 2x reflow, 200% text, contrast, keyboard, no-JS, image fallback, and safe feedback handoff");
 } finally {
-  if (client) client.close();
-  browser.kill("SIGTERM");
-  await new Promise((resolvePromise) => setTimeout(resolvePromise, 100));
-  if (browser.exitCode === null) browser.kill("SIGKILL");
-  await rm(profile, { recursive: true, force: true });
+  if (client && client.socket.readyState === WebSocket.OPEN) {
+    // Chrome can disconnect before acknowledging shutdown; the owned process wait is final.
+    await Promise.race([
+      client.send("Browser.close").catch(() => undefined),
+      new Promise((resolvePromise) => setTimeout(resolvePromise, 2000)),
+    ]);
+    client.close();
+  }
+  if (browser.exitCode === null) browser.kill("SIGTERM");
+  await new Promise((resolvePromise) => {
+    if (browser.exitCode !== null) return resolvePromise();
+    browser.once("exit", resolvePromise);
+    setTimeout(resolvePromise, 2000);
+  });
+  if (browser.exitCode === null) {
+    browser.kill("SIGKILL");
+    await new Promise((resolvePromise) => browser.once("exit", resolvePromise));
+  }
+  await rm(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
 }

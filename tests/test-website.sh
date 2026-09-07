@@ -6,6 +6,7 @@ readonly ROOT_DIR
 readonly HTML="$ROOT_DIR/website/index.html"
 readonly CSS="$ROOT_DIR/website/styles.css"
 readonly JS="$ROOT_DIR/website/feedback.js"
+readonly MEDIA_JS="$ROOT_DIR/website/installer-demo.js"
 
 [[ -f "$HTML" && -f "$CSS" && -f "$JS" ]]
 (( $(stat -c %s "$HTML") < 102400 ))
@@ -27,6 +28,9 @@ class Audit(HTMLParser):
         self.viewport = 0
         self.scripts = []
         self.images = []
+        self.videos = []
+        self.sources = []
+        self.font_preloads = []
         self.stylesheets = []
         self.release_versions = []
         self.ids = set()
@@ -39,6 +43,9 @@ class Audit(HTMLParser):
         if tag == "meta" and values.get("name") == "viewport": self.viewport += 1
         if tag == "script": self.scripts.append(values.get("src", ""))
         if tag == "img": self.images.append(values.get("src", ""))
+        if tag == "video": self.videos.append(values)
+        if tag == "source": self.sources.append(values)
+        if tag == "link" and values.get("rel") == "preload" and values.get("as") == "font": self.font_preloads.append(values)
         if "id" in values:
             assert values["id"] not in self.ids, f"duplicate id: {values['id']}"
             self.ids.add(values["id"])
@@ -55,13 +62,36 @@ audit.feed(text)
 assert audit.h1 == 1, audit.h1
 assert audit.title == 1, audit.title
 assert audit.viewport == 1, audit.viewport
-assert audit.scripts == ["feedback.js"], audit.scripts
-assert set(audit.images) == {"icon.svg", "assets/blackwood-rallycross.webp"}, audit.images
+assert audit.scripts == ["feedback.js", "installer-demo.js?v=1"], audit.scripts
+assert set(audit.images) == {"icon.svg", "assets/blackwood-rallycross.webp", "assets/installer-poster.webp"}, audit.images
+assert len(audit.videos) == 1, audit.videos
+video = audit.videos[0]
+assert video.get("id") == "installer-demo" and video.get("preload") == "none"
+assert {"muted", "loop", "playsinline", "hidden"} <= video.keys()
+assert "autoplay" not in video and "src" not in video, "do not fetch/animate before motion and visibility checks"
+assert [(source.get("data-src"), source.get("type")) for source in audit.sources] == [
+    ("assets/installer-demo.webm", "video/webm"), ("assets/installer-demo.mp4", "video/mp4")]
+assert all("src" not in source for source in audit.sources), "media must load on demand"
+assert "Simulated local data" in text and "Read demo steps" in text
+assert len(audit.font_preloads) == 1
+assert audit.font_preloads[0].get("href") == "assets/spacegrotesk.woff2" and "crossorigin" in audit.font_preloads[0]
 assert "Martin Kapal" in text and "Archival imagery" in text
 assert "https://commons.wikimedia.org/wiki/File:Rallycross_blackwood_lfs.jpg" in audit.links
 assert "https://creativecommons.org/licenses/by-sa/3.0/" in audit.links
 assets = Path(sys.argv[1]).parent / "assets"
-assert {path.name for path in assets.iterdir()} == {"blackwood-rallycross.webp", "README.md"}, "unreviewed website asset"
+reviewed_assets = {
+    "installer-demo.webm": (204800, "07d55f1b1d310e8d8bcb5365b52d5cac9916bfc6f0f9adfe96b076ee4ec4ef08"),
+    "installer-demo.mp4": (204800, "53e7c66bf81792b0fb2e901014962c21e15dc82101112f57be1f2464db31df5b"),
+    "installer-poster.webp": (61440, "6ba27303d47bf45902a437a768bbaf6b888dfa501856da4bd1b48b2bfd0bde30"),
+    "spacegrotesk.woff2": (20480, "685bbbf69fa616df1ef81847c85fc76be097ddfb3468ff2257be54511ab3130f"),
+    "spacegrotesk-OFL.txt": (10240, "18a4de52385f6b988782639d5d0cc1326e5a8c2de9a7f01d7b20d9aedcc60943"),
+}
+assert {path.name for path in assets.iterdir()} == {"blackwood-rallycross.webp", "README.md", *reviewed_assets}, "unreviewed website asset"
+for name, (budget, digest) in reviewed_assets.items():
+    path = assets / name
+    assert path.is_file() and not path.is_symlink(), name
+    assert path.stat().st_size < budget, f"asset exceeds reviewed budget: {name}"
+    assert sha256(path.read_bytes()).hexdigest() == digest, f"unreviewed asset bytes: {name}"
 image = assets / "blackwood-rallycross.webp"
 assert image.is_file() and not image.is_symlink()
 assert image.stat().st_size < 153600, "hero image exceeds 150 KiB budget"
@@ -69,6 +99,9 @@ assert sha256(image.read_bytes()).hexdigest() == "992b8b0e43fb8f8226a7be962ae995
 credits = (assets / "README.md").read_text()
 assert "Martin Kapal" in credits and "CC BY-SA 3.0" in credits
 assert "https://creativecommons.org/licenses/by-sa/3.0/" in credits
+assert "Space Grotesk" in credits and "SIL Open Font License" in credits
+assert "scripted" in credits and "GTK" in credits and "MIT" in credits
+assert all(digest in credits for _budget, digest in reviewed_assets.values()), "credits omit asset provenance"
 assert len(audit.stylesheets) == 1 and audit.stylesheets[0].startswith("styles.css?"), audit.stylesheets
 assert audit.release_versions == [version], audit.release_versions
 assert {"top", "install", "support", "trust", "feedback-disclosure", "feedback-form", "feedback-result", "github-handoff", "collapse-feedback"} <= audit.ids, audit.ids
@@ -76,7 +109,7 @@ assert {"kind", "summary", "distribution", "distributionVersion", "packageMethod
 assert '<details id="feedback-disclosure" class="feedback-disclosure">' in text
 assert 'action="#support"' in text
 assert 'name="' not in text[text.index('<form id="feedback-form"'):text.index('</form>', text.index('<form id="feedback-form"'))]
-assert all(link.startswith(("#", "https://")) for link in audit.links), audit.links
+assert all(link.startswith(("#", "https://")) or link == "assets/installer-demo.mp4" for link in audit.links), audit.links
 assert "not affiliated with or endorsed" in text
 assert all(link[1:] in audit.ids for link in audit.links if link.startswith("#")), "broken section link"
 release = f"https://github.com/mitzracing/live-for-speed-linux/releases/download/v{version}"
@@ -124,11 +157,11 @@ trap 'rm -rf -- "$site_tmp"' EXIT
   cd "$site_tmp"
   bash "$ROOT_DIR/scripts/build-website.sh" 'site with spaces'
 )
-for path in index.html styles.css feedback.js assets/blackwood-rallycross.webp assets/README.md; do
+for path in index.html styles.css feedback.js installer-demo.js assets/blackwood-rallycross.webp assets/README.md assets/spacegrotesk.woff2 assets/spacegrotesk-OFL.txt assets/installer-demo.webm assets/installer-demo.mp4 assets/installer-poster.webp; do
   cmp "$ROOT_DIR/website/$path" "$site_tmp/site with spaces/$path"
 done
 cmp "$ROOT_DIR/share/icons/hicolor/scalable/apps/io.github.mitzracing.live_for_speed_linux.svg" "$site_tmp/site with spaces/icon.svg"
-[[ "$(find "$site_tmp/site with spaces" -type f | wc -l)" -eq 6 ]]
+[[ "$(find "$site_tmp/site with spaces" -type f | wc -l)" -eq 12 ]]
 printf 'keep existing output\n' > "$site_tmp/site with spaces/index.html"
 if bash "$ROOT_DIR/scripts/build-website.sh" "$site_tmp/site with spaces" > "$site_tmp/refusal.log" 2>&1; then
   printf 'site builder overwrote an existing destination\n' >&2
@@ -136,7 +169,9 @@ if bash "$ROOT_DIR/scripts/build-website.sh" "$site_tmp/site with spaces" > "$si
 fi
 grep -Fxq 'keep existing output' "$site_tmp/site with spaces/index.html"
 
+(( $(stat -c %s "$MEDIA_JS") < 10240 ))
+node --check "$MEDIA_JS"
 node "$ROOT_DIR/tests/test-feedback-generator.mjs"
 timeout --foreground --kill-after=10s 120 node "$ROOT_DIR/tests/test-feedback-browser.mjs"
 
-printf '[PASS] website is small, responsive, sanitizer-tested, with attributed and checksum-checked imagery\n'
+printf '[PASS] website is responsive, sanitizer-tested, with reviewed local media/fonts and playback fallbacks\n'

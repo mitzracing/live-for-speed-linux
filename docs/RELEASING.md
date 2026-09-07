@@ -25,11 +25,13 @@ Website changes do not require a new wrapper version or replacement of existing 
 
 1. Run `bash tests/test-website.sh`, then require successful repository CI on the candidate commit.
 2. Use `bash scripts/build-website.sh NEW_OUTPUT_DIRECTORY` to assemble the static site. Its parent directory must exist. The builder refuses an existing output directory, so it cannot retain stale assets or overwrite other work. Browser tests and Pages use this same builder.
-3. Review desktop and mobile rendering, download links, keyboard focus, feedback privacy, and image attribution. Keep public-test limitations visible.
-4. After owner approval, update `main`. The Pages workflow publishes the assembled site, including the licensed image and its attribution record.
-5. Confirm successful Pages deployment. Compare the live HTML, CSS, JavaScript, icon, image, and attribution record with the tested output. Recheck download URLs and live browser behavior.
+3. Review desktop and mobile rendering, download links, keyboard focus, feedback privacy, and media/font credits. Check video pause, reduced-motion and no-JavaScript posters, failed-source recovery, MP4 fallback, and font fallback. Keep public-test and simulated-demo limitations visible.
+4. After explicit publication approval, update `main`. The Pages workflow publishes the assembled site, including local fonts, media, and their license/credit records.
+5. Confirm successful Pages deployment. Compare every live file with the tested output, including video formats, poster, font, and OFL notice. Recheck immutable package downloads and live browser behavior with `LFS_WEBSITE_URL=https://mitzracing.github.io/live-for-speed-linux/ REQUIRE_BROWSER_E2E=1 node tests/test-feedback-browser.mjs`.
 
-Use a new CSS cache key when styling changes. Website photography and its credits are not part of Linux packages; the existing application icon remains installed. To roll back, revert the website change as a new commit and redeploy; do not rewrite release tags, replace package assets, or change player files.
+Use a new CSS cache key when styling changes, and update the media-controller script key when that script changes. Browser checks use the same staged builder and one browser harness, including `tests/website-video.mjs`. Media loads automatically only when visible and motion is permitted; retain explicit pause, still-image fallback, and readable demonstration steps. Keep the explicit builder list, asset checks/budgets, and credit hashes in sync when intentionally replacing assets.
+
+Website media, fonts, and credits are not part of Linux packages; the existing application icon remains installed. To roll back, revert the website change as a new commit and redeploy; do not rewrite release tags, replace package assets, or change player files.
 
 ## Upstream pin update
 
