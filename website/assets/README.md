@@ -1,21 +1,25 @@
-# Website media and font credits
+# Website media and font records
 
-## Blackwood rallycross
+## Motorsport photographs
 
-- File: `blackwood-rallycross.webp`
-- Work: *Rallycross at Blackwood*, an archival Live for Speed screenshot
-- Author: Martin Kapal
-- Source and license record: <https://commons.wikimedia.org/wiki/File:Rallycross_blackwood_lfs.jpg>
-- Original image: <https://upload.wikimedia.org/wikipedia/commons/4/48/Rallycross_blackwood_lfs.jpg>
-- License: **CC BY-SA 3.0**, <https://creativecommons.org/licenses/by-sa/3.0/>
-- Original SHA-256: `3767a8c0e26fbb38339fa47b54c43d784de35e47b88015a589a25dac4fc6d51e`
-- WebP SHA-256: `992b8b0e43fb8f8226a7be962ae995837639ffcc7b58a38a8542fc208cbaea9f`
+These six photographs use the [Unsplash License](https://unsplash.com/license). Attribution is not required. The license permits free download, copying, modification, distribution and use, including commercial use. It does not permit selling unmodified images or compiling a competing image service. These photographs remain separately licensed from the MIT code.
 
-The image was converted to WebP with Pillow (`quality=88`, `method=6`), retaining its 1024×640 dimensions. The website applies cropping and colour treatment through CSS. This adaptation remains under CC BY-SA 3.0, separately from the project's MIT-licensed code. Retain attribution, source and license links, and disclosure of changes when reusing it.
+Each linked photo page identifies its image as free to use under the Unsplash License. These are real-world motorsport photographs, not LFS screenshots, bundled game content or evidence of Linux gameplay. The website labels that distinction and displays no photo credits. No endorsement by depicted people or brands is claimed.
 
-This is archival imagery, not a representation of the currently pinned game version or proof of Linux gameplay. It does not imply endorsement by the author or the LFS developers.
+| File | Photo page | Bytes | WebP SHA-256 |
+| --- | --- | ---: | --- |
+| `pit-lane.webp` | [sR-MmCZuo4A](https://unsplash.com/photos/race-cars-are-being-worked-on-in-the-pit-lane-sR-MmCZuo4A) | 124820 | `56db2dcac374fd328264abd0727e566b7e323ba3d34e2f03775cd589b9d5c065` |
+| `gt3-track.webp` | [GaXm8_GKJiA](https://unsplash.com/photos/black-porsche-gt3-rs-with-yellow-accents-on-track-GaXm8_GKJiA) | 75672 | `a4f8a7ba126391b32ca44975385655ba2042cedce6a57c24fb7eb24d68903d32` |
+| `drift-smoke.webp` | [RI8h-awF3sA](https://unsplash.com/photos/drifting-car-creating-smoke-on-race-track-RI8h-awF3sA) | 39056 | `8047f0d0c67cd727fd2942c3e07144ec6d71f0827d84c8f3818281303e6b7aa9` |
+| `garage.webp` | [WpHw-FnxbuU](https://unsplash.com/photos/race-car-with-hood-open-in-garage-pit-stop-WpHw-FnxbuU) | 72434 | `4c1326ff8fadebd06c286a304bc2c8f5bd41c0c63835b8bdf103f1cc4e861c80` |
+| `drift-action.webp` | [3Z7lDp8LPvU](https://unsplash.com/photos/drifting-car-on-a-race-track-with-smoke-3Z7lDp8LPvU) | 65136 | `ca82884582c8cadce7418ccd75c6922da5c6df0da0f42a8af511ae64ee328c2d` |
+| `gt3-detail.webp` | [eLipvu7I2hQ](https://unsplash.com/photos/rear-view-of-a-grey-porsche-gt3-with-large-wing-eLipvu7I2hQ) | 90158 | `9aad4b2161aa8f0ed6e60f6ae990b2e4b1682dba46e7322119e238f930cf7659` |
 
-Website media, fonts, and these credits are distributed with the website and source archives, not installed by the Linux packages. Official-gallery reference images with unverified reuse permission are not included.
+The downloaded source images retain a maximum width of 1920 pixels. Pillow `ImageOps.fit` crops and resizes them to 1120×630 with LANCZOS sampling. WebP uses `quality=78`, `method=6`. Crop centers are pit lane `(0.5, 0.46)`, GT3 track `(0.5, 0.54)`, drift smoke `(0.5, 0.55)`, garage `(0.5, 0.5)`, drift action `(0.5, 0.75)` and GT3 detail `(0.5, 0.5)`. The hero applies an additional centered CSS crop. No watermark was removed.
+
+The six files total 467,276 bytes. They are served locally, without hotlinks. The initial hero is high-priority, later slides load on selection, and gallery images load lazily. Private downloaded sources, source-page records and hashes remain in `artifacts/website-photo-refresh/`. The former six screenshot assets are not in the current website or assembled output. Their original notices remain with historical versions and private backups.
+
+The maintainer owns future replacements. Update images, captions, alt text, dimensions, this record, asset hashes and the explicit builder list together. Keep image budgets, motion preferences, manual controls, failure geometry and the no-JavaScript fallback. Website media, fonts and these records belong to the website/source tree, not installed Linux packages.
 
 ## Space Grotesk
 

@@ -158,7 +158,8 @@ export async function checkWebsiteVideo(client, target, capture) {
     for (const width of [1440, 390]) {
       await client.send('Emulation.setDeviceMetricsOverride', {width,height:1000,deviceScaleFactor:1,mobile:false});
       await navigate();
-      await evaluate('Promise.all([...document.images].map(image=>image.decode())).then(()=>true)');
+      // Gallery images load near their own viewport; this capture needs the demo poster only.
+      await evaluate('Promise.all([...document.querySelectorAll(".product-proof img")].map(image=>image.decode())).then(()=>true)');
       await capture(`installer-${width}`, '.product-proof');
     }
     await client.send('Emulation.setScriptExecutionDisabled', {value:true});

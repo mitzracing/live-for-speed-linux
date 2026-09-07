@@ -7,6 +7,7 @@ readonly HTML="$ROOT_DIR/website/index.html"
 readonly CSS="$ROOT_DIR/website/styles.css"
 readonly JS="$ROOT_DIR/website/feedback.js"
 readonly MEDIA_JS="$ROOT_DIR/website/installer-demo.js"
+readonly HERO_JS="$ROOT_DIR/website/hero-slideshow.js"
 
 [[ -f "$HTML" && -f "$CSS" && -f "$JS" ]]
 (( $(stat -c %s "$HTML") < 102400 ))
@@ -62,8 +63,14 @@ audit.feed(text)
 assert audit.h1 == 1, audit.h1
 assert audit.title == 1, audit.title
 assert audit.viewport == 1, audit.viewport
-assert audit.scripts == ["feedback.js", "installer-demo.js?v=1"], audit.scripts
-assert set(audit.images) == {"icon.svg", "assets/blackwood-rallycross.webp", "assets/installer-poster.webp"}, audit.images
+assert audit.scripts == ["feedback.js", "installer-demo.js?v=1", "hero-slideshow.js?v=2"], audit.scripts
+photos = {"pit-lane.webp", "gt3-track.webp", "drift-smoke.webp", "garage.webp", "drift-action.webp", "gt3-detail.webp"}
+assert set(audit.images) == {"icon.svg", "assets/installer-poster.webp", *(f"assets/{name}" for name in photos)}, audit.images
+assert {"hero-image", "hero-previous", "hero-next", "hero-rotate", "hero-caption", "hero-status", "game-gallery"} <= audit.ids
+assert not {"hero-credit", "image-credit", "gt3-credit", "drift-credit"} & audit.ids
+assert 'class="gallery-credits"' not in text
+assert 'aria-roledescription="carousel"' in text and 'id="hero-photos"' in text
+assert "Motorsport photography—not game screenshots." in text
 assert len(audit.videos) == 1, audit.videos
 video = audit.videos[0]
 assert video.get("id") == "installer-demo" and video.get("preload") == "none"
@@ -75,30 +82,30 @@ assert all("src" not in source for source in audit.sources), "media must load on
 assert "Simulated local data" in text and "Read demo steps" in text
 assert len(audit.font_preloads) == 1
 assert audit.font_preloads[0].get("href") == "assets/spacegrotesk.woff2" and "crossorigin" in audit.font_preloads[0]
-assert "Martin Kapal" in text and "Archival imagery" in text
-assert "https://commons.wikimedia.org/wiki/File:Rallycross_blackwood_lfs.jpg" in audit.links
-assert "https://creativecommons.org/licenses/by-sa/3.0/" in audit.links
 assets = Path(sys.argv[1]).parent / "assets"
 reviewed_assets = {
+    "pit-lane.webp": (153600, "56db2dcac374fd328264abd0727e566b7e323ba3d34e2f03775cd589b9d5c065"),
+    "gt3-track.webp": (153600, "a4f8a7ba126391b32ca44975385655ba2042cedce6a57c24fb7eb24d68903d32"),
+    "drift-smoke.webp": (153600, "8047f0d0c67cd727fd2942c3e07144ec6d71f0827d84c8f3818281303e6b7aa9"),
+    "garage.webp": (153600, "4c1326ff8fadebd06c286a304bc2c8f5bd41c0c63835b8bdf103f1cc4e861c80"),
+    "drift-action.webp": (153600, "ca82884582c8cadce7418ccd75c6922da5c6df0da0f42a8af511ae64ee328c2d"),
+    "gt3-detail.webp": (153600, "9aad4b2161aa8f0ed6e60f6ae990b2e4b1682dba46e7322119e238f930cf7659"),
     "installer-demo.webm": (204800, "07d55f1b1d310e8d8bcb5365b52d5cac9916bfc6f0f9adfe96b076ee4ec4ef08"),
     "installer-demo.mp4": (204800, "53e7c66bf81792b0fb2e901014962c21e15dc82101112f57be1f2464db31df5b"),
     "installer-poster.webp": (61440, "6ba27303d47bf45902a437a768bbaf6b888dfa501856da4bd1b48b2bfd0bde30"),
     "spacegrotesk.woff2": (20480, "685bbbf69fa616df1ef81847c85fc76be097ddfb3468ff2257be54511ab3130f"),
     "spacegrotesk-OFL.txt": (10240, "18a4de52385f6b988782639d5d0cc1326e5a8c2de9a7f01d7b20d9aedcc60943"),
 }
-assert {path.name for path in assets.iterdir()} == {"blackwood-rallycross.webp", "README.md", *reviewed_assets}, "unreviewed website asset"
+assert {path.name for path in assets.iterdir()} == {"README.md", *reviewed_assets}, "unreviewed website asset"
 for name, (budget, digest) in reviewed_assets.items():
     path = assets / name
     assert path.is_file() and not path.is_symlink(), name
     assert path.stat().st_size < budget, f"asset exceeds reviewed budget: {name}"
     assert sha256(path.read_bytes()).hexdigest() == digest, f"unreviewed asset bytes: {name}"
-image = assets / "blackwood-rallycross.webp"
-assert image.is_file() and not image.is_symlink()
-assert image.stat().st_size < 153600, "hero image exceeds 150 KiB budget"
-assert sha256(image.read_bytes()).hexdigest() == "992b8b0e43fb8f8226a7be962ae995837639ffcc7b58a38a8542fc208cbaea9f", "unreviewed hero image bytes"
+assert sum((assets / name).stat().st_size for name in photos) < 563200, "photos exceed combined 550 KiB budget"
 credits = (assets / "README.md").read_text()
-assert "Martin Kapal" in credits and "CC BY-SA 3.0" in credits
-assert "https://creativecommons.org/licenses/by-sa/3.0/" in credits
+assert "https://unsplash.com/license" in credits and "Attribution is not required" in credits
+assert all(name in credits for name in photos), "photo source record missing"
 assert "Space Grotesk" in credits and "SIL Open Font License" in credits
 assert "scripted" in credits and "GTK" in credits and "MIT" in credits
 assert all(digest in credits for _budget, digest in reviewed_assets.values()), "credits omit asset provenance"
@@ -157,11 +164,11 @@ trap 'rm -rf -- "$site_tmp"' EXIT
   cd "$site_tmp"
   bash "$ROOT_DIR/scripts/build-website.sh" 'site with spaces'
 )
-for path in index.html styles.css feedback.js installer-demo.js assets/blackwood-rallycross.webp assets/README.md assets/spacegrotesk.woff2 assets/spacegrotesk-OFL.txt assets/installer-demo.webm assets/installer-demo.mp4 assets/installer-poster.webp; do
+for path in index.html styles.css feedback.js installer-demo.js hero-slideshow.js assets/pit-lane.webp assets/gt3-track.webp assets/drift-smoke.webp assets/garage.webp assets/drift-action.webp assets/gt3-detail.webp assets/README.md assets/spacegrotesk.woff2 assets/spacegrotesk-OFL.txt assets/installer-demo.webm assets/installer-demo.mp4 assets/installer-poster.webp; do
   cmp "$ROOT_DIR/website/$path" "$site_tmp/site with spaces/$path"
 done
 cmp "$ROOT_DIR/share/icons/hicolor/scalable/apps/io.github.mitzracing.live_for_speed_linux.svg" "$site_tmp/site with spaces/icon.svg"
-[[ "$(find "$site_tmp/site with spaces" -type f | wc -l)" -eq 12 ]]
+[[ "$(find "$site_tmp/site with spaces" -type f | wc -l)" -eq 18 ]]
 printf 'keep existing output\n' > "$site_tmp/site with spaces/index.html"
 if bash "$ROOT_DIR/scripts/build-website.sh" "$site_tmp/site with spaces" > "$site_tmp/refusal.log" 2>&1; then
   printf 'site builder overwrote an existing destination\n' >&2
@@ -171,7 +178,9 @@ grep -Fxq 'keep existing output' "$site_tmp/site with spaces/index.html"
 
 (( $(stat -c %s "$MEDIA_JS") < 10240 ))
 node --check "$MEDIA_JS"
+(( $(stat -c %s "$HERO_JS") < 10240 ))
+node --check "$HERO_JS"
 node "$ROOT_DIR/tests/test-feedback-generator.mjs"
 timeout --foreground --kill-after=10s 120 node "$ROOT_DIR/tests/test-feedback-browser.mjs"
 
-printf '[PASS] website is responsive, sanitizer-tested, with reviewed local media/fonts and playback fallbacks\n'
+printf '[PASS] website is responsive, sanitizer-tested, with local media integrity, no photo-credit UI, and playback/photo fallbacks\n'

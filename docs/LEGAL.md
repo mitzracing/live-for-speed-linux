@@ -17,9 +17,9 @@ The repository does not distribute Live for Speed executables, tracks, cars, tex
 
 ## Website media and fonts
 
-Website content and source archives also include one archival Live for Speed screenshot by Martin Kapal, licensed under [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/). Its WebP adaptation uses the same license, separately from the MIT-licensed code. The website displays attribution, source and license links, and discloses cropping and colour treatment. See [the media and font credit record](https://github.com/mitzracing/live-for-speed-linux/blob/main/website/assets/README.md).
+Website content and source archives include six real-world motorsport photographs under the [Unsplash License](https://unsplash.com/license). The license permits copying, modification, distribution and use without attribution. It prohibits selling unmodified images or compiling a competing image service. The photographs keep their separate license and are not MIT-licensed. Sources, adaptations and hashes appear in [the media and font record](https://github.com/mitzracing/live-for-speed-linux/blob/main/website/assets/README.md).
 
-The screenshot is website content, not a playable game resource. It is not installed by the Linux packages and does not represent the currently pinned game version or prove gameplay acceptance. Official-gallery images without verified reuse permission are not included.
+The website identifies the photographs as motorsport imagery, not game screenshots. They do not represent the currently pinned game version, prove Linux gameplay or imply endorsement. Linux packages do not install the photographs. Former screenshot assets are absent from the current source tree and assembled site. Notices for historical images remain with their historical versions. Before public publication, exclude unpublished draft-image commits from the publication branch as described in `docs/RELEASING.md`.
 
 The website also serves Space Grotesk locally under the SIL Open Font License 1.1. Its copyright notice and license accompany the font in website content and source archives. The font license remains separate from the MIT code.
 

@@ -3,6 +3,7 @@
 // LFS_WEBSITE_SCREENSHOTS saves visual evidence to the supplied directory.
 import assert from "node:assert/strict";
 import { checkWebsiteVideo } from "./website-video.mjs";
+import { checkWebsitePhotos } from "./website-photos.mjs";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -128,6 +129,7 @@ try {
     await writeFile(join(screenshotDirectory, `${name}.png`), Buffer.from(image.data, "base64"));
   };
 
+  await checkWebsitePhotos(client, target, capture);
   await checkWebsiteVideo(client, target, capture);
   await client.send("Page.navigate", { url: target });
   let ready = false;
@@ -266,7 +268,7 @@ try {
         }
         throw new Error('No opaque page background');
       };
-      const selectors = ['body', '.hero-lede', '.hero-note', '.eyebrow', '.button.primary', '.text-link', '.download-card p', '.release-notice', '.release-badge', 'nav a', '.legal', '.support-card strong', '.support-card span', 'label', 'input', 'select', 'textarea'];
+      const selectors = ['body', '.hero-lede', '.hero-note', '.hero-control', '.hero-photo figcaption', '.game-shot figcaption', '.gallery-note', '.photo-note', '.eyebrow', '.button.primary', '.text-link', '.download-card p', '.release-notice', '.release-badge', 'nav a', '.legal', '.support-card strong', '.support-card span', 'label', 'input', 'select', 'textarea'];
       return selectors.flatMap(selector => [...document.querySelectorAll(selector)].map(el => {
         const foreground = luminance(getComputedStyle(el).color);
         const behind = luminance(background(el));

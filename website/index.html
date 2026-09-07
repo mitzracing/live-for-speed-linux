@@ -8,9 +8,10 @@
   <title>Live for Speed on Linux — Install. Play. Race.</title>
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="preload" href="assets/spacegrotesk.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="styles.css?v=20260906.3">
+  <link rel="stylesheet" href="styles.css?v=20260907.2">
   <script src="feedback.js" defer></script>
   <script src="installer-demo.js?v=1" defer></script>
+  <script src="hero-slideshow.js?v=2" defer></script>
 </head>
 <body id="top">
   <a class="skip-link" href="#install">Skip to downloads</a>
@@ -42,9 +43,25 @@
           </div>
           <p class="hero-note">Linux x86_64 · Vulkan graphics · Public test</p>
         </div>
-        <figure class="hero-photo">
-          <img src="assets/blackwood-rallycross.webp" width="1024" height="640" alt="Archival Live for Speed rallycross race at Blackwood." fetchpriority="high">
-          <figcaption><span>BLACKWOOD / LFS ARCHIVE</span><a href="#image-credit">Credit ↗</a></figcaption>
+        <figure class="hero-photo" id="hero-showcase" role="group" aria-roledescription="carousel" aria-label="Motorsport photographs" aria-describedby="photo-note">
+          <div class="hero-frame">
+            <img id="hero-image" src="assets/pit-lane.webp" width="1120" height="630" alt="Blue and red race car with its crew in a sunlit pit lane." fetchpriority="high">
+            <div class="hero-navigation" hidden>
+              <button id="hero-previous" class="hero-control" type="button" aria-label="Previous photo" aria-controls="hero-image">←</button>
+              <button id="hero-next" class="hero-control" type="button" aria-label="Next photo" aria-controls="hero-image">→</button>
+            </div>
+          </div>
+          <template id="hero-photos">
+            <img src="assets/gt3-track.webp" alt="Close view of a black GT3 RS with yellow accents and a large front wheel." data-caption="GT3 / TRACKSIDE">
+            <img src="assets/drift-smoke.webp" alt="Black drift car sliding through a circuit bend with tire smoke behind it." data-caption="DRIFT / ON CIRCUIT">
+          </template>
+          <figcaption>
+            <span class="hero-caption" id="hero-caption">RACE DAY / PIT LANE</span>
+            <span id="hero-count" aria-hidden="true" hidden>1 / 3</span>
+            <button id="hero-rotate" class="hero-control" type="button" aria-label="Pause slideshow" aria-controls="hero-image" hidden>Pause</button>
+            <span id="hero-status" class="visually-hidden" role="status"></span>
+            <p class="photo-note" id="photo-note">Motorsport photography—not game screenshots.</p>
+          </figcaption>
         </figure>
       </section>
       <section class="section" id="install" aria-labelledby="install-title" tabindex="-1">
@@ -91,6 +108,28 @@
           </details>
         </figcaption>
       </figure>
+    </section>
+
+    <section id="game-gallery" class="game-gallery shell" aria-labelledby="gallery-title">
+      <div class="gallery-heading">
+        <div><p class="eyebrow">THE SPIRIT OF MOTORSPORT</p><h2 id="gallery-title">Built for the next lap.</h2></div>
+        <p>Preparation. Precision. A little sideways.</p>
+      </div>
+      <div class="game-shot-grid">
+        <figure class="game-shot">
+          <img src="assets/garage.webp" width="1120" height="630" loading="lazy" decoding="async" alt="Red and white race car in a garage with its front bodywork open.">
+          <figcaption>Before the lights go out</figcaption>
+        </figure>
+        <figure class="game-shot">
+          <img src="assets/drift-action.webp" width="1120" height="630" loading="lazy" decoding="async" alt="Black drift car followed closely by another car on a race circuit.">
+          <figcaption>Find your line</figcaption>
+        </figure>
+        <figure class="game-shot">
+          <img src="assets/gt3-detail.webp" width="1120" height="630" loading="lazy" decoding="async" alt="Rear of a gray GT3 RS showing its large wing and twin exhausts.">
+          <figcaption>Every detail counts</figcaption>
+        </figure>
+      </div>
+      <p class="gallery-note">Motorsport photography—not game screenshots.</p>
     </section>
 
     <section class="section shell" id="how-it-works" aria-labelledby="steps-title">
@@ -304,8 +343,6 @@
         </nav>
       </div>
       <p class="legal">An independent community project, not affiliated with or endorsed by the Live for Speed developers. The wrapper is MIT-licensed. Live for Speed remains proprietary software under its own terms. No game binaries or unlock tools are distributed.</p>
-      <p class="legal image-credit" id="image-credit">Image: <a href="https://commons.wikimedia.org/wiki/File:Rallycross_blackwood_lfs.jpg">Rallycross at Blackwood</a> by Martin Kapal, <a href="https://creativecommons.org/licenses/by-sa/3.0/">CC BY-SA 3.0</a>. Converted to WebP; displayed with cropping and colour treatment. Archival imagery, not a claim about the current game version.</p>
-      <p class="legal">Type: Space Grotesk, served locally under the SIL Open Font License 1.1. Installer demonstration uses scripted data, not game footage. <a href="https://github.com/mitzracing/live-for-speed-linux/blob/main/website/assets/README.md">Media credits &amp; licenses</a>.</p>
     </div>
   </footer>
 </body>
