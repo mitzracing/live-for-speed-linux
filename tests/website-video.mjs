@@ -135,7 +135,7 @@ export async function checkWebsiteVideo(client, target, capture) {
       const layout = await evaluate(`(() => {const b=document.querySelector('#demo-toggle').getBoundingClientRect(),a=document.querySelector('.demo-actions a').getBoundingClientRect(),f=document.querySelector('.demo-frame').getBoundingClientRect();return {overflow:document.documentElement.scrollWidth>innerWidth+1,overlap:b.left<a.right&&b.right>a.left&&b.top<a.bottom&&b.bottom>a.top,width:b.width,height:b.height,frameInside:f.left>=0&&f.right<=innerWidth,linkMargin:getComputedStyle(document.querySelector('.demo-actions a')).marginTop,statusFont:getComputedStyle(document.querySelector('#demo-status')).fontSize}})()`);
       assert.ok(!layout.overflow && !layout.overlap && layout.frameInside && layout.width>=44 && layout.height>=44, JSON.stringify({width,textScale,layout}));
       assert.equal(layout.linkMargin,'0px');
-      assert.equal(layout.statusFont,`${12 * textScale}px`);
+      assert.equal(layout.statusFont,`${13 * textScale}px`);
     }
     console.log('[PASS] media controls and expanded transcript reflow at 320–1440px and 200% text; no overlap or horizontal scroll');
 

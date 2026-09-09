@@ -63,14 +63,16 @@ audit.feed(text)
 assert audit.h1 == 1, audit.h1
 assert audit.title == 1, audit.title
 assert audit.viewport == 1, audit.viewport
-assert audit.scripts == ["feedback.js", "installer-demo.js?v=1", "hero-slideshow.js?v=2"], audit.scripts
-photos = {"pit-lane.webp", "gt3-track.webp", "drift-smoke.webp", "garage.webp", "drift-action.webp", "gt3-detail.webp"}
+assert audit.scripts == ["feedback.js?v=2", "installer-demo.js?v=1", "hero-slideshow.js?v=2"], audit.scripts
+photos = {"lfs-gt3.webp", "lfs-open-wheel.webp", "lfs-drift.webp", "lfs-blackwood.webp", "lfs-cockpit.webp", "lfs-roadsters.webp"}
 assert set(audit.images) == {"icon.svg", "assets/installer-poster.webp", *(f"assets/{name}" for name in photos)}, audit.images
 assert {"hero-image", "hero-previous", "hero-next", "hero-rotate", "hero-caption", "hero-status", "game-gallery"} <= audit.ids
 assert not {"hero-credit", "image-credit", "gt3-credit", "drift-credit"} & audit.ids
 assert 'class="gallery-credits"' not in text
 assert 'aria-roledescription="carousel"' in text and 'id="hero-photos"' in text
-assert "Motorsport photography—not game screenshots." in text
+assert "LFS screenshots." in text and "community mods require S3" in text
+assert 'aria-label="Live for Speed screenshots"' in text
+assert "not game screenshots" not in text and "unsplash.com" not in text
 assert len(audit.videos) == 1, audit.videos
 video = audit.videos[0]
 assert video.get("id") == "installer-demo" and video.get("preload") == "none"
@@ -84,12 +86,12 @@ assert len(audit.font_preloads) == 1
 assert audit.font_preloads[0].get("href") == "assets/spacegrotesk.woff2" and "crossorigin" in audit.font_preloads[0]
 assets = Path(sys.argv[1]).parent / "assets"
 reviewed_assets = {
-    "pit-lane.webp": (153600, "56db2dcac374fd328264abd0727e566b7e323ba3d34e2f03775cd589b9d5c065"),
-    "gt3-track.webp": (153600, "a4f8a7ba126391b32ca44975385655ba2042cedce6a57c24fb7eb24d68903d32"),
-    "drift-smoke.webp": (153600, "8047f0d0c67cd727fd2942c3e07144ec6d71f0827d84c8f3818281303e6b7aa9"),
-    "garage.webp": (153600, "4c1326ff8fadebd06c286a304bc2c8f5bd41c0c63835b8bdf103f1cc4e861c80"),
-    "drift-action.webp": (153600, "ca82884582c8cadce7418ccd75c6922da5c6df0da0f42a8af511ae64ee328c2d"),
-    "gt3-detail.webp": (153600, "9aad4b2161aa8f0ed6e60f6ae990b2e4b1682dba46e7322119e238f930cf7659"),
+    "lfs-gt3.webp": (153600, "8cbd924cde7f67b15a94df2783e5bd332939a98d6831c2f43637d1ccd7b8f454"),
+    "lfs-open-wheel.webp": (153600, "eb941329e2ab934001de05d29de2dc35022b0341b6219d33fd69e307aca756f9"),
+    "lfs-drift.webp": (153600, "9df3da55f6c54cc19f345ae42481234c2aff7e81df1f825e2cf2f831ab307f5c"),
+    "lfs-blackwood.webp": (153600, "bb93c573cc80bd16c20ffa0d5239500703fd7ffb1193680c6f7f56d500de0c63"),
+    "lfs-cockpit.webp": (153600, "6c4c9725cdcb051f8289eea7a40b342f3c0130ac5c950a2eefe1913e83fc4d12"),
+    "lfs-roadsters.webp": (153600, "575b4985a923852a89f17202973bea13b3021e6e3606c1a56a95202285779ba5"),
     "installer-demo.webm": (204800, "07d55f1b1d310e8d8bcb5365b52d5cac9916bfc6f0f9adfe96b076ee4ec4ef08"),
     "installer-demo.mp4": (204800, "53e7c66bf81792b0fb2e901014962c21e15dc82101112f57be1f2464db31df5b"),
     "installer-poster.webp": (61440, "6ba27303d47bf45902a437a768bbaf6b888dfa501856da4bd1b48b2bfd0bde30"),
@@ -104,7 +106,10 @@ for name, (budget, digest) in reviewed_assets.items():
     assert sha256(path.read_bytes()).hexdigest() == digest, f"unreviewed asset bytes: {name}"
 assert sum((assets / name).stat().st_size for name in photos) < 563200, "photos exceed combined 550 KiB budget"
 credits = (assets / "README.md").read_text()
-assert "https://unsplash.com/license" in credits and "Attribution is not required" in credits
+assert "Actual Live for Speed screenshots" in credits
+assert "https://www.lfs.net/screenshots" in credits
+assert "https://www.lfs.net/files/vehmods/FAC497" in credits and "https://www.lfs.net/files/vehmods/EC3AC1" in credits
+assert "not been verified" in credits, "do not present source links as screenshot redistribution permission"
 assert all(name in credits for name in photos), "photo source record missing"
 assert "Space Grotesk" in credits and "SIL Open Font License" in credits
 assert "scripted" in credits and "GTK" in credits and "MIT" in credits
@@ -164,7 +169,7 @@ trap 'rm -rf -- "$site_tmp"' EXIT
   cd "$site_tmp"
   bash "$ROOT_DIR/scripts/build-website.sh" 'site with spaces'
 )
-for path in index.html styles.css feedback.js installer-demo.js hero-slideshow.js assets/pit-lane.webp assets/gt3-track.webp assets/drift-smoke.webp assets/garage.webp assets/drift-action.webp assets/gt3-detail.webp assets/README.md assets/spacegrotesk.woff2 assets/spacegrotesk-OFL.txt assets/installer-demo.webm assets/installer-demo.mp4 assets/installer-poster.webp; do
+for path in index.html styles.css feedback.js installer-demo.js hero-slideshow.js assets/lfs-gt3.webp assets/lfs-open-wheel.webp assets/lfs-drift.webp assets/lfs-blackwood.webp assets/lfs-cockpit.webp assets/lfs-roadsters.webp assets/README.md assets/spacegrotesk.woff2 assets/spacegrotesk-OFL.txt assets/installer-demo.webm assets/installer-demo.mp4 assets/installer-poster.webp; do
   cmp "$ROOT_DIR/website/$path" "$site_tmp/site with spaces/$path"
 done
 cmp "$ROOT_DIR/share/icons/hicolor/scalable/apps/io.github.mitzracing.live_for_speed_linux.svg" "$site_tmp/site with spaces/icon.svg"

@@ -9,9 +9,9 @@ readonly OUTPUT_DIR="${1:?Usage: build-website.sh NEW_OUTPUT_DIRECTORY}"
 mkdir -- "$OUTPUT_DIR"
 for path in \
   index.html styles.css feedback.js installer-demo.js hero-slideshow.js \
-  assets/pit-lane.webp assets/README.md \
-  assets/gt3-track.webp assets/drift-smoke.webp \
-  assets/garage.webp assets/drift-action.webp assets/gt3-detail.webp \
+  assets/lfs-gt3.webp assets/README.md \
+  assets/lfs-open-wheel.webp assets/lfs-drift.webp \
+  assets/lfs-blackwood.webp assets/lfs-cockpit.webp assets/lfs-roadsters.webp \
   assets/spacegrotesk.woff2 assets/spacegrotesk-OFL.txt \
   assets/installer-demo.webm assets/installer-demo.mp4 assets/installer-poster.webp; do
   install -Dm644 -- "$ROOT_DIR/website/$path" "$OUTPUT_DIR/$path"

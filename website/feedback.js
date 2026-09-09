@@ -244,6 +244,13 @@
     form.elements.value.required = kind === "feature";
     form.querySelector("[data-package-method]").hidden = kind !== "compatibility";
     form.querySelector("[data-wrapper-version]").hidden = kind !== "bug";
+    const environment = form.querySelector("#feedback-environment");
+    if (environment) {
+      environment.open = environmentRequired;
+      environment.querySelector("#environment-requirement").textContent = environmentRequired
+        ? "Required for this report"
+        : "Optional";
+    }
   }
 
   function setupFeedbackForm(documentObject) {
@@ -293,6 +300,13 @@
     });
     setConditionalRequirements(form, form.elements.kind.value);
     updateDisclosureState();
+
+    // Native validation must be able to focus a required field inside a closed disclosure.
+    form.addEventListener("invalid", (event) => {
+      for (let group = event.target.closest("details"); group; group = group.parentElement?.closest("details")) {
+        group.open = true;
+      }
+    }, true);
 
     form.addEventListener("submit", (event) => {
       event.preventDefault();

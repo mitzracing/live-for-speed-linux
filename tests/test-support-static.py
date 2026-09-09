@@ -75,7 +75,7 @@ assert "Closes #NUMBER" in support and "Closes #NUMBER" in triage
 assert "Closes #" in pull_template
 assert "scheduled" in triage.casefold()
 assert 'id="feedback-form"' in website
-assert 'src="feedback.js"' in website
+assert re.search(r'<script\b[^>]*\bsrc="feedback\.js(?:\?[^"#]*)?"[^>]*>', website)
 assert "removes known private-data patterns" in website
 assert "withheld from contributor work" in support
 assert "do not receive `help wanted`" in triage

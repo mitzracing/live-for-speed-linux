@@ -144,6 +144,28 @@ try {
   assert.ok(ready, "website feedback script did not initialize");
   await client.send("Runtime.evaluate", { expression: "document.fonts.ready.then(() => true)", awaitPromise: true });
 
+  // Player journey: both direct packages before decoration on a normal phone viewport.
+  await client.send('Emulation.setDeviceMetricsOverride', {width:390,height:844,deviceScaleFactor:1,mobile:false});
+  const journey = await client.send('Runtime.evaluate', {
+    expression: `(() => {
+      window.scrollTo({top:0,behavior:'instant'});
+      const downloads = [...document.querySelectorAll('#install a[href*="/releases/download/"]')];
+      const note = document.querySelector('.privacy-note').getBoundingClientRect();
+      const choices = document.querySelector('.support-grid').getBoundingClientRect();
+      const readable = [...document.querySelectorAll('.brand-copy small,.package-platform,.release-badge,.hero-note,.photo-note,.hero-control')]
+        .filter(el=>el.getClientRects().length).map(el=>({text:el.textContent.trim(),size:parseFloat(getComputedStyle(el).fontSize)}));
+      return {downloads:downloads.map(el=>{const r=el.getBoundingClientRect();return {top:r.top,bottom:r.bottom}}),
+        viewport:innerHeight,disclosureFirst:note.bottom<=choices.top,readable};
+    })()`, returnByValue:true,
+  });
+  assert.ok(!journey.exceptionDetails, JSON.stringify(journey.exceptionDetails));
+  assert.equal(journey.result.value.downloads.length,2);
+  assert.ok(journey.result.value.downloads.every(r=>r.top>=0&&r.bottom<=journey.result.value.viewport),
+    `direct mobile downloads require scrolling: ${JSON.stringify(journey.result.value.downloads)}`);
+  assert.ok(journey.result.value.disclosureFirst,'GitHub sign-in disclosure must precede report choices');
+  for (const text of journey.result.value.readable) assert.ok(text.size>=12,`small important text: ${JSON.stringify(text)}`);
+  console.log('[PASS] direct mobile downloads within first viewport, early sign-in disclosure and readable metadata');
+
   const version = (await readFile(new URL("../VERSION", import.meta.url), "utf8")).trim();
   const release = `https://github.com/mitzracing/live-for-speed-linux/releases/download/v${version}`;
   const expectedDownloads = [
@@ -200,11 +222,9 @@ try {
     assert.deepEqual(layout.controls.map(control => control.href), expectedDownloads, "release download targets changed");
     assert.ok(layout.pageWidth <= layout.viewport + 1, `horizontal page overflow at ${width}px`);
     const [first, second] = layout.cards;
-    if (width > 760) {
-      assert.ok(Math.abs(first.top - second.top) < 1 && first.right <= second.left, `download cards overlap or misalign at ${width}px`);
-    } else {
-      assert.ok(second.top >= first.bottom + 16, `download cards do not stack with a gap at ${width}px`);
-    }
+    // Compact side-by-side packages now put both choices above the mobile fold.
+    assert.ok(Math.abs(first.top - second.top) < 1 && first.right + 8 <= second.left,
+      `download cards overlap or misalign at ${width}px`);
     return layout;
   };
 
@@ -234,6 +254,8 @@ try {
           kind: form.elements.kind.value, focus: document.activeElement.id,
           packageHidden: form.querySelector('[data-package-method]').hidden,
           wrapperHidden: form.querySelector('[data-wrapper-version]').hidden,
+          environmentOpen: document.getElementById('feedback-environment').open,
+          diagnosticsOpen: document.getElementById('feedback-diagnostics').open,
           required: [...form.elements].filter(el => el.required).map(el => el.id).sort(),
           expanded: [...document.querySelectorAll('[data-feedback-kind]')].every(el => el.getAttribute('aria-expanded') === 'true'),
         };
@@ -245,6 +267,8 @@ try {
     assert.equal(state.focus, 'summary');
     assert.equal(state.packageHidden, kind !== 'compatibility');
     assert.equal(state.wrapperHidden, kind !== 'bug');
+    assert.equal(state.environmentOpen, ['bug','compatibility'].includes(kind), 'optional system details should stay collapsed');
+    assert.equal(state.diagnosticsOpen, false, 'diagnostics must be opt-in');
     const required = ['kind', 'summary', 'details', 'expected', 'safety'];
     if (['bug', 'compatibility'].includes(kind)) required.push('distribution', 'distributionVersion', 'desktop', 'graphics', 'steps');
     if (kind === 'bug') required.push('wrapperVersion');
@@ -253,6 +277,29 @@ try {
     assert.deepEqual(state.required, required.sort());
   }
   await capture('feedback-390', '#feedback-disclosure');
+
+  const invalid = await client.send('Runtime.evaluate', {
+    expression: `(() => {
+      document.querySelector('[data-feedback-kind="bug"]').click();
+      const form=document.getElementById('feedback-form');
+      const values={summary:'Validation fixture',details:'Fixture problem',expected:'Expected result',distribution:'Arch Linux',
+        distributionVersion:'',wrapperVersion:'0.4.0',desktop:'KDE on X11',graphics:'Fixture GPU',steps:'1. Reproduce',diagnostics:'Keep this draft'};
+      for (const [name,value] of Object.entries(values)) form.elements[name].value=value;
+      form.elements.safety.checked=true;
+      document.getElementById('feedback-environment').open=false;
+      form.requestSubmit();
+      return {open:document.getElementById('feedback-environment').open,focused:document.activeElement.id,
+        handoffHidden:document.getElementById('feedback-result').hidden};
+    })()`, returnByValue:true,
+  });
+  assert.ok(!invalid.exceptionDetails, JSON.stringify(invalid.exceptionDetails));
+  assert.ok(invalid.result.value.open && invalid.result.value.handoffHidden, 'closed required fields must reopen for validation, without handoff');
+  assert.equal(invalid.result.value.focused,'distributionVersion','native validation cannot reach collapsed required field');
+  await client.send('Runtime.evaluate', {expression:"document.querySelector('[data-feedback-kind=feature]').click();document.querySelector('#feedback-diagnostics summary').focus()"});
+  for (const type of ['keyDown','keyUp']) await client.send('Input.dispatchKeyEvent', {type,key:'Enter',code:'Enter',windowsVirtualKeyCode:13,...(type==='keyDown'?{text:'\r',unmodifiedText:'\r'}:{})});
+  const retained = await client.send('Runtime.evaluate', {expression:"({open:document.getElementById('feedback-diagnostics').open,value:document.getElementById('diagnostics').value})",returnByValue:true});
+  assert.deepEqual(retained.result.value,{open:true,value:'Keep this draft'},'keyboard diagnostics disclosure or draft retention failed');
+  console.log('[PASS] optional report details, native validation reopening and keyboard draft retention');
 
   const contrast = await client.send("Runtime.evaluate", {
     expression: `(() => {
@@ -305,8 +352,7 @@ try {
   await key('Enter', 13);
   const skipped = await client.send('Runtime.evaluate', { expression: "document.activeElement.id", returnByValue: true });
   assert.equal(skipped.result.value, 'install', 'skip link did not focus downloads');
-  await key('Tab', 9); // Tested-scope link in the public-test notice.
-  await key('Tab', 9); // First package download.
+  await key('Tab', 9); // First direct package; notes follow downloads in reading order.
   const focus = await client.send('Runtime.evaluate', {
     expression: "({href: document.activeElement.href, outline: getComputedStyle(document.activeElement).outlineStyle, width: parseFloat(getComputedStyle(document.activeElement).outlineWidth)})", returnByValue: true,
   });
@@ -427,7 +473,7 @@ try {
   assert.ok(imageFallback.result.value.failed, 'image failure fixture did not fail');
   assert.ok(Math.abs(imageFallback.result.value.heightChange) < 1, 'failed image shifts hero layout');
   assert.ok(imageFallback.result.value.reachable, 'failed image obscures hero action');
-  assert.equal(imageFallback.result.value.href, '#install');
+  assert.equal(imageFallback.result.value.href, expectedDownloads[0]);
   await readLayout(390);
   console.log("[PASS] browser: 320–1440px downloads, 2x reflow, 200% text, contrast, keyboard, no-JS, image fallback, and safe feedback handoff");
 } finally {

@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Install and play Live for Speed on Linux with graphical setup, resumable downloads, and player-safe repairs.">
+  <meta name="description" content="Live for Speed on your Linux desktop. Download the community launcher, follow graphical setup, and leave game updates to LFS.">
   <meta name="theme-color" content="#0b1319">
   <title>Live for Speed on Linux — Install. Play. Race.</title>
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="preload" href="assets/spacegrotesk.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="styles.css?v=20260907.2">
-  <script src="feedback.js" defer></script>
+  <link rel="stylesheet" href="styles.css?v=3">
+  <script src="feedback.js?v=2" defer></script>
   <script src="installer-demo.js?v=1" defer></script>
   <script src="hero-slideshow.js?v=2" defer></script>
 </head>
@@ -19,69 +19,88 @@
     <div class="shell header-inner">
       <a class="brand" href="#top" aria-label="Live for Speed Linux home">
         <img src="icon.svg" width="44" height="44" alt="">
-        <span class="brand-copy"><strong>LIVE FOR SPEED <i>LINUX</i></strong><small>INDEPENDENT COMMUNITY LAUNCHER</small></span>
+        <span class="brand-copy"><strong>Live for Speed <i>Linux</i></strong><small>Community launcher</small></span>
       </a>
       <nav aria-label="Main navigation">
         <a href="#install">Download</a>
-        <a href="#launcher-demo">The launcher</a>
-        <a href="#support">Support</a>
-        <a href="https://github.com/mitzracing/live-for-speed-linux">GitHub <span aria-hidden="true">↗</span></a>
+        <a href="#launcher-demo">Setup guide</a>
+        <a href="#support">Get help</a>
       </nav>
     </div>
   </header>
 
   <main>
-    <div class="launch-grid shell">
-      <section class="hero" aria-labelledby="hero-title">
-        <div class="hero-copy">
-          <p class="eyebrow">LIVE FOR SPEED / COMMUNITY LAUNCHER</p>
-          <h1 id="hero-title">Your next lap<br><span>starts here.</span></h1>
-          <p class="hero-lede">One launcher. Your game, your files.<br> Install once. Update inside LFS. Reopen and race.</p>
-          <div class="hero-actions">
-            <a class="button primary" href="#install">Choose your package <span aria-hidden="true">↗</span></a>
-            <a class="text-link" href="#how-it-works">How setup works ↗</a>
-          </div>
-          <p class="hero-note">Linux x86_64 · Vulkan graphics · Public test</p>
-        </div>
-        <figure class="hero-photo" id="hero-showcase" role="group" aria-roledescription="carousel" aria-label="Motorsport photographs" aria-describedby="photo-note">
-          <div class="hero-frame">
-            <img id="hero-image" src="assets/pit-lane.webp" width="1120" height="630" alt="Blue and red race car with its crew in a sunlit pit lane." fetchpriority="high">
-            <div class="hero-navigation" hidden>
-              <button id="hero-previous" class="hero-control" type="button" aria-label="Previous photo" aria-controls="hero-image">←</button>
-              <button id="hero-next" class="hero-control" type="button" aria-label="Next photo" aria-controls="hero-image">→</button>
-            </div>
-          </div>
-          <template id="hero-photos">
-            <img src="assets/gt3-track.webp" alt="Close view of a black GT3 RS with yellow accents and a large front wheel." data-caption="GT3 / TRACKSIDE">
-            <img src="assets/drift-smoke.webp" alt="Black drift car sliding through a circuit bend with tire smoke behind it." data-caption="DRIFT / ON CIRCUIT">
-          </template>
-          <figcaption>
-            <span class="hero-caption" id="hero-caption">RACE DAY / PIT LANE</span>
-            <span id="hero-count" aria-hidden="true" hidden>1 / 3</span>
-            <button id="hero-rotate" class="hero-control" type="button" aria-label="Pause slideshow" aria-controls="hero-image" hidden>Pause</button>
-            <span id="hero-status" class="visually-hidden" role="status"></span>
-            <p class="photo-note" id="photo-note">Motorsport photography—not game screenshots.</p>
-          </figcaption>
-        </figure>
-      </section>
-      <section class="section" id="install" aria-labelledby="install-title" tabindex="-1">
-      <div class="section-heading"><div><p class="eyebrow">DOWNLOAD THE LAUNCHER</p><h2 id="install-title">Pick your platform.</h2><p class="section-intro">Two packages. One graphical launcher.</p></div><span class="release-badge" data-release-version="0.4.0">Public test <strong>0.4.0</strong></span></div>
-      <p class="release-notice"><strong>Public test.</strong> Graphical installation and the full game update/reopen flow still need real-world testing. No software-store listing is available. <a href="https://github.com/mitzracing/live-for-speed-linux/blob/main/docs/RELEASE-CANDIDATE.md">See tested scope.</a></p>
-      <div class="download-grid">
-        <article class="download-card" aria-labelledby="deb-title"><span class="package-type">DEBIAN FAMILY / .DEB</span><h3 id="deb-title">Debian &amp; Ubuntu</h3><p class="package-platform">Debian 13 · Ubuntu 24.04 · x86_64</p><p>Open with your graphical package installer. Then launch from the application menu.</p><div class="download-actions"><a class="button primary" href="https://github.com/mitzracing/live-for-speed-linux/releases/download/v0.4.0/live-for-speed-linux_0.4.0-0github1_amd64.deb">Download .deb <span aria-hidden="true">↘</span></a><a class="text-link" href="https://github.com/mitzracing/live-for-speed-linux/releases/tag/v0.4.0">Release notes &amp; checksums ↗</a></div></article>
-        <article class="download-card" aria-labelledby="arch-title"><span class="package-type">ARCH FAMILY / .PKG.TAR.ZST</span><h3 id="arch-title">Arch &amp; Manjaro</h3><p class="package-platform">Arch Linux · Manjaro · x86_64</p><p>Direct test package. The AUR/Pamac route is not published or verified yet.</p><div class="download-actions"><a class="button primary" href="https://github.com/mitzracing/live-for-speed-linux/releases/download/v0.4.0/live-for-speed-linux-0.4.0-1-x86_64.pkg.tar.zst">Download Arch package <span aria-hidden="true">↘</span></a><a class="text-link" href="https://github.com/mitzracing/live-for-speed-linux/blob/main/packaging/aur/README.md">Arch installation details ↗</a></div></article>
+    <section class="hero shell" aria-labelledby="hero-title">
+      <div class="hero-copy">
+        <p class="eyebrow">THE SIM YOU KNOW. THE DESKTOP YOU CHOOSE.</p>
+        <h1 id="hero-title">Live for Speed.<br><span>Meet Linux.</span></h1>
+        <p class="hero-lede">Get on track without the Wine setup. Install once, launch from your menu, and let LFS handle its own updates.</p>
+        <div class="hero-actions"><a class="text-link" href="#how-it-works">See how setup works <span aria-hidden="true">↓</span></a></div>
       </div>
-      <p class="download-footnote">Game downloaded separately during setup. <a href="https://github.com/mitzracing/live-for-speed-linux#install-from-source">Other distributions &amp; source installation ↗</a></p>
+
+      <section id="install" aria-labelledby="install-title" tabindex="-1">
+        <div class="download-heading">
+          <h2 id="install-title">Choose your Linux.</h2>
+          <span class="release-badge" data-release-version="0.4.0">Public test <strong>0.4.0</strong></span>
+        </div>
+        <p class="hero-note">64-bit Linux · Vulkan graphics required</p>
+        <div class="download-grid">
+          <article class="download-card" aria-labelledby="deb-title">
+            <h3 id="deb-title">Debian / Ubuntu</h3>
+            <p class="package-platform">Debian 13 · Ubuntu 24.04</p>
+            <a class="button primary" href="https://github.com/mitzracing/live-for-speed-linux/releases/download/v0.4.0/live-for-speed-linux_0.4.0-0github1_amd64.deb">Get .deb <span aria-hidden="true">↓</span></a>
+          </article>
+          <article class="download-card" aria-labelledby="arch-title">
+            <h3 id="arch-title">Arch / Manjaro</h3>
+            <p class="package-platform">Direct .pkg.tar.zst package</p>
+            <a class="button primary" href="https://github.com/mitzracing/live-for-speed-linux/releases/download/v0.4.0/live-for-speed-linux-0.4.0-1-x86_64.pkg.tar.zst">Get Arch <span aria-hidden="true">↓</span></a>
+          </article>
+        </div>
+        <p class="release-notice"><strong>Help test the full journey.</strong> Graphical installation and the game update/reopen flow still need real-world checks. <a href="https://github.com/mitzracing/live-for-speed-linux/blob/main/docs/RELEASE-CANDIDATE.md">See tested scope.</a></p>
+        <details class="install-details">
+          <summary>Installation notes &amp; other distributions</summary>
+          <div class="install-notes">
+            <p><strong>Debian / Ubuntu:</strong> open the .deb with your graphical package installer. Then open Live for Speed Linux from the application menu.</p>
+            <p><strong>Arch / Manjaro:</strong> this is a direct test package. The AUR/Pamac route is not published or verified yet. <a href="https://github.com/mitzracing/live-for-speed-linux/blob/main/packaging/aur/README.md">Arch installation details ↗</a></p>
+            <p>No software-store listing is available. The game is downloaded separately during setup. Your LFS licence determines which cars and tracks you can use.</p>
+            <p><a href="https://github.com/mitzracing/live-for-speed-linux/releases/tag/v0.4.0">Release notes &amp; checksums ↗</a><br><a href="https://github.com/mitzracing/live-for-speed-linux#install-from-source">Other distributions &amp; source installation ↗</a></p>
+          </div>
+        </details>
       </section>
-    </div>
+
+      <figure class="hero-photo" id="hero-showcase" role="group" aria-roledescription="carousel" aria-label="Live for Speed screenshots" aria-describedby="photo-note">
+        <p class="scene-label">LIVE FOR SPEED <span>IN GAME</span></p>
+        <div class="hero-frame">
+          <img id="hero-image" src="assets/lfs-gt3.webp" width="1120" height="630" alt="Blue FUND MUTSAND GT3 race car beside the pit lane in Live for Speed." fetchpriority="high">
+        </div>
+        <template id="hero-photos">
+          <img src="assets/lfs-open-wheel.webp" alt="White open-wheel car taking a banked corner in Live for Speed." data-caption="OPEN WHEEL / ON CIRCUIT">
+          <img src="assets/lfs-drift.webp" alt="Red and blue FZ5 DRIFT PACK car on an autocross area in Live for Speed." data-caption="FZ5 / DRIFT SETUP">
+        </template>
+        <figcaption>
+          <span class="hero-caption" id="hero-caption">GT3 / COMMUNITY MOD</span>
+          <span id="hero-count" aria-hidden="true" hidden>1 / 3</span>
+          <div class="hero-navigation" hidden>
+            <button id="hero-previous" class="hero-control" type="button" aria-label="Previous screenshot" aria-controls="hero-image">←</button>
+            <button id="hero-next" class="hero-control" type="button" aria-label="Next screenshot" aria-controls="hero-image">→</button>
+          </div>
+          <button id="hero-rotate" class="hero-control" type="button" aria-label="Pause slideshow" aria-controls="hero-image" hidden>Pause</button>
+          <span id="hero-status" class="visually-hidden" role="status"></span>
+          <p class="photo-note" id="photo-note">LFS screenshots. Visuals vary by build; community mods require S3.</p>
+        </figcaption>
+      </figure>
+    </section>
 
     <section id="launcher-demo" class="product-proof shell" aria-labelledby="proof-title">
-      <div class="proof-copy">
-        <p class="eyebrow">WHAT YOU’LL OPEN</p>
-        <h2 id="proof-title">A launcher.<br>Not another project.</h2>
-        <p>Graphical setup. Downloads you can resume. Game updates handled by LFS—not another layer of approval.</p>
-        <a class="text-link" href="#how-it-works">From package to play ↗</a>
-        <p class="proof-caption">See the actual GTK interface in a short demonstration. Setup data and timing are simulated—not evidence of gameplay acceptance.</p>
+      <div class="proof-copy" id="how-it-works">
+        <p class="eyebrow">FROM DOWNLOAD TO DRIVING</p>
+        <h2 id="proof-title">Less setup.<br>More track time.</h2>
+        <p>One application-menu icon, from first install to your next session. No terminal or Wine configuration for normal play.</p>
+        <ol class="steps-grid">
+          <li><span class="step-number" aria-hidden="true">01</span><div><h3>Install the small launcher</h3><p>Choose your package above and approve installation.</p></div></li>
+          <li><span class="step-number" aria-hidden="true">02</span><div><h3>Choose Install and play</h3><p>Review the download size and public-test notice. Follow setup progress; interrupted downloads can resume.</p></div></li>
+          <li><span class="step-number" aria-hidden="true">03</span><div><h3>Use the same icon next time</h3><p>LFS updates itself. Follow its restart, exit normally, then reopen from your menu.</p></div></li>
+        </ol>
       </div>
       <figure>
         <div class="demo-frame">
@@ -111,205 +130,93 @@
     </section>
 
     <section id="game-gallery" class="game-gallery shell" aria-labelledby="gallery-title">
-      <div class="gallery-heading">
-        <div><p class="eyebrow">THE SPIRIT OF MOTORSPORT</p><h2 id="gallery-title">Built for the next lap.</h2></div>
-        <p>Preparation. Precision. A little sideways.</p>
+      <div class="section-heading">
+        <div><p class="eyebrow">THIS IS WHAT YOU CAME FOR</p><h2 id="gallery-title">Make the next lap yours.</h2></div>
+        <p>From the pit box to wheel-to-wheel racing.</p>
       </div>
       <div class="game-shot-grid">
         <figure class="game-shot">
-          <img src="assets/garage.webp" width="1120" height="630" loading="lazy" decoding="async" alt="Red and white race car in a garage with its front bodywork open.">
-          <figcaption>Before the lights go out</figcaption>
+          <img src="assets/lfs-blackwood.webp" width="1024" height="576" loading="lazy" decoding="async" alt="Black FZR leaving a garage in the Blackwood pit lane in Live for Speed.">
+          <figcaption><span>01 / BLACKWOOD</span>Out of the pits.</figcaption>
         </figure>
         <figure class="game-shot">
-          <img src="assets/drift-action.webp" width="1120" height="630" loading="lazy" decoding="async" alt="Black drift car followed closely by another car on a race circuit.">
-          <figcaption>Find your line</figcaption>
+          <img src="assets/lfs-cockpit.webp" width="1120" height="630" loading="lazy" decoding="async" alt="View of the steering wheel, dashboard and circuit from an LFS cockpit.">
+          <figcaption><span>02 / IN THE COCKPIT</span>Find your focus.</figcaption>
         </figure>
         <figure class="game-shot">
-          <img src="assets/gt3-detail.webp" width="1120" height="630" loading="lazy" decoding="async" alt="Rear of a gray GT3 RS showing its large wing and twin exhausts.">
-          <figcaption>Every detail counts</figcaption>
+          <img src="assets/lfs-roadsters.webp" width="1024" height="576" loading="lazy" decoding="async" alt="Red and yellow roadsters side by side on a Live for Speed circuit.">
+          <figcaption><span>03 / WHEEL TO WHEEL</span>Leave room for a rival.</figcaption>
         </figure>
       </div>
-      <p class="gallery-note">Motorsport photography—not game screenshots.</p>
-    </section>
-
-    <section class="section shell" id="how-it-works" aria-labelledby="steps-title">
-      <div class="section-heading">
-        <div>
-          <p class="eyebrow">02 / FROM DOWNLOAD TO DRIVING</p>
-          <h2 id="steps-title">One icon. Every session.</h2>
-        </div>
-      </div>
-      <ol class="steps-grid">
-        <li>
-          <span class="step-number" aria-hidden="true">01</span>
-          <h3>Install the launcher</h3>
-          <p>Choose your package above and approve installation. The small launcher handles game setup for you.</p>
-        </li>
-        <li>
-          <span class="step-number" aria-hidden="true">02</span>
-          <h3>Install and play</h3>
-          <p>Open Live for Speed Linux. Choose <strong>Install and play</strong> after reviewing the download size and public-test notice. Setup shows progress and can resume interrupted downloads.</p>
-        </li>
-        <li>
-          <span class="step-number" aria-hidden="true">03</span>
-          <h3>Update. Reopen. Race.</h3>
-          <p>LFS updates itself. Follow its restart, close normally, then use the same game icon next time. No terminal or Wine configuration for normal play.</p>
-        </li>
-      </ol>
+      <p class="gallery-note">Game screenshots from different LFS builds, including development images—not recordings of this Linux wrapper.</p>
     </section>
 
     <section class="ownership shell" id="trust" aria-labelledby="trust-title">
-      <div class="ownership-heading">
-        <p class="eyebrow">03 / THE PLAYER COMES FIRST</p>
-        <h2 id="trust-title">Your game.<br>Always yours.</h2>
-        <p>A lightweight launcher, not another game manager.</p>
-      </div>
+      <div class="section-heading"><div><p class="eyebrow">A LAUNCHER, NOT A GAME MANAGER</p><h2 id="trust-title">Your game stays yours.</h2></div></div>
       <div class="ownership-points">
-        <div>
-          <h3>Updates belong to LFS</h3>
-          <p>Update inside LFS and follow its restart. The launcher does not ask you to approve game updates.</p>
-        </div>
-        <div>
-          <h3>Your files stay in place</h3>
-          <p>Compatibility repair preserves the entire existing game, including settings, setups, replays, and player data.</p>
-        </div>
-        <div>
-          <h3>Verified setup downloads</h3>
-          <p>Official game downloads and compatibility inputs are checked before use. No game binaries are bundled with the launcher.</p>
-        </div>
+        <div><h3>LFS owns the updates</h3><p>Update inside the game, restart, and play. No extra approval from the launcher.</p></div>
+        <div><h3>Your files stay in place</h3><p>Compatibility repair keeps the entire game, including settings, setups, replays and player data.</p></div>
+        <div><h3>Setup inputs are checked</h3><p>Official downloads and compatibility components are verified before use. No game binaries are bundled.</p></div>
       </div>
     </section>
 
     <section class="section shell" id="support" aria-labelledby="support-title">
       <div class="section-heading">
-        <div>
-          <p class="eyebrow">04 / BACK TO THE PADDOCK</p>
-          <h2 id="support-title">Back to the track.</h2>
-        </div>
-        <a class="text-link" href="https://github.com/mitzracing/live-for-speed-linux/blob/main/docs/TROUBLESHOOTING.md">Troubleshooting <span aria-hidden="true">↗</span></a>
+        <div><p class="eyebrow">LET’S GET YOU BACK ON TRACK</p><h2 id="support-title">Need a hand?</h2></div>
+        <a class="text-link" href="https://github.com/mitzracing/live-for-speed-linux/blob/main/docs/TROUBLESHOOTING.md">Try troubleshooting first <span aria-hidden="true">↗</span></a>
       </div>
-      <p class="support-lede">Describe what happened here. The browser removes known private-data patterns, then opens the matching GitHub form with your text filled in. Nothing is sent until you review and submit on GitHub.</p>
+      <p class="privacy-note"><strong>GitHub sign-in is required.</strong> Reports are public. This page stores nothing and uses no external form service.</p>
+      <p class="support-lede">Describe it here. Your browser removes known private-data patterns and prepares the matching GitHub form. Nothing is sent until you review and submit on GitHub.</p>
       <div class="support-grid" aria-label="Choose a report type">
-        <button class="support-card" type="button" data-feedback-kind="bug" aria-controls="feedback-disclosure" aria-expanded="false">
-          <strong>Something broke</strong><span>Report a game or launcher problem</span>
-        </button>
-        <button class="support-card" type="button" data-feedback-kind="compatibility" aria-controls="feedback-disclosure" aria-expanded="false">
-          <strong>Different distribution</strong><span>Share compatibility results</span>
-        </button>
-        <button class="support-card" type="button" data-feedback-kind="feature" aria-controls="feedback-disclosure" aria-expanded="false">
-          <strong>Suggest an improvement</strong><span>Explain the player problem first</span>
-        </button>
-        <button class="support-card" type="button" data-feedback-kind="feedback" aria-controls="feedback-disclosure" aria-expanded="false">
-          <strong>Share your experience</strong><span>Tell us what worked or confused you</span>
-        </button>
+        <button class="support-card" type="button" data-feedback-kind="bug" aria-controls="feedback-disclosure" aria-expanded="false"><strong>Something broke <span aria-hidden="true">↗</span></strong><span>Game or launcher problem</span></button>
+        <button class="support-card" type="button" data-feedback-kind="compatibility" aria-controls="feedback-disclosure" aria-expanded="false"><strong>Tested another distro <span aria-hidden="true">↗</span></strong><span>Share compatibility results</span></button>
+        <button class="support-card" type="button" data-feedback-kind="feature" aria-controls="feedback-disclosure" aria-expanded="false"><strong>Have an idea <span aria-hidden="true">↗</span></strong><span>Suggest an improvement</span></button>
+        <button class="support-card" type="button" data-feedback-kind="feedback" aria-controls="feedback-disclosure" aria-expanded="false"><strong>Share your experience <span aria-hidden="true">↗</span></strong><span>What worked? What got in the way?</span></button>
       </div>
 
       <details id="feedback-disclosure" class="feedback-disclosure">
-        <summary>
-          <strong id="feedback-summary-label">Write a report</strong>
-          <span>Open only when you need it</span>
-        </summary>
+        <summary><strong id="feedback-summary-label">Write a report</strong><span>Choose a type above, or open the form here.</span></summary>
         <div class="feedback-shell">
           <form id="feedback-form" class="feedback-form" action="#support">
             <div class="form-grid">
-              <label>
-                Report type
-                <select id="kind" required>
-                  <option value="bug">Something broke</option>
-                  <option value="compatibility">Distribution compatibility</option>
-                  <option value="feature">Improvement request</option>
-                  <option value="feedback">General experience</option>
-                </select>
-              </label>
-              <label>
-                Short summary
-                <input id="summary" maxlength="100" autocomplete="off" required placeholder="What should another player know?">
-              </label>
-              <label>
-                Linux distribution
-                <select id="distribution">
-                  <option value="">Not relevant</option>
-                  <option>Arch Linux</option>
-                  <option>Manjaro Linux</option>
-                  <option>Another Arch-based distribution</option>
-                  <option>Debian or Ubuntu based</option>
-                  <option>Fedora based</option>
-                  <option>openSUSE based</option>
-                  <option>Another distribution</option>
-                </select>
-              </label>
-              <label>
-                Distribution and version
-                <input id="distributionVersion" maxlength="160" autocomplete="off" placeholder="For example: Manjaro 26.0">
-              </label>
-              <label data-package-method hidden>
-                Installation method
-                <input id="packageMethod" maxlength="160" autocomplete="off" placeholder="Source archive, AUR helper, or local package">
-              </label>
-              <label data-wrapper-version>
-                Wrapper version
-                <input id="wrapperVersion" maxlength="40" autocomplete="off" placeholder="From Help or a diagnostic report">
-              </label>
-              <label>
-                Desktop and display session
-                <input id="desktop" maxlength="160" autocomplete="off" placeholder="For example: KDE Plasma 6 on X11">
-              </label>
-              <label>
-                GPU and driver
-                <input id="graphics" maxlength="160" autocomplete="off" placeholder="For example: RTX 3070, driver 580.82">
-              </label>
+              <label>Report type<select id="kind" required><option value="bug">Something broke</option><option value="compatibility">Distribution compatibility</option><option value="feature">Improvement request</option><option value="feedback">General experience</option></select></label>
+              <label>Short summary<input id="summary" maxlength="100" autocomplete="off" required placeholder="What should another player know?"></label>
             </div>
-            <label>
-              What happened, worked, or needs improvement?
-              <textarea id="details" maxlength="1800" required placeholder="Use plain language. Include the first visible error when applicable."></textarea>
-            </label>
-            <label>
-              What result or improvement did you expect?
-              <textarea id="expected" maxlength="1200" required></textarea>
-            </label>
-            <label>
-              Reproduction, verification steps, or alternatives
-              <textarea id="steps" maxlength="1800" placeholder="Use one step per line."></textarea>
-            </label>
-            <label>
-              Desired outcome or user value
-              <textarea id="value" maxlength="1000" placeholder="Why would this help players?"></textarea>
-            </label>
-            <label>
-              Diagnostics (optional)
-              <textarea id="diagnostics" maxlength="2500" spellcheck="false" placeholder="Paste text only. The browser removes known tokens, registry data, email addresses, and full home paths."></textarea>
-            </label>
-            <label class="safety-check">
-              <input type="checkbox" id="safety" value="confirmed" required>
-              I understand the report is public. I will review the sanitized text and will not add passwords, unlock data, registry files, proprietary files, or private logs on GitHub.
-            </label>
-            <div class="form-actions">
-              <button class="button primary prepare-button" type="submit">Prepare GitHub handoff</button>
-              <button id="collapse-feedback" class="button secondary" type="button">Collapse form</button>
-            </div>
+            <label>What happened, worked, or needs improvement?<textarea id="details" maxlength="1800" required placeholder="Use plain language. Include the first visible error if there is one."></textarea></label>
+            <label>What result or improvement did you expect?<textarea id="expected" maxlength="1200" required></textarea></label>
+            <details id="feedback-environment" class="form-details" open>
+              <summary>System details <span id="environment-requirement">Required for this report</span></summary>
+              <div class="form-grid">
+                <label>Linux distribution<select id="distribution"><option value="">Not relevant</option><option>Arch Linux</option><option>Manjaro Linux</option><option>Another Arch-based distribution</option><option>Debian or Ubuntu based</option><option>Fedora based</option><option>openSUSE based</option><option>Another distribution</option></select></label>
+                <label>Distribution and version<input id="distributionVersion" maxlength="160" autocomplete="off" placeholder="For example: Manjaro 26.0"></label>
+                <label data-package-method hidden>Installation method<input id="packageMethod" maxlength="160" autocomplete="off" placeholder="Source archive, AUR helper, or local package"></label>
+                <label data-wrapper-version>Wrapper version<input id="wrapperVersion" maxlength="40" autocomplete="off" placeholder="From Help or a diagnostic report"></label>
+                <label>Desktop and display session<input id="desktop" maxlength="160" autocomplete="off" placeholder="For example: KDE Plasma 6 on X11"></label>
+                <label>GPU and driver<input id="graphics" maxlength="160" autocomplete="off" placeholder="For example: RTX 3070, driver 580.82"></label>
+              </div>
+            </details>
+            <label>Reproduction, verification steps, or alternatives<textarea id="steps" maxlength="1800" placeholder="Use one step per line."></textarea></label>
+            <label>Desired outcome or user value<textarea id="value" maxlength="1000" placeholder="Why would this help players?"></textarea></label>
+            <details id="feedback-diagnostics" class="form-details">
+              <summary>Attach diagnostics <span>Optional</span></summary>
+              <label>Diagnostics<textarea id="diagnostics" maxlength="2500" spellcheck="false" placeholder="Paste text only. Known tokens, registry data, email addresses and full home paths are removed before handoff."></textarea></label>
+            </details>
+            <label class="safety-check"><input type="checkbox" id="safety" value="confirmed" required>I understand the report is public. I will review the sanitized text and will not add passwords, unlock data, registry files, proprietary files, or private logs on GitHub.</label>
+            <div class="form-actions"><button class="button primary prepare-button" type="submit">Preview my report</button><button id="collapse-feedback" class="button secondary" type="button">Close form</button></div>
           </form>
           <div id="feedback-result" class="feedback-result" aria-live="polite" hidden>
             <p id="feedback-status"></p>
             <a id="github-handoff" class="button primary" href="https://github.com/mitzracing/live-for-speed-linux/issues/new" target="_blank" rel="noopener">Review and submit on GitHub</a>
-            <details>
-              <summary>Review generated text</summary>
-              <pre id="report-preview"></pre>
-            </details>
+            <details><summary>Review generated text</summary><pre id="report-preview"></pre></details>
           </div>
         </div>
       </details>
-      <p class="direct-forms">Prefer to start on GitHub? Use the direct <a href="https://github.com/mitzracing/live-for-speed-linux/issues/new?template=bug.yml">problem</a>, <a href="https://github.com/mitzracing/live-for-speed-linux/issues/new?template=compatibility.yml">compatibility</a>, <a href="https://github.com/mitzracing/live-for-speed-linux/issues/new?template=feature.yml">improvement</a>, or <a href="https://github.com/mitzracing/live-for-speed-linux/issues/new?template=feedback.yml">experience</a> form.</p>
+      <p class="direct-forms">Prefer GitHub directly? Open a <a href="https://github.com/mitzracing/live-for-speed-linux/issues/new?template=bug.yml">problem</a>, <a href="https://github.com/mitzracing/live-for-speed-linux/issues/new?template=compatibility.yml">compatibility</a>, <a href="https://github.com/mitzracing/live-for-speed-linux/issues/new?template=feature.yml">improvement</a>, or <a href="https://github.com/mitzracing/live-for-speed-linux/issues/new?template=feedback.yml">experience</a> form.</p>
       <noscript><p class="release-notice">JavaScript is disabled. Use one of the direct GitHub forms above and remove private data yourself.</p></noscript>
-      <p class="privacy-note">GitHub sign-in is required. This page stores nothing and uses no external form service.</p>
     </section>
 
     <section class="section shell technical" aria-labelledby="technical-title">
-      <div class="section-heading">
-        <div>
-          <p class="eyebrow">05 / UNDER THE HOOD</p>
-          <h2 id="technical-title">Under the hood.</h2>
-        </div>
-      </div>
+      <div class="section-heading"><div><p class="eyebrow">GOOD TO KNOW</p><h2 id="technical-title">A few details before you race.</h2></div></div>
       <details>
         <summary>Game version &amp; compatibility</summary>
         <div class="technical-body">
@@ -331,18 +238,16 @@
   <footer class="site-footer">
     <div class="shell">
       <div class="footer-top">
-        <div>
-          <strong>Live for Speed Linux</strong>
-          <p>Less setup. More track time.</p>
-        </div>
+        <div><strong>Live for Speed Linux</strong><p>Install once. Come back for another lap.</p></div>
         <nav aria-label="Project links">
+          <a href="https://github.com/mitzracing/live-for-speed-linux">Source on GitHub</a>
           <a href="https://github.com/mitzracing/live-for-speed-linux/releases">Releases</a>
           <a href="https://github.com/mitzracing/live-for-speed-linux/blob/main/CONTRIBUTING.md">Contribute</a>
           <a href="https://github.com/mitzracing/live-for-speed-linux/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22+-label%3A%22status%3Apossible-sensitive%22">Help-wanted tickets</a>
           <a href="https://www.lfs.net/">Official LFS website <span aria-hidden="true">↗</span></a>
         </nav>
       </div>
-      <p class="legal">An independent community project, not affiliated with or endorsed by the Live for Speed developers. The wrapper is MIT-licensed. Live for Speed remains proprietary software under its own terms. No game binaries or unlock tools are distributed.</p>
+      <p class="legal">An independent community project, not affiliated with or endorsed by the Live for Speed developers. The wrapper is MIT-licensed. Live for Speed and its imagery remain the property of their respective owners. No game binaries or unlock tools are distributed.</p>
     </div>
   </footer>
 </body>

@@ -1,25 +1,25 @@
 # Website media and font records
 
-## Motorsport photographs
+## Actual Live for Speed screenshots
 
-These six photographs use the [Unsplash License](https://unsplash.com/license). Attribution is not required. The license permits free download, copying, modification, distribution and use, including commercial use. It does not permit selling unmodified images or compiling a competing image service. These photographs remain separately licensed from the MIT code.
+The website uses six game screenshots, not real-world car photographs. Four come from the [official LFS gallery](https://www.lfs.net/screenshots); two come from community vehicle-mod pages. They show different builds, including development graphics. Community mods require an LFS S3 licence. These images are not recordings of the Linux wrapper, proof of exact-build gameplay, or a claim of upstream endorsement.
 
-Each linked photo page identifies its image as free to use under the Unsplash License. These are real-world motorsport photographs, not LFS screenshots, bundled game content or evidence of Linux gameplay. The website labels that distinction and displays no photo credits. No endorsement by depicted people or brands is claimed.
+Screenshot redistribution permission has not been verified. Source pages establish provenance, not a license grant. The screenshots remain the property of their respective owners, separate from the MIT code. The owner requested publication after this limitation was disclosed. This approval does not grant upstream rights, and the images are not represented as rights-cleared. No permission requests were sent for this task. The maintainer remains responsible for reuse terms and any rights-holder request.
 
-| File | Photo page | Bytes | WebP SHA-256 |
+| File | Primary source | Bytes | WebP SHA-256 |
 | --- | --- | ---: | --- |
-| `pit-lane.webp` | [sR-MmCZuo4A](https://unsplash.com/photos/race-cars-are-being-worked-on-in-the-pit-lane-sR-MmCZuo4A) | 124820 | `56db2dcac374fd328264abd0727e566b7e323ba3d34e2f03775cd589b9d5c065` |
-| `gt3-track.webp` | [GaXm8_GKJiA](https://unsplash.com/photos/black-porsche-gt3-rs-with-yellow-accents-on-track-GaXm8_GKJiA) | 75672 | `a4f8a7ba126391b32ca44975385655ba2042cedce6a57c24fb7eb24d68903d32` |
-| `drift-smoke.webp` | [RI8h-awF3sA](https://unsplash.com/photos/drifting-car-creating-smoke-on-race-track-RI8h-awF3sA) | 39056 | `8047f0d0c67cd727fd2942c3e07144ec6d71f0827d84c8f3818281303e6b7aa9` |
-| `garage.webp` | [WpHw-FnxbuU](https://unsplash.com/photos/race-car-with-hood-open-in-garage-pit-stop-WpHw-FnxbuU) | 72434 | `4c1326ff8fadebd06c286a304bc2c8f5bd41c0c63835b8bdf103f1cc4e861c80` |
-| `drift-action.webp` | [3Z7lDp8LPvU](https://unsplash.com/photos/drifting-car-on-a-race-track-with-smoke-3Z7lDp8LPvU) | 65136 | `ca82884582c8cadce7418ccd75c6922da5c6df0da0f42a8af511ae64ee328c2d` |
-| `gt3-detail.webp` | [eLipvu7I2hQ](https://unsplash.com/photos/rear-view-of-a-grey-porsche-gt3-with-large-wing-eLipvu7I2hQ) | 90158 | `9aad4b2161aa8f0ed6e60f6ae990b2e4b1682dba46e7322119e238f930cf7659` |
+| `lfs-gt3.webp` | [FUND MUTSAND GT3](https://www.lfs.net/files/vehmods/FAC497), image [586401](https://www.lfs.net/attachment/586401) | 94000 | `8cbd924cde7f67b15a94df2783e5bd332939a98d6831c2f43637d1ccd7b8f454` |
+| `lfs-open-wheel.webp` | [Official gallery image](https://www.lfs.net/static/screenshots/-12293061%20-12772904%20531234%20-17595%20447%200.0%2060.0.jpg) | 117078 | `eb941329e2ab934001de05d29de2dc35022b0341b6219d33fd69e307aca756f9` |
+| `lfs-drift.webp` | [FZ5 DRIFT PACK](https://www.lfs.net/files/vehmods/EC3AC1), image [327687](https://www.lfs.net/attachment/327687) | 100332 | `9df3da55f6c54cc19f345ae42481234c2aff7e81df1f825e2cf2f831ab307f5c` |
+| `lfs-blackwood.webp` | [FZR leaving the Blackwood pits](https://www.lfs.net/static/screenshots/bl-fzr-leaving-pit-box.jpg) | 67832 | `bb93c573cc80bd16c20ffa0d5239500703fd7ffb1193680c6f7f56d500de0c63` |
+| `lfs-cockpit.webp` | [Cockpit shadows](https://www.lfs.net/static/screenshots/Cockpit%20Shadows9.jpg) | 48384 | `6c4c9725cdcb051f8289eea7a40b342f3c0130ac5c950a2eefe1913e83fc4d12` |
+| `lfs-roadsters.webp` | [Roadsters side by side](https://www.lfs.net/static/screenshots/Reflections_08.jpg) | 51594 | `575b4985a923852a89f17202973bea13b3021e6e3606c1a56a95202285779ba5` |
 
-The downloaded source images retain a maximum width of 1920 pixels. Pillow `ImageOps.fit` crops and resizes them to 1120×630 with LANCZOS sampling. WebP uses `quality=78`, `method=6`. Crop centers are pit lane `(0.5, 0.46)`, GT3 track `(0.5, 0.54)`, drift smoke `(0.5, 0.55)`, garage `(0.5, 0.5)`, drift action `(0.5, 0.75)` and GT3 detail `(0.5, 0.5)`. The hero applies an additional centered CSS crop. No watermark was removed.
+All source images are 16:9. Pillow uses LANCZOS sampling with `ImageOps.fit`, WebP `quality=78`, `method=6`. GT3, open-wheel, drift and cockpit outputs are 1120×630. Blackwood and roadsters retain their original 1024×576 dimensions. No upscaling, color grading, added imagery or watermark removal is applied. CSS uses `object-fit: contain` to preserve the full screenshot.
 
-The six files total 467,276 bytes. They are served locally, without hotlinks. The initial hero is high-priority, later slides load on selection, and gallery images load lazily. Private downloaded sources, source-page records and hashes remain in `artifacts/website-photo-refresh/`. The former six screenshot assets are not in the current website or assembled output. Their original notices remain with historical versions and private backups.
+The six files total 479,220 bytes, within the existing 550 KiB combined budget. They are served locally without hotlinks. The initial hero is high-priority, later slides load on selection, and gallery images load lazily. The website has no added credit panels; existing marks inside source images remain intact. Originals, source-page records, hashes and selection evidence remain in `artifacts/website-lfs-overhaul/`. Retired real-world photographs are absent from this candidate and preserved with their historical notices.
 
-The maintainer owns future replacements. Update images, captions, alt text, dimensions, this record, asset hashes and the explicit builder list together. Keep image budgets, motion preferences, manual controls, failure geometry and the no-JavaScript fallback. Website media, fonts and these records belong to the website/source tree, not installed Linux packages.
+The maintainer owns future replacements. Update images, captions, alt text, dimensions, this record, reviewed hashes and the explicit builder list together. Review the actual images against their primary sources; a filename or caption alone does not prove that an image comes from LFS. Keep image budgets, motion preferences, manual controls, failure geometry and no-JavaScript behavior. Website media, fonts and records do not belong in installed Linux packages.
 
 ## Space Grotesk
 
