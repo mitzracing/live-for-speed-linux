@@ -13,7 +13,7 @@ The pinned Wine 11.15 runtime requires glibc 2.38 or newer. Ubuntu 22.04 and Deb
 
 ## Install
 
-The 0.4.0 public test uses native graphical setup. Open its `.deb` with a graphical package installer, then open **Live for Speed Linux** from the application menu. Choose **Install and play**. Game setup, retry, compatibility repair, and Help require no terminal.
+The 0.4.1 public test uses native graphical setup. Open its `.deb` with a graphical package installer, then open **Live for Speed Linux** from the application menu. Choose **Install**. When setup finishes, choose **Play now** or **Close**. Game setup, retry, compatibility repair, and Help require no terminal.
 
 The owner approved public-test downloads with manual acceptance checks open. This does not certify graphical dependency installation or gameplay. The default Ubuntu App Center, GNOME Software, KDE Discover, and GDebi are distinct routes; record exactly which one was tested before advertising it as verified. See `docs/RELEASE-CANDIDATE.md`.
 
@@ -22,7 +22,7 @@ The package provisions the exact private Wine runtime, independent of any system
 ### Advanced command-line installation
 
 ```bash
-sudo apt install ./live-for-speed-linux_0.4.0-0github1_amd64.deb
+sudo apt install ./live-for-speed-linux_0.4.1-0github1_amd64.deb
 ```
 
 Then open the game icon. Per-user launcher commands must never run as root.

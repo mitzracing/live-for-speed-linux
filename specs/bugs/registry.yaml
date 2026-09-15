@@ -22,4 +22,4 @@ bugs:
     scope: native-game-display
     summary: Game itself is invisible while receiving desktop clicks.
     file: specs/bugs/BUG-003-invisible-game.md
-    status: blocked_live_verification
+    status: open_not_reproduced_on_followup

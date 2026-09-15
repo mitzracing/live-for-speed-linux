@@ -2,7 +2,7 @@
 
 ## Wrapper release
 
-The owner approved 0.4.0 as a public-test prerelease with the manual acceptance checks in `docs/RELEASE-CANDIDATE.md` still open. Run automated checks and exact-artifact validation before publishing. Mark the GitHub release as a prerelease and disclose open checks on the website and in release notes. This is not full end-to-end acceptance or permission to advertise an unavailable store route.
+The owner approved 0.4.0 and the 0.4.1 setup-choice follow-up as public-test prereleases with the manual acceptance checks in `docs/RELEASE-CANDIDATE.md` still open. Run automated checks and exact-artifact validation before publishing. Mark the GitHub release as a prerelease and disclose open checks on the website and in release notes. This is not full end-to-end acceptance or permission to advertise an unavailable store route.
 
 The complete acceptance procedure remains:
 

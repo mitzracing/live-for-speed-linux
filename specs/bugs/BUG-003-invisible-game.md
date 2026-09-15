@@ -28,6 +28,14 @@ Security impact: no exploit path identified. Usability severity is high because 
 
 The initial containment minimized only the verified LFS window. It did not kill or restart the game, synthesize input, modify player data or change system graphics settings. The owner later closed the game.
 
+## Authorized follow-up
+
+The owner later selected one observed launch. The harness invoked the installed 0.4.0 `lfs-linux-desktop launch` entry point directly; this was not a recorded physical menu click. The window became focused and fullscreen with a 1920×1080 swapchain. No new KWin framebuffer errors were observed in the bounded check. The owner reported: “game visible and works :)”.
+
+No graphics change was made. This run did not reproduce the invisible game, but it does not establish the earlier cause or prove a graphics fix. Fullscreen metadata also appeared in the working run, so it is not by itself a failure indicator. The owner retained control of the running game.
+
+Evidence: `artifacts/launch-focus-20260915T125849Z/live-check-20260915T170552Z/`. The setup-choice fix can be published as the requested public-test follow-up with this limitation disclosed; BUG-003 remains open.
+
 ## Release boundary
 
 BUG-002's completion choice is a separate controller fix. Its tests do not resolve this display failure. Do not publish a claimed graphics fix, disable global compositing, change drivers, alter runtime pins or edit game settings on this evidence alone. A bounded live check needs the owner's launch confirmation; if unavailable, stop rather than silently launch.

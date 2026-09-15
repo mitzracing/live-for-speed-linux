@@ -4,7 +4,7 @@ Unofficial community Linux launcher for the untouched official [Live for Speed](
 
 **Mission:** get LFS running in a few clicks, then get out of its way. The wrapper owns setup and compatibility; LFS owns game files and updates. Updates must survive restart, full exit, and later launch without wrapper approval.
 
-**Status:** [v0.4.0 public-test release](https://github.com/mitzracing/live-for-speed-linux/releases/tag/v0.4.0). Manual acceptance checks remain open; see [release status](docs/RELEASE-CANDIDATE.md). No software-store listing is available. The core works without Steam, Bottles, Lutris, or a background launcher.
+**Status:** [v0.4.1 public-test release](https://github.com/mitzracing/live-for-speed-linux/releases/tag/v0.4.1). Manual acceptance checks remain open; see [release status](docs/RELEASE-CANDIDATE.md). No software-store listing is available. The core works without Steam, Bottles, Lutris, or a background launcher.
 
 This release bootstraps exact official **LFS 0.8C20 new graphics**, which lfs.net still labels **PUBLIC TEST**. It is not represented as a stable LFS release. Use immutable [v0.1.6](https://github.com/mitzracing/live-for-speed-linux/releases/tag/v0.1.6) for the audited old-graphics 0.7G fallback.
 
@@ -92,7 +92,7 @@ The AUR package contains only this open-source wrapper. It does not contain the 
 
 ## Debian and Ubuntu
 
-[Download the 0.4.0 public-test `.deb`](https://github.com/mitzracing/live-for-speed-linux/releases/download/v0.4.0/live-for-speed-linux_0.4.0-0github1_amd64.deb) for Debian 13 or Ubuntu 24.04. Open it with a graphical package installer, then open **Live for Speed Linux** from the application menu.
+[Download the 0.4.1 public-test `.deb`](https://github.com/mitzracing/live-for-speed-linux/releases/download/v0.4.1/live-for-speed-linux_0.4.1-0github1_amd64.deb) for Debian 13 or Ubuntu 24.04. Open it with a graphical package installer, then open **Live for Speed Linux** from the application menu.
 
 Package and container checks passed. Exact graphical installer and real updated-game acceptance remain open; this is a testing release, not a verified software-store route. See [release status](docs/RELEASE-CANDIDATE.md).
 

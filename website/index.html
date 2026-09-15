@@ -41,29 +41,30 @@
       <section id="install" aria-labelledby="install-title" tabindex="-1">
         <div class="download-heading">
           <h2 id="install-title">Choose your Linux.</h2>
-          <span class="release-badge" data-release-version="0.4.0">Public test <strong>0.4.0</strong></span>
+          <span class="release-badge" data-release-version="0.4.1">Public test <strong>0.4.1</strong></span>
         </div>
         <p class="hero-note">64-bit Linux · Vulkan graphics required</p>
         <div class="download-grid">
           <article class="download-card" aria-labelledby="deb-title">
             <h3 id="deb-title">Debian / Ubuntu</h3>
             <p class="package-platform">Debian 13 · Ubuntu 24.04</p>
-            <a class="button primary" href="https://github.com/mitzracing/live-for-speed-linux/releases/download/v0.4.0/live-for-speed-linux_0.4.0-0github1_amd64.deb">Get .deb <span aria-hidden="true">↓</span></a>
+            <a class="button primary" href="https://github.com/mitzracing/live-for-speed-linux/releases/download/v0.4.1/live-for-speed-linux_0.4.1-0github1_amd64.deb">Get .deb <span aria-hidden="true">↓</span></a>
           </article>
           <article class="download-card" aria-labelledby="arch-title">
             <h3 id="arch-title">Arch / Manjaro</h3>
             <p class="package-platform">Direct .pkg.tar.zst package</p>
-            <a class="button primary" href="https://github.com/mitzracing/live-for-speed-linux/releases/download/v0.4.0/live-for-speed-linux-0.4.0-1-x86_64.pkg.tar.zst">Get Arch <span aria-hidden="true">↓</span></a>
+            <a class="button primary" href="https://github.com/mitzracing/live-for-speed-linux/releases/download/v0.4.1/live-for-speed-linux-0.4.1-1-x86_64.pkg.tar.zst">Get Arch <span aria-hidden="true">↓</span></a>
           </article>
         </div>
         <p class="release-notice"><strong>Help test the full journey.</strong> Graphical installation and the game update/reopen flow still need real-world checks. <a href="https://github.com/mitzracing/live-for-speed-linux/blob/main/docs/RELEASE-CANDIDATE.md">See tested scope.</a></p>
         <details class="install-details">
-          <summary>Installation notes &amp; other distributions</summary>
+          <summary>Installation notes &amp; known issues</summary>
           <div class="install-notes">
             <p><strong>Debian / Ubuntu:</strong> open the .deb with your graphical package installer. Then open Live for Speed Linux from the application menu.</p>
             <p><strong>Arch / Manjaro:</strong> this is a direct test package. The AUR/Pamac route is not published or verified yet. <a href="https://github.com/mitzracing/live-for-speed-linux/blob/main/packaging/aur/README.md">Arch installation details ↗</a></p>
             <p>No software-store listing is available. The game is downloaded separately during setup. Your LFS licence determines which cars and tracks you can use.</p>
-            <p><a href="https://github.com/mitzracing/live-for-speed-linux/releases/tag/v0.4.0">Release notes &amp; checksums ↗</a><br><a href="https://github.com/mitzracing/live-for-speed-linux#install-from-source">Other distributions &amp; source installation ↗</a></p>
+            <p><strong>Display report:</strong> an invisible game window was reported on KDE/X11 with NVIDIA graphics. A later launch worked without graphics changes; the cause remains unverified. This release fixes setup's launch choice, not graphics.</p>
+            <p><a href="https://github.com/mitzracing/live-for-speed-linux/releases/tag/v0.4.1">Release notes &amp; checksums ↗</a><br><a href="https://github.com/mitzracing/live-for-speed-linux#install-from-source">Other distributions &amp; source installation ↗</a></p>
           </div>
         </details>
       </section>
@@ -98,7 +99,7 @@
         <p>One application-menu icon, from first install to your next session. No terminal or Wine configuration for normal play.</p>
         <ol class="steps-grid">
           <li><span class="step-number" aria-hidden="true">01</span><div><h3>Install the small launcher</h3><p>Choose your package above and approve installation.</p></div></li>
-          <li><span class="step-number" aria-hidden="true">02</span><div><h3>Choose Install and play</h3><p>Review the download size and public-test notice. Follow setup progress; interrupted downloads can resume.</p></div></li>
+          <li><span class="step-number" aria-hidden="true">02</span><div><h3>Install, then choose when to play</h3><p>Review the download size and choose Install. When setup finishes, choose Play now or Close. Interrupted downloads can resume.</p></div></li>
           <li><span class="step-number" aria-hidden="true">03</span><div><h3>Use the same icon next time</h3><p>LFS updates itself. Follow its restart, exit normally, then reopen from your menu.</p></div></li>
         </ol>
       </div>
@@ -116,6 +117,7 @@
             <a class="text-link" href="assets/installer-demo.mp4" target="_blank" rel="noopener">Open larger video ↗</a>
           </div>
           <p id="demo-caption" class="demo-caption">10.5-second interface demo. Simulated local data; no game files downloaded or changed.</p>
+          <p class="demo-caption">Recorded with 0.4.0. Version 0.4.1 adds a Play now / Close choice after setup.</p>
           <p id="demo-status" class="demo-status" role="status" aria-live="polite"></p>
           <details class="demo-transcript">
             <summary>Read demo steps</summary>

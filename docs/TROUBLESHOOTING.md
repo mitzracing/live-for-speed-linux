@@ -4,9 +4,9 @@ Right-click **Live for Speed Linux** in the application menu and choose **Help a
 
 ## LFS updated itself
 
-Accept updates inside LFS and follow its restart prompt. After playing and closing the game, reopen **Live for Speed Linux** normally. Wrapper 0.4.0 does not fingerprint the installed game or require update approval, recovery records, or newer version-marker files.
+Accept updates inside LFS and follow its restart prompt. After playing and closing the game, reopen **Live for Speed Linux** normally. Wrappers from 0.4.0 onward do not fingerprint the installed game or require update approval, recovery records, or newer version-marker files.
 
-Older wrappers can reject a working updated game with `recorded in-game update baseline drifted outside a trusted LFS session`. That message does not prove an outside change. Do not delete, downgrade, or rebaseline the game to silence it. Use a checked wrapper with the new update policy; the application-menu entry must point to that installed wrapper, not an older user-local copy. The 0.4.0 candidate still needs exact-package and real-game acceptance before publication.
+Older wrappers can reject a working updated game with `recorded in-game update baseline drifted outside a trusted LFS session`. That message does not prove an outside change. Do not delete, downgrade, or rebaseline the game to silence it. Use a checked wrapper with the new update policy; the application-menu entry must point to that installed wrapper, not an older user-local copy. The current public-test release still has open exact-package and full real-game acceptance checks.
 
 The version displayed inside LFS is the game version. `LFS pin` in wrapper diagnostics describes only the first-install bootstrap. Old `game-update*.manifest` and `launch-session.env` files are retained but ignored. The legacy `recover-update` CLI command explains that normal launch replaces recovery.
 
@@ -67,6 +67,12 @@ The wrapper checks the Wine archive, detached signature, pinned certificate, and
 ## Missing audio
 
 Open the system audio mixer while LFS runs. Confirm that `LFS.exe` is not muted. Press `W` in LFS to initialize sound again; `N` toggles sound. If no stream appears, report the distribution and audio system through Help.
+
+## Invisible game window
+
+An invisible game receiving desktop clicks was reported on KDE/X11 with NVIDIA graphics. The owner later confirmed a visible, working launch without a graphics change. The original cause remains unverified; 0.4.1 does not claim a graphics fix.
+
+If this happens, avoid blind desktop clicks. Use the desktop's window controls to close LFS normally and report the display session and symptom through Help. Do not reset player data or change drivers on this symptom alone.
 
 ## Full-screen recovery
 

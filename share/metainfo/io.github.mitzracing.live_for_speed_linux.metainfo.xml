@@ -24,8 +24,8 @@
   </keywords>
   <description>
     <p>Live for Speed Linux is an unofficial community launcher for the untouched official Live for Speed racing simulator.</p>
-    <p>Version 0.4.0 bootstraps exact LFS 0.8C20 new graphics, which upstream labels PUBLIC TEST rather than stable.</p>
-    <p>Open the game from your application menu. A graphical setup downloads and checks the required files, shows progress, and starts LFS. Interrupted downloads can resume; repairs preserve player data. LFS owns its installed files and updates. Later launches use the updated game without fingerprints or wrapper approval; compatibility repair keeps the entire existing game.</p>
+    <p>Version 0.4.1 bootstraps exact LFS 0.8C20 new graphics, which upstream labels PUBLIC TEST rather than stable.</p>
+    <p>Open the game from your application menu. A graphical setup downloads and checks the required files, shows progress, then offers Play now or Close. Interrupted downloads can resume; repairs preserve player data. LFS owns its installed files and updates. Later launches use the updated game without fingerprints or wrapper approval; compatibility repair keeps the entire existing game.</p>
     <p>Live for Speed is proprietary software from Scawen Roberts, Eric Bailey, and Victor van Vlaardingen. This community wrapper is not affiliated with or endorsed by the Live for Speed developers.</p>
   </description>
   <url type="homepage">https://github.com/mitzracing/live-for-speed-linux</url>
@@ -43,6 +43,11 @@
     <content_attribute id="social-chat">intense</content_attribute>
   </content_rating>
   <releases>
+    <release version="0.4.1" date="2026-09-15" type="development">
+      <description>
+        <p>Ask before launching after graphical setup or repair. Play now starts the game; Close leaves it installed for later. Ordinary launches remain prompt-free. Bootstrap, Wine and DXVK are unchanged. The earlier invisible-window report remains unverified after a successful follow-up launch; no graphics fix is claimed.</p>
+      </description>
+    </release>
     <release version="0.4.0" date="2026-09-06" type="development">
       <description>
         <p>Add graphical installation, compatibility repair, and Help. Remove installed-game fingerprint gates so LFS owns updates and later launches. Preserve the entire existing game and player data; provision private Wine independently of system Wine. This public test has open manual gameplay and graphical package-installation checks.</p>
