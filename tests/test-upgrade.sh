@@ -630,7 +630,8 @@ run_desktop >"$TMP_ROOT/desktop-first.out" 2>&1
 LFS_TEST_SELF_UPDATE_VERSION=8C26 LFS_TEST_RESTART_SECONDS=1 run_desktop >"$TMP_ROOT/desktop-update.out" 2>&1
 run_desktop >"$TMP_ROOT/desktop-reopen.out" 2>&1
 [[ "$(wc -l <"$TMP_ROOT/desktop-plays")" == 3 ]]
-[[ "$(grep -c -- --question "$TMP_ROOT/desktop-dialogs")" == 1 ]]
+[[ "$(grep -c -- --question "$TMP_ROOT/desktop-dialogs")" == 2 ]]
+[[ "$(grep -c -- '--ok-label=Play now' "$TMP_ROOT/desktop-dialogs")" == 1 ]]
 [[ ! -e "$TMP_ROOT/desktop-state/launch-session.env" ]]
 grep -Fqx self-updated-8C26 "$TMP_ROOT/desktop-state/prefix/drive_c/LFS/LFS.exe"
 if grep -Eq 'Finish update|Protected-file snapshot|rebaseline' "$TMP_ROOT/desktop-dialogs"; then

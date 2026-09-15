@@ -62,6 +62,8 @@ def show(view, request):
         if scenario == "cancel" and options.text.startswith("Preparing Live"):
             choice = "Cancel"
         else: return
+    elif scenario == "close-completion" and options.kind == "question" and options.ok_label == "Play now":
+        choice = options.cancel_label
     elif scenario == "cancel-prompt" and options.kind == "question":
         choice = "Cancel"
     elif options.ok_label == "Retry" and scenario == "failure":
@@ -109,6 +111,15 @@ class GtkView(unittest.TestCase):
                 expected = ["desktop-state", "launch"] if state == "ready" else ["desktop-state", "install", "desktop-state", "launch"]
                 self.assertEqual(actions, expected)
                 self.assert_clean()
+
+    def test_close_completion_keeps_installation_without_starting_game(self):
+        result = self.run_ui(scenario="close-completion")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.fixture.actions(), ["desktop-state", "install"])
+        self.assertTrue((self.root / "ready").exists())
+        self.assertFalse((self.root / "played").exists())
+        self.assertIn("Setup complete", (self.root / "dialogs").read_text())
+        self.assert_clean()
 
     def test_cancel_prompt_starts_no_download(self):
         result = self.run_ui(scenario="cancel-prompt")

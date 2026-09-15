@@ -23,6 +23,11 @@ case "$*" in
     if [[ "$*" == *'Preparing Live'* && "$SCENARIO" == cancel ]]; then sleep .4; exit 1; fi
     while read -r line; do [[ "$line" != 100 ]] || exit 0; done ;;
   *--question*)
+    if [[ "$*" == *'--ok-label=Play now'* ]]; then
+      [[ -f "$FIXTURE/ready" ]] || exit 2
+      [[ "$SCENARIO" != close-completion ]] || exit 1
+      [[ "$SCENARIO" != failed-completion ]] || exit 2
+    fi
     if [[ "$*" == *--ok-label=Retry* ]]; then
       [[ "$SCENARIO" != failure ]] || exit 1
     fi ;;
@@ -93,13 +98,55 @@ source "$TEST_REPO/libexec/lfs-linux-ui"
     def actions(self):
         return (self.root / "actions").read_text().splitlines()
 
-    def test_first_launch_installs_and_plays(self):
+    def test_first_launch_installs_then_plays_on_confirmation(self):
         result = self.run_ui()
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(self.actions(), ["desktop-state", "install", "desktop-state", "launch"])
         self.assertTrue((self.root / "played").exists())
-        self.assertIn("Install and play", (self.root / "dialogs").read_text())
+        dialogs = (self.root / "dialogs").read_text()
+        self.assertIn("--ok-label=Install", dialogs)
+        self.assertNotIn("Install and play", dialogs)
+        self.assertIn("--ok-label=Play now", dialogs)
+        self.assertEqual(dialogs.count("--question"), 2)
         self.assertEqual(list((self.root / "lock").glob("desktop.*")), [self.root / "lock/desktop.lock"])
+
+    def test_setup_can_finish_without_starting_game(self):
+        result = self.run_ui(scenario="close-completion")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.actions(), ["desktop-state", "install"])
+        self.assertTrue((self.root / "ready").exists())
+        self.assertFalse((self.root / "played").exists())
+        dialogs = (self.root / "dialogs").read_text()
+        self.assertIn("Setup complete", dialogs)
+        self.assertIn("--cancel-label=Close", dialogs)
+
+    def test_close_after_setup_allows_later_menu_launch_without_setup(self):
+        result = self.run_ui(scenario="close-completion")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertFalse((self.root / "played").exists())
+        result = self.run_ui()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.actions(), ["desktop-state", "install", "desktop-state", "launch"])
+        self.assertTrue((self.root / "played").exists())
+        self.assertEqual((self.root / "dialogs").read_text().count("--question"), 2)
+
+    def test_failed_completion_dialog_never_launches_or_repeats_setup(self):
+        result = self.run_ui(scenario="failed-completion")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.actions(), ["desktop-state", "install"])
+        self.assertTrue((self.root / "ready").exists())
+        self.assertFalse((self.root / "played").exists())
+
+    def test_resume_and_repair_also_allow_close_without_playing(self):
+        for state, action in (("resume", "launch"), ("repair", "launch"), ("ready", "setup")):
+            with self.subTest(state=state, action=action):
+                for name in ("ready", "actions", "dialogs"):
+                    (self.root / name).unlink(missing_ok=True)
+                result = self.run_ui(scenario="close-completion", state=state, script=f"ui_main {action}")
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(self.actions(), ["desktop-state", "install"])
+                self.assertTrue((self.root / "ready").exists())
+                self.assertFalse((self.root / "played").exists())
 
     def test_first_prompt_uses_packaged_community_logo(self):
         result = self.run_ui()
