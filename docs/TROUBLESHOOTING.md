@@ -30,7 +30,7 @@ Bootstrap archives, nested archives, final seed files, Wine, and DXVK remain ver
 
 ## Compatibility components need repair
 
-Open the launcher and choose **Repair and play** when offered. The setup action can also check and repair components. This repairs Wine/DXVK without replacing the installed game or player files.
+Open the launcher and choose **Repair** when offered. The setup action can also check and repair components. This repairs Wine/DXVK without replacing the installed game or player files. When repair finishes, choose **Play now** or **Close**.
 
 Optional diagnostics and repair:
 

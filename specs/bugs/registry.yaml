@@ -7,3 +7,19 @@ bugs:
     summary: Stale wrapper fingerprint blocks normal relaunch after an LFS update.
     file: specs/bugs/BUG-001-update-relaunch.md
     status: pending_owner_acceptance
+  - bug_id: BUG-002
+    date: 2026-09-15
+    severity: high
+    priority: 1
+    scope: graphical-setup-completion
+    summary: Setup starts the game without a separate completion choice.
+    file: specs/bugs/BUG-002-setup-play-choice.md
+    status: pending_owner_acceptance
+  - bug_id: BUG-003
+    date: 2026-09-15
+    severity: high
+    priority: 1
+    scope: native-game-display
+    summary: Game itself is invisible while receiving desktop clicks.
+    file: specs/bugs/BUG-003-invisible-game.md
+    status: blocked_live_verification

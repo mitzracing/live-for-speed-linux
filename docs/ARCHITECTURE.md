@@ -17,7 +17,7 @@ application menu
   -> host Vulkan driver
 ```
 
-The shell controller handles installation, compatibility repair, and Help. Core events use a separate file descriptor. Detailed output stays in private logs. Each setup worker has its own process group; cancellation cannot signal an unrelated Wine session.
+The shell controller handles installation, compatibility repair, and Help. After successful graphical setup or repair, it asks whether to **Play now** or **Close**. Closing or a failed completion dialog leaves the installation intact and does not launch. Ready games still launch directly from the menu without update approval. Core events use a separate file descriptor. Detailed output stays in private logs. Each setup worker has its own process group; cancellation cannot signal an unrelated Wine session.
 
 The wrapper verifies the official NSIS archive and every pinned nested archive before extraction. It rejects unsafe paths, links, unsupported types, and duplicate archive members. It does not execute the installer stub. Nested archives run in audited sorted order in disposable staging; later archives intentionally replace earlier seed entries. The complete seed manifest validates the final bytes before first installation.
 

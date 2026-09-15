@@ -275,11 +275,11 @@ ui_main() {
     fi
     case "$state" in
       fresh|resume)
-        ui_question --text="Install and play on Linux.\n\nPublic test: LFS $LFS_VERSION\nDownload: up to $download_mib MiB\n\nWe download the official game and prepare it for you. Interrupted downloads resume. Your existing player data stays yours.\n\nLive for Speed's license applies: https://www.lfs.net/agreement" --ok-label='Install and play' --cancel-label='Cancel' || return 0
+        ui_question --text="Install Live for Speed on Linux.\n\nPublic test: LFS $LFS_VERSION\nDownload: up to $download_mib MiB\n\nWe download the official game and prepare it for you. Interrupted downloads resume. Your existing player data stays yours.\n\nLive for Speed's license applies: https://www.lfs.net/agreement" --ok-label='Install' --cancel-label='Cancel' || return 0
         UI_CURRENT_ACTION=install
         ;;
       repair)
-        ui_question --text='Prepare or repair the components needed to run LFS? Your existing game and all player files will be kept.' --ok-label='Repair and play' --cancel-label='Cancel' || return 0
+        ui_question --text='Prepare or repair the components needed to run LFS? Your existing game and all player files will be kept.' --ok-label='Repair' --cancel-label='Cancel' || return 0
         UI_CURRENT_ACTION=install
         ;;
       services)
@@ -304,6 +304,9 @@ ui_main() {
     esac
     if ui_run "$UI_CURRENT_ACTION" 'Preparing Live for Speed…'; then
       [[ "$UI_CURRENT_ACTION" != launch ]] || return 0
+      if [[ "$UI_CURRENT_ACTION" == install ]]; then
+        ui_question --text='Setup complete.\n\nLaunch Live for Speed now? You can also close this window and play later from the application menu.' --ok-label='Play now' --cancel-label='Close' || return 0
+      fi
       action=launch
     else
       result=$?

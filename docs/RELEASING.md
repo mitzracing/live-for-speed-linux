@@ -12,7 +12,7 @@ The complete acceptance procedure remains:
 4. Validate the desktop file and AppStream metadata.
 5. Build the AUR package from a real signed or immutable project tag.
 6. Install each candidate package in a disposable environment.
-7. Open the application-menu entry with no existing prefix or Wine configuration. Complete **Install and play**; test real download cancellation and resume.
+7. Open the application-menu entry with no existing prefix or Wine configuration. Choose **Install**; test real download cancellation and resume. At completion, verify **Close** leaves the game installed without launching it, then reopen from the menu. Separately verify **Play now** starts the game only after that choice.
 8. Run `lfs-linux doctor` as a maintainer check, not as a required player step.
 9. Exercise the exact installed desktop entry, native Wayland, and report Save. Test the downloaded-package route and each advertised store route separately.
 10. Confirm DXVK, actual GPU, audio, gameplay, updater restart, full exit, and application-menu relaunch without update approval or a terminal.

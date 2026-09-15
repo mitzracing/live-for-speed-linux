@@ -24,6 +24,12 @@ The owner-approved local wrapper installation matches candidate runtime files. I
 
 Local evidence remains outside public packages: `artifacts/lean-launch/`, `artifacts/wrapper-install-and-push/`, and `artifacts/release-0.4.0/`. Direct in-session review was authorized; no independent-review certification is claimed.
 
+## Unreleased source follow-up
+
+BUG-002 adds a completion choice after graphical setup or repair: **Play now** or **Close**. Ordinary ready-game launches still need no confirmation. The current desktop lifecycle fixture expects initial setup consent plus one post-setup play choice, not a recurring update gate. The 0.4.0 release receipts above describe the earlier published behavior.
+
+This source change is not installed or published. The owner's separate report of an unusable fullscreen window receiving desktop clicks remains unresolved in [BUG-003](../specs/bugs/BUG-003-invisible-game.md). Minimizing its window is containment, not a rendering fix. Controller fixtures cannot prove native focus, previews or input routing. Full Make checks and 10 owned-display GTK tests pass for the completion-choice patch, but no live graphics fix has been verified.
+
 ## Open manual acceptance
 
 - [ ] Install the exact package with a named graphical installer and resolve dependencies, including hosts without Wine and hosts with unrelated system Wine.

@@ -38,7 +38,7 @@ The public package is `live-for-speed-linux`. The stable command and player-stat
 
 ## One-click setup
 
-Install the wrapper package, then open **Live for Speed Linux** from the application menu. The graphical first launch shows the download size and public-test notice. Choose **Install and play**; progress names the active stage, interrupted downloads resume, and LFS opens when preparation finishes. Later clicks open the installed game.
+Install the wrapper package, then open **Live for Speed Linux** from the application menu. The graphical first launch shows the download size and public-test notice. Choose **Install**; progress names the active stage and interrupted downloads resume. When setup finishes, choose **Play now** or **Close**. Closing keeps the installation ready for a later application-menu launch. Later clicks open the installed game without another confirmation.
 
 Accept updates inside LFS, follow its restart prompt, then reopen normally after closing. No wrapper update approval or rebaseline is needed. Downloaded packages and supported software-store packages use this same launcher flow.
 
